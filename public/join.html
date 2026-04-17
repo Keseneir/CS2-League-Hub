@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подать заявку — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<script src="auth.js" defer></script>
+<body class="page-join">
+
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="nav-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-m">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-m">Discord</a>
+        </div>
+        <a href="join.html" class="btn-nav active">ПОДАТЬ ЗАЯВКУ</a>
+    </div>
+</header>
+
+<div class="page-hero">
+    <div class="hero-eyebrow">Регистрация открыта</div>
+    <h1>ПОДАТЬ <span>ЗАЯВКУ</span></h1>
+    <p>Заполни форму ниже — мы свяжемся с тобой в ближайшее время</p>
+</div>
+
+<div class="container">
+
+    <div class="progress-wrap" id="progressWrap">
+        <div class="progress-step active" id="ps1">
+            <div class="progress-step-circle">1</div>
+            <div class="progress-step-label">Игрок</div>
+        </div>
+        <div class="progress-line" id="pl1"></div>
+        <div class="progress-step" id="ps2">
+            <div class="progress-step-circle">2</div>
+            <div class="progress-step-label">Команда</div>
+        </div>
+        <div class="progress-line" id="pl2"></div>
+        <div class="progress-step" id="ps3">
+            <div class="progress-step-circle">3</div>
+            <div class="progress-step-label">Контакты</div>
+        </div>
+        <div class="progress-line" id="pl3"></div>
+        <div class="progress-step" id="ps4">
+            <div class="progress-step-circle">4</div>
+            <div class="progress-step-label">Согласие</div>
+        </div>
+    </div>
+
+    <form
+        id="joinForm"
+        class="join-form"
+        action="https://formspree.io/f/xnjlqzbk"
+        method="POST"
+        novalidate
+    >
+
+        <div class="form-section" data-section="1">
+            <div class="section-header">
+                <div class="section-num">1</div>
+                <div class="section-title">Информация об игроке</div>
+            </div>
+            <div class="section-body">
+
+                <div class="field">
+                    <label class="field-label" for="nickname">Никнейм <span class="req">*</span></label>
+                    <div class="field-hint">Ваш игровой никнейм (как в FACEIT или Steam)</div>
+                    <input
+                        type="text"
+                        id="nickname"
+                        name="nickname"
+                        placeholder="например, s1mple"
+                        required
+                        maxlength="64"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="field-label" for="hours">Часов в CS2 <span class="req">*</span></label>
+                        <div class="field-hint">Примерное количество часов</div>
+                        <input
+                            type="number"
+                            id="hours"
+                            name="hours"
+                            placeholder="например, 1500"
+                            min="0"
+                            max="99999"
+                            required
+                        >
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="faceit_level">Уровень FACEIT <span class="req">*</span></label>
+                        <div class="field-hint">От 1 до 10, или «Нет аккаунта»</div>
+                        <div class="select-wrap">
+                            <select id="faceit_level" name="faceit_level" required>
+                                <option value="" disabled selected>Выберите уровень</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="no_account">Нет аккаунта FACEIT</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="field-label" for="experience">Опыт участия</label>
+                    <div class="field-hint">Участвовали ли вы ранее в наших турнирах? Если да — расскажите кратко</div>
+                    <textarea
+                        id="experience"
+                        name="experience"
+                        placeholder="например: «Да, участвовал в Сезоне 1 за команду XYZ» или «Нет, это первый раз»"
+                    ></textarea>
+                </div>
+
+                <label class="check-option">
+                    <input type="checkbox" name="age_confirmed" id="age_confirmed" required>
+                    <div class="check-box">
+                        <svg viewBox="0 0 14 10" fill="none"><polyline points="1,5 5,9 13,1"/></svg>
+                    </div>
+                    <span class="check-text">
+                        Подтверждаю, что мне исполнилось <strong>16 лет</strong>, либо я имею письменное согласие родителей/законных представителей на участие в турнире. <span class="req" style="color:var(--accent)">*</span>
+                    </span>
+                </label>
+
+            </div>
+        </div>
+
+        <div class="form-section" data-section="2">
+            <div class="section-header">
+                <div class="section-num">2</div>
+                <div class="section-title">Формат участия</div>
+            </div>
+            <div class="section-body">
+
+                <div class="field">
+                    <div class="field-label">Как вы подаёте заявку? <span class="req">*</span></div>
+                    <div class="field-hint">Выберите один из вариантов</div>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="friends" id="friends_solo" value="Подаю заявку самостоятельно" required>
+                            <div class="radio-dot"></div>
+                            <span class="radio-label">Я подаю заявку самостоятельно</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="friends" id="friends_other" value="С друзьями">
+                            <div class="radio-dot"></div>
+                            <span class="radio-label">С друзьями — укажу никнеймы</span>
+                        </label>
+                    </div>
+                    <div id="friendsInput">
+                        <input
+                            type="text"
+                            name="friends_nicks"
+                            id="friends_nicks"
+                            placeholder="Никнеймы друзей через запятую, например: b1t, Perfecto, niko"
+                            maxlength="256"
+                        >
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="form-section" data-section="3">
+            <div class="section-header">
+                <div class="section-num">3</div>
+                <div class="section-title">Контакты</div>
+            </div>
+            <div class="section-body">
+
+                <div class="field">
+                    <label class="field-label" for="contacts">Telegram / Discord <span class="req">*</span></label>
+                    <div class="field-hint">Как с вами связаться? Укажите хотя бы один из контактов</div>
+                    <input
+                        type="text"
+                        id="contacts"
+                        name="contacts"
+                        placeholder="например: @username(TG) или username(DS)"
+                        required
+                        maxlength="128"
+                    >
+                </div>
+
+            </div>
+        </div>
+
+        <div class="form-section" data-section="4">
+            <div class="section-header">
+                <div class="section-num">4</div>
+                <div class="section-title">Финальное подтверждение</div>
+            </div>
+            <div class="section-body">
+
+                <label class="check-option">
+                    <input type="checkbox" name="final_agreement" id="final_agreement" required>
+                    <div class="check-box">
+                        <svg viewBox="0 0 14 10" fill="none"><polyline points="1,5 5,9 13,1"/></svg>
+                    </div>
+                    <span class="check-text">
+                        Согласен(на) с
+                        <a href="https://discord.gg/9BmpF6NfYu" target="_blank">Правилами турнира</a>,
+                        <a href="privacy.html">Политикой конфиденциальности</a>
+                        и
+                        <a href="terms.html">Пользовательским соглашением</a>
+                        CS2 League Hub. Подтверждаю, что указанные данные верны. <span style="color:var(--accent)">*</span>
+                    </span>
+                </label>
+
+            </div>
+        </div>
+
+        <div class="form-footer">
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+                Отправить заявку
+            </button>
+            <p class="form-note">
+                Отправляя форму, вы соглашаетесь с обработкой персональных данных.<br>
+                Вопросы? — <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка в Discord</a>
+            </p>
+        </div>
+
+    </form>
+
+    <div id="successMsg">
+        <div class="success-icon">
+            <svg viewBox="0 0 24 24" fill="none"><polyline points="20,6 9,17 4,12"/></svg>
+        </div>
+        <h2>Заявка отправлена!</h2>
+        <p>Спасибо! Мы рассмотрим заявку и свяжемся с тобой через указанный контакт в ближайшее время.</p>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<script src="script.js" defer></script>
+</body>
+</html>

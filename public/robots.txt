@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cs2-league-hub.vercel.app/sitemap.xml

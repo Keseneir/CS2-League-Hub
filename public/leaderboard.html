@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Таблица лидеров — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<script src="auth.js" defer></script>
+<body class="page-leaderboard">
+
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html" style="color: var(--accent);">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-mobile-link">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-mobile-link">Discord</a>
+        </div>
+        <a href="https://cs2-league-hub.vercel.app/join.html" target="_blank" class="btn-apply">ПОДАТЬ ЗАЯВКУ</a>
+    </div>
+</header>
+
+<div class="page-hero">
+    <h1>ТАБЛИЦА <span>ЛИДЕРОВ</span></h1>
+    <p>Топ команд текущего сезона CS2 League Hub</p>
+</div>
+
+<div class="container">
+    <div class="season-bar">
+        <div class="season-label">🏆 Сезон 2 · 2026</div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+            <div class="last-updated">Обновлено: <span id="updateTime">—</span></div>
+            <div id="refreshCountdown" style="font-size:12px; color:#5c6b7f;"></div>
+        </div>
+    </div>
+
+    <div class="controls-bar">
+        <div class="search-wrap">
+            <input
+                type="text"
+                id="teamSearch"
+                placeholder="Поиск по названию команды..."
+                autocomplete="off"
+                spellcheck="false"
+            >
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="7"/>
+                <line x1="16.5" y1="16.5" x2="22" y2="22"/>
+            </svg>
+        </div>
+        <select id="seasonSelect" title="Выбор сезона">
+            <option value="1376391839">🏆 Сезон 2 · 2026</option>
+            <option value="0">📁 Сезон 1 · 2026</option>
+        </select>
+    </div>
+
+    <div class="table-wrapper">
+        <div id="tableContainer">
+            <div class="state-box">
+                <div class="spinner"></div>
+                <p>Загрузка данных...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<div id="rosterModal">
+    <div class="roster-modal-box">
+        <div class="roster-modal-header">
+            <div class="roster-modal-team-avatar" id="rosterModalAvatar"></div>
+            <div class="roster-modal-team-info">
+                <div class="roster-modal-team-name" id="rosterModalTeamName">—</div>
+                <div class="roster-modal-sub">Основной состав</div>
+            </div>
+            <button id="rosterModalClose">✕</button>
+        </div>
+        <div class="roster-modal-body">
+            <div class="roster-players-list" id="rosterPlayersList"></div>
+        </div>
+    </div>
+</div>
+
+<button id="ratingBtn" title="Система рейтинга">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span>Система рейтинга</span>
+</button>
+
+<div id="ratingModal">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title">🏆 Система рейтинга CS2 League Hub</div>
+            <button id="modalClose">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="rating-block">
+                <div class="rating-section-title">🚀 Старт</div>
+                <ul>
+                    <li>Каждая команда начинает с <span class="val">100 очков</span></li>
+                    <li>Все команды находятся в равных условиях</li>
+                </ul>
+            </div>
+            <div class="rating-block">
+                <div class="rating-section-title">⚔️ Очки за матч</div>
+                <p>После каждого матча рейтинг изменяется:</p>
+                <div class="points-row">
+                    <div class="points-card win">
+                        <div class="points-label">Победа</div>
+                        <div class="points-val">+25</div>
+                    </div>
+                    <div class="points-card loss">
+                        <div class="points-label">Поражение</div>
+                        <div class="points-val">−15</div>
+                    </div>
+                </div>
+            </div>
+            <div class="rating-block">
+                <div class="rating-section-title">🔥 Серия побед</div>
+                <p>Серия начинается с <span class="val">3 выигранных матчей подряд</span>:</p>
+                <ul>
+                    <li>3 победы подряд → статус <span class="crown">👑 Царь горы</span></li>
+                    <li>Начиная с 3-й победы → <span class="val">+5 очков</span> за каждую победу в серии</li>
+                    <li>После поражения серия сбрасывается</li>
+                </ul>
+            </div>
+            <div class="rating-block">
+                <div class="rating-section-title">👑 Царь горы</div>
+                <p>Команда получает статус после 3 побед подряд:</p>
+                <ul>
+                    <li>Сохраняет статус до первого поражения</li>
+                    <li>Победившая Царя горы команда получает <span class="val">+10 доп. очков</span></li>
+                    <li>После поражения статус снимается</li>
+                </ul>
+            </div>
+            <div class="rating-block">
+                <div class="rating-section-title">⚖️ Сила соперника</div>
+                <p>При расчёте учитывается рейтинг соперника до матча:</p>
+                <div class="opponent-grid">
+                    <div class="opp-card">
+                        <div class="opp-label">Соперник сильнее</div>
+                        <div class="opp-row"><span class="win-tag">Победа</span><span class="val">+30</span></div>
+                        <div class="opp-row"><span class="loss-tag">Поражение</span><span class="neg">−10</span></div>
+                    </div>
+                    <div class="opp-card">
+                        <div class="opp-label">Соперник слабее</div>
+                        <div class="opp-row"><span class="win-tag">Победа</span><span class="val">+25</span></div>
+                        <div class="opp-row"><span class="loss-tag">Поражение</span><span class="neg">−20</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="rating-block">
+                <div class="rating-section-title">🛡️ Ограничение рейтинга</div>
+                <ul>
+                    <li>Рейтинг команды <span class="val">не может быть ниже 0</span> очков</li>
+                </ul>
+            </div>
+            <div class="rating-block last">
+                <div class="rating-section-title">📊 Общая логика</div>
+                <ul>
+                    <li>Победы увеличивают рейтинг</li>
+                    <li>Серии побед дают дополнительные очки</li>
+                    <li>Статус Царя горы даёт дополнительную мотивацию</li>
+                    <li>Результат зависит не только от победы, но и от уровня соперника</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

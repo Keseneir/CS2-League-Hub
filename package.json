@@ -11,7 +11,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
     "express-session": "^1.19.0",
-    "mongodb": "^7.1.1",
+    "mongodb": "^6.10.0",
     "mongoose": "^8.23.0",
     "passport": "^0.7.0",
     "passport-steam": "^1.0.18"

@@ -695,3 +695,516 @@ if (document.getElementById("joinForm")) {
         });
     }
 })();
+
+/* ================================================
+   PROFILE PAGE
+   ================================================ */
+if (document.getElementById("profileContent")) {
+
+    let _profileData = null;
+    let _inviteTargetId = null;
+
+    // ─── УТИЛИТЫ ──────────────────────────────────────────────────────────────
+
+    function avatarEl(src, name, cls) {
+        if (src) return `<img src="${src}" alt="${name}" class="${cls}" onerror="this.style.display='none'">`;
+        const initials = (name || "?").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
+        const ph = cls.includes("member") ? "member-avatar-placeholder" : "friend-avatar-placeholder";
+        return `<div class="${ph}">${initials}</div>`;
+    }
+
+    function showToast(msg, type) {
+        let t = document.getElementById("_toast");
+        if (!t) { t = document.createElement("div"); t.id = "_toast"; t.style.cssText = "position:fixed;bottom:28px;right:28px;z-index:9999;padding:12px 20px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;pointer-events:none;opacity:0;transition:opacity 0.3s;"; document.body.appendChild(t); }
+        t.textContent = msg;
+        t.style.background = type === "ok" ? "rgba(76,175,130,0.95)" : "rgba(224,92,92,0.95)";
+        t.style.color = "#fff";
+        t.style.opacity = "1";
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => { t.style.opacity = "0"; }, 3000);
+    }
+
+    function showModalError(elId, msg) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = "block";
+    }
+    function hideModalError(elId) {
+        const el = document.getElementById(elId);
+        if (el) el.style.display = "none";
+    }
+
+    window.closeModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("p-modal-hidden");
+        document.body.style.overflow = "";
+    };
+
+    function openModal(id) {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
+    }
+
+    // ─── ЗАГРУЗКА ПРОФИЛЯ ─────────────────────────────────────────────────────
+
+    async function loadProfile() {
+        try {
+            const res = await fetch("/api/profile");
+            if (res.status === 401) {
+                document.getElementById("profileLoading").style.display = "none";
+                document.getElementById("authGateProfile").style.display = "block";
+                return;
+            }
+            _profileData = await res.json();
+            renderProfile(_profileData);
+        } catch {
+            document.getElementById("profileLoading").innerHTML =
+                '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
+        }
+    }
+
+    function renderProfile(d) {
+        document.getElementById("profileLoading").style.display  = "none";
+        document.getElementById("profileContent").style.display  = "block";
+
+        document.getElementById("profileAvatar").src              = d.avatar || "";
+        document.getElementById("profileDisplayName").textContent = d.displayName || "—";
+        document.getElementById("profilePointsBadge").textContent = (d.points || 0) + " очков";
+        document.getElementById("profileRankBadge").textContent   = d.rank || "Unranked";
+
+        if (d.team) {
+            const tag = document.getElementById("profileTeamTagBadge");
+            tag.textContent   = `[${d.team.tag}] ${d.team.name}`;
+            tag.style.display = "inline-flex";
+        }
+
+        renderTeamTab(d);
+        renderFriendsTab(d);
+        renderNotifsTab(d);
+
+        updateBadges(d);
+    }
+
+    // ─── ТАБ: КОМАНДА ─────────────────────────────────────────────────────────
+
+    function renderTeamTab(d) {
+        const noTeam  = document.getElementById("noTeamState");
+        const content = document.getElementById("teamContent");
+        if (!d.team) {
+            noTeam.style.display  = "block";
+            content.style.display = "none";
+            return;
+        }
+        noTeam.style.display  = "none";
+        content.style.display = "block";
+
+        const team = d.team;
+        const logoEl = document.getElementById("teamLogoEl");
+        if (team.logo) {
+            logoEl.innerHTML = `<img src="${team.logo}" alt="${team.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
+        } else {
+            logoEl.textContent = team.tag || "?";
+        }
+        document.getElementById("teamNameEl").textContent = team.name;
+        document.getElementById("teamTagEl").textContent  = "[" + team.tag + "]";
+
+        const mainList   = document.getElementById("mainRosterList");
+        const subList    = document.getElementById("subRosterList");
+        const mainCount  = document.getElementById("mainCountLabel");
+        const subCount   = document.getElementById("subCountLabel");
+        const captainId  = team.captainId?._id?.toString() || team.captainId?.toString();
+
+        const members = team.members || [];
+        const subs    = team.subs    || [];
+        mainCount.textContent = members.length + "/5";
+        subCount.textContent  = subs.length    + "/5";
+
+        mainList.innerHTML = members.length === 0
+            ? `<div class="roster-empty-hint">Состав пуст</div>`
+            : members.map(m => renderMemberRow(m, captainId, d)).join("");
+
+        subList.innerHTML = subs.length === 0
+            ? `<div class="roster-empty-hint">Нет замен</div>`
+            : subs.map(m => renderMemberRow(m, captainId, d)).join("");
+
+        const captainActionsEl = document.getElementById("captainActions");
+        const memberActionsEl  = document.getElementById("memberActions");
+        if (d.isCaptain) {
+            captainActionsEl.style.display = "flex";
+            memberActionsEl.style.display  = "none";
+        } else {
+            captainActionsEl.style.display = "none";
+            memberActionsEl.style.display  = "flex";
+        }
+    }
+
+    function renderMemberRow(m, captainId, d) {
+        const isCap   = m._id?.toString() === captainId;
+        const isMe    = m._id?.toString() === d._id?.toString();
+        const myCap   = d.isCaptain;
+        const mId     = m._id?.toString();
+
+        let actions = "";
+        if (myCap && !isMe) {
+            actions += `<button class="btn-member-action btn-member-kick" onclick="kickMember('${mId}','${m.displayName}')">Кик</button>`;
+            actions += `<button class="btn-member-action" onclick="transferCaptain('${mId}','${m.displayName}')">👑 Капитан</button>`;
+        }
+
+        return `<div class="member-row">
+            ${avatarEl(m.avatar, m.displayName, "member-avatar")}
+            <span class="member-name">${m.displayName || "Игрок"}${isCap ? '<span class="captain-crown" title="Капитан">👑</span>' : ""}</span>
+            ${actions ? `<div class="member-actions">${actions}</div>` : ""}
+        </div>`;
+    }
+
+    // ─── ТАБ: ДРУЗЬЯ ──────────────────────────────────────────────────────────
+
+    function renderFriendsTab(d) {
+        const friends  = d.friends        || [];
+        const requests = d.friendRequests || [];
+        const el       = document.getElementById("friendsList");
+        let html = "";
+
+        if (requests.length > 0) {
+            html += `<div class="section-label-sm">Заявки в друзья</div>`;
+            html += `<div class="search-results-box">${requests.map(r => renderFriendRequestRow(r)).join("")}</div>`;
+        }
+
+        if (friends.length > 0) {
+            html += `<div class="section-label-sm">Друзья (${friends.length})</div>`;
+            html += `<div class="search-results-box">${friends.map(f => renderFriendRow(f, d)).join("")}</div>`;
+        } else if (requests.length === 0) {
+            html = `<div class="notif-empty">👥 У вас пока нет друзей. Найдите игрока выше!</div>`;
+        }
+
+        el.innerHTML = html;
+    }
+
+    function renderFriendRequestRow(r) {
+        const from = r.from;
+        if (!from) return "";
+        return `<div class="friend-row">
+            ${avatarEl(from.avatar, from.displayName, "friend-avatar")}
+            <div class="friend-info">
+                <div class="friend-name">${from.displayName}</div>
+                <div class="friend-sub">Хочет добавить вас в друзья</div>
+            </div>
+            <div class="friend-actions">
+                <button class="btn-fr btn-fr-accept" onclick="acceptFriend('${from._id}')">✓ Принять</button>
+                <button class="btn-fr btn-fr-reject" onclick="rejectFriend('${from._id}')">✕</button>
+            </div>
+        </div>`;
+    }
+
+    function renderFriendRow(f, d) {
+        const fId = f._id?.toString();
+        const canInvite = d.isCaptain && !f.teamId;
+        return `<div class="friend-row">
+            ${avatarEl(f.avatar, f.displayName, "friend-avatar")}
+            <div class="friend-info">
+                <div class="friend-name">${f.displayName}</div>
+                <div class="friend-sub">${f.teamId ? "Уже в команде" : "Свободен"}</div>
+            </div>
+            <div class="friend-actions">
+                ${canInvite ? `<button class="btn-fr btn-fr-invite" onclick="openInviteModal('${fId}','${f.displayName.replace(/'/g,"\\'")}')">⚔️ Пригласить</button>` : ""}
+                <button class="btn-fr btn-fr-remove" onclick="removeFriend('${fId}','${f.displayName.replace(/'/g,"\\'")}')">Удалить</button>
+            </div>
+        </div>`;
+    }
+
+    // ─── ТАБ: УВЕДОМЛЕНИЯ ─────────────────────────────────────────────────────
+
+    function renderNotifsTab(d) {
+        const el       = document.getElementById("notifsList");
+        const requests = d.friendRequests || [];
+        const invites  = d.teamInvites    || [];
+        let html = "";
+
+        if (requests.length > 0) {
+            html += `<div class="notif-block">
+                <div class="notif-block-title">📩 Заявки в друзья</div>
+                ${requests.map(r => renderFriendRequestRow(r)).join("")}
+            </div>`;
+        }
+
+        if (invites.length > 0) {
+            html += `<div class="notif-block">
+                <div class="notif-block-title">⚔️ Приглашения в команду</div>
+                ${invites.map(inv => renderTeamInviteRow(inv)).join("")}
+            </div>`;
+        }
+
+        if (!html) {
+            html = `<div class="notif-empty">🔔 Уведомлений нет</div>`;
+        }
+        el.innerHTML = html;
+    }
+
+    function renderTeamInviteRow(inv) {
+        const team = inv.teamId;
+        const from = inv.from;
+        const role = inv.role === "sub" ? "Замена" : "Основной состав";
+        if (!team) return "";
+        return `<div class="friend-row">
+            <div class="friend-avatar-placeholder" style="border-radius:8px;background:var(--accent-dim);color:var(--accent);">${(team.tag || "?").slice(0,2)}</div>
+            <div class="friend-info">
+                <div class="friend-name">[${team.tag}] ${team.name}</div>
+                <div class="friend-sub">Роль: ${role} · от ${from?.displayName || "?"}</div>
+            </div>
+            <div class="friend-actions">
+                <button class="btn-fr btn-fr-accept" onclick="acceptTeamInvite('${team._id}')">✓ Принять</button>
+                <button class="btn-fr btn-fr-reject" onclick="rejectTeamInvite('${team._id}')">✕ Отказ</button>
+            </div>
+        </div>`;
+    }
+
+    // ─── ЗНАЧКИ ───────────────────────────────────────────────────────────────
+
+    function updateBadges(d) {
+        const frCount = (d.friendRequests || []).length;
+        const tiCount = (d.teamInvites    || []).length;
+        const total   = frCount + tiCount;
+
+        const frBadge = document.getElementById("friendReqBadge");
+        if (frBadge) { frBadge.textContent = frCount; frBadge.style.display = frCount > 0 ? "inline-flex" : "none"; }
+
+        const nBadge  = document.getElementById("notifsBadge");
+        if (nBadge)  { nBadge.textContent  = total;   nBadge.style.display  = total  > 0 ? "inline-flex" : "none"; }
+    }
+
+    // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────
+
+    window.searchFriendsHandler = async function() {
+        const q = (document.getElementById("friendSearchInput").value || "").trim();
+        if (q.length < 2) { showToast("Введите минимум 2 символа", "err"); return; }
+        const box = document.getElementById("searchResultsBox");
+        box.style.display = "block";
+        box.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-gray);font-size:14px;">Поиск...</div>`;
+        try {
+            const res     = await fetch("/api/users/search?q=" + encodeURIComponent(q));
+            const results = await res.json();
+            if (!results.length) { box.innerHTML = `<div style="padding:20px;text-align:center;color:#5c6b7f;font-size:14px;">Игрок не найден</div>`; return; }
+            box.innerHTML = results.map(u => renderSearchResult(u)).join("");
+        } catch { box.innerHTML = `<div style="padding:20px;text-align:center;color:#e05c5c;">Ошибка поиска</div>`; }
+    };
+
+    function renderSearchResult(u) {
+        let btn = "";
+        if (u.isFriend)         btn = `<span class="btn-fr btn-fr-pending">✓ Друг</span>`;
+        else if (u.iRequestedThem) btn = `<span class="btn-fr btn-fr-pending">Отправлено</span>`;
+        else if (u.requestedMe) btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">✓ Принять</button>`;
+        else                    btn = `<button class="btn-fr btn-fr-add" onclick="addFriend('${u._id}', this)">+ Добавить</button>`;
+
+        return `<div class="friend-row">
+            ${avatarEl(u.avatar, u.displayName, "friend-avatar")}
+            <div class="friend-info">
+                <div class="friend-name">${u.displayName}</div>
+                <div class="friend-sub">Steam ID: ${u.steamId}</div>
+            </div>
+            <div class="friend-actions">${btn}</div>
+        </div>`;
+    }
+
+    // ─── ДЕЙСТВИЯ: ДРУЗЬЯ ─────────────────────────────────────────────────────
+
+    window.addFriend = async function(userId, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = "..."; }
+        try {
+            const res = await fetch(`/api/friends/request/${userId}`, { method: "POST" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); if (btn) { btn.disabled = false; btn.textContent = "+ Добавить"; } return; }
+            if (d.autoAccepted) { showToast("Теперь вы друзья!", "ok"); await refreshProfile(); }
+            else { showToast("Заявка отправлена!", "ok"); if (btn) { btn.disabled = true; btn.textContent = "Отправлено"; btn.className = "btn-fr btn-fr-pending"; } }
+        } catch { showToast("Ошибка соединения", "err"); if (btn) { btn.disabled = false; btn.textContent = "+ Добавить"; } }
+    };
+
+    window.acceptFriend = async function(userId) {
+        try {
+            const res = await fetch(`/api/friends/accept/${userId}`, { method: "PATCH" });
+            if (!res.ok) { const d = await res.json(); showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Друг добавлен!", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    window.rejectFriend = async function(userId) {
+        try {
+            await fetch(`/api/friends/reject/${userId}`, { method: "PATCH" });
+            showToast("Заявка отклонена", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    window.removeFriend = async function(userId, name) {
+        if (!confirm(`Удалить ${name} из друзей?`)) return;
+        try {
+            const res = await fetch(`/api/friends/${userId}`, { method: "DELETE" });
+            if (!res.ok) { const d = await res.json(); showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Удалено из друзей", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    // ─── ДЕЙСТВИЯ: ПРИГЛАШЕНИЯ В КОМАНДУ ─────────────────────────────────────
+
+    window.openInviteModal = function(userId, name) {
+        _inviteTargetId = userId;
+        document.getElementById("inviteTargetName").textContent = name;
+        hideModalError("inviteError");
+        openModal("inviteModal");
+    };
+    window.closeInviteModal = function() { closeModal("inviteModal"); _inviteTargetId = null; };
+
+    window.sendTeamInvite = async function(role) {
+        if (!_inviteTargetId) return;
+        hideModalError("inviteError");
+        try {
+            const res = await fetch(`/api/team/invite/${_inviteTargetId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role })
+            });
+            const d = await res.json();
+            if (!res.ok) { showModalError("inviteError", d.error || "Ошибка"); return; }
+            closeModal("inviteModal");
+            showToast("Приглашение отправлено!", "ok");
+        } catch { showModalError("inviteError", "Ошибка соединения"); }
+    };
+
+    window.acceptTeamInvite = async function(teamId) {
+        try {
+            const res = await fetch(`/api/team/invite/accept/${teamId}`, { method: "PATCH" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Вы вступили в команду!", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    window.rejectTeamInvite = async function(teamId) {
+        try {
+            await fetch(`/api/team/invite/reject/${teamId}`, { method: "PATCH" });
+            showToast("Приглашение отклонено", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    // ─── ДЕЙСТВИЯ: УПРАВЛЕНИЕ КОМАНДОЙ ───────────────────────────────────────
+
+    window.kickMember = async function(userId, name) {
+        if (!confirm(`Исключить ${name} из команды?`)) return;
+        try {
+            const res = await fetch(`/api/team/member/${userId}`, { method: "DELETE" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            showToast(name + " исключён", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    window.transferCaptain = async function(userId, name) {
+        if (!confirm(`Передать капитанство игроку ${name}?`)) return;
+        try {
+            const res = await fetch(`/api/team/captain/${userId}`, { method: "PATCH" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Капитанство передано", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    // Настройки команды
+    window.openTeamSettingsModal = function() {
+        if (!_profileData || !_profileData.team) return;
+        document.getElementById("tsName").value  = _profileData.team.name || "";
+        document.getElementById("tsTag").value   = _profileData.team.tag  || "";
+        document.getElementById("tsLogo").value  = _profileData.team.logo || "";
+        hideModalError("tsError");
+        openModal("teamSettingsModal");
+    };
+    window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
+
+    window.saveTeamSettings = async function() {
+        const name = document.getElementById("tsName").value.trim();
+        const tag  = document.getElementById("tsTag").value.trim();
+        const logo = document.getElementById("tsLogo").value.trim();
+        hideModalError("tsError");
+        if (!name || !tag) { showModalError("tsError", "Название и тег обязательны"); return; }
+        const btn = document.getElementById("tsSaveBtn");
+        if (btn) { btn.disabled = true; btn.textContent = "Сохранение..."; }
+        try {
+            const res = await fetch("/api/team", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, tag, logo }) });
+            const d   = await res.json();
+            if (!res.ok) { showModalError("tsError", d.error || "Ошибка"); if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; } return; }
+            closeModal("teamSettingsModal");
+            showToast("Настройки сохранены!", "ok");
+            await refreshProfile();
+        } catch { showModalError("tsError", "Ошибка соединения"); if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; } }
+    };
+
+    window.confirmDeleteTeam = function() { openModal("confirmDeleteModal"); };
+
+    window.doDeleteTeam = async function() {
+        const btn = document.getElementById("confirmDeleteBtn");
+        if (btn) { btn.disabled = true; btn.textContent = "Удаление..."; }
+        try {
+            const res = await fetch("/api/team", { method: "DELETE" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); if (btn) { btn.disabled = false; btn.textContent = "💀 Распустить"; } return; }
+            closeModal("confirmDeleteModal");
+            showToast("Команда распущена", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    window.confirmLeaveTeam = function() { openModal("confirmLeaveModal"); };
+
+    window.doLeaveTeam = async function() {
+        try {
+            const res = await fetch("/api/team/leave", { method: "POST" });
+            const d   = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            closeModal("confirmLeaveModal");
+            showToast("Вы покинули команду", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    // ─── ОБНОВЛЕНИЕ БЕЗ ПЕРЕЗАГРУЗКИ ─────────────────────────────────────────
+
+    async function refreshProfile() {
+        try {
+            const res = await fetch("/api/profile");
+            _profileData = await res.json();
+            renderProfile(_profileData);
+        } catch {}
+    }
+
+    // ─── ТАБЫ ─────────────────────────────────────────────────────────────────
+
+    document.querySelectorAll(".profile-tab-btn").forEach(btn => {
+        btn.addEventListener("click", function() {
+            document.querySelectorAll(".profile-tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".profile-tab-content").forEach(c => c.classList.remove("active"));
+            this.classList.add("active");
+            const tab = document.getElementById("tab-" + this.dataset.tab);
+            if (tab) tab.classList.add("active");
+        });
+    });
+
+    // Закрытие модалок по клику вне / Escape
+    document.querySelectorAll(".p-modal-overlay").forEach(overlay => {
+        overlay.addEventListener("click", function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
+    });
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+            document.querySelectorAll(".p-modal-overlay:not(.p-modal-hidden)").forEach(m => closeModal(m.id));
+        }
+    });
+
+    // ─── ЗАПУСК ───────────────────────────────────────────────────────────────
+    loadProfile();
+}

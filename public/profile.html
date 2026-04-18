@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="page-profile">
+
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank">Discord</a>
+        </div>
+
+        <a href="/auth/steam?redirect=/profile.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+                <span id="headerPoints" class="header-points"></span>
+            </div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="profile.html" class="header-profile-link" style="background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);" id="headerProfileLinkActive">Профиль</a>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+    </div>
+</header>
+
+<!-- Не авторизован -->
+<div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
+    <div style="font-size:56px; margin-bottom:20px;">🔒</div>
+    <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
+    <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam, чтобы открыть личный кабинет</p>
+    <a href="/auth/steam?redirect=/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+        Войти через Steam
+    </a>
+</div>
+
+<!-- Загрузка -->
+<div id="profileLoading" style="text-align:center;padding:100px 20px;">
+    <div class="spinner"></div>
+    <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
+</div>
+
+<!-- Основной контент -->
+<div id="profileContent" style="display:none;">
+    <div class="container">
+
+        <!-- Карточка профиля -->
+        <div class="profile-header-card">
+            <img id="profileAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+            <div style="flex:1;min-width:0;">
+                <div class="profile-display-name" id="profileDisplayName">—</div>
+                <div class="profile-stats-row">
+                    <span class="profile-stat-badge" id="profilePointsBadge">0 очков</span>
+                    <span class="profile-stat-badge" id="profileRankBadge">Unranked</span>
+                    <span class="profile-team-tag" id="profileTeamTagBadge" style="display:none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Табы -->
+        <div class="profile-tabs">
+            <button class="profile-tab-btn active" data-tab="team">⚔️ Команда</button>
+            <button class="profile-tab-btn" data-tab="friends">
+                👥 Друзья
+                <span class="tab-badge" id="friendReqBadge" style="display:none;"></span>
+            </button>
+            <button class="profile-tab-btn" data-tab="notifs">
+                🔔 Уведомления
+                <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
+            </button>
+        </div>
+
+        <!-- ═══ ТАБ: КОМАНДА ═══════════════════════════════════════════════ -->
+        <div class="profile-tab-content active" id="tab-team">
+
+            <div id="noTeamState" class="no-team-state" style="display:none;">
+                <div class="no-team-icon">🎯</div>
+                <p>Вы пока не состоите в команде</p>
+                <a href="join.html" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;">Подать заявку</a>
+            </div>
+
+            <div id="teamContent" style="display:none;">
+
+                <!-- Шапка команды -->
+                <div class="team-card-header">
+                    <div class="team-logo-circle" id="teamLogoEl"></div>
+                    <div>
+                        <div class="team-card-name" id="teamNameEl">—</div>
+                        <div class="team-card-tag"  id="teamTagEl">—</div>
+                    </div>
+                </div>
+
+                <!-- Основной состав -->
+                <div class="roster-block">
+                    <div class="roster-block-title">
+                        <span>⚔️ Основной состав</span>
+                        <span class="roster-count" id="mainCountLabel">0/5</span>
+                    </div>
+                    <div id="mainRosterList"></div>
+                </div>
+
+                <!-- Замены -->
+                <div class="roster-block">
+                    <div class="roster-block-title">
+                        <span>🔄 Замены</span>
+                        <span class="roster-count" id="subCountLabel">0/5</span>
+                    </div>
+                    <div id="subRosterList"></div>
+                </div>
+
+                <!-- Кнопки капитана -->
+                <div id="captainActions" class="team-action-bar" style="display:none;">
+                    <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
+                    <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
+                </div>
+
+                <!-- Кнопки участника -->
+                <div id="memberActions" class="team-action-bar" style="display:none;">
+                    <button class="btn-team-danger" onclick="confirmLeaveTeam()">🚪 Покинуть команду</button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══ ТАБ: ДРУЗЬЯ ════════════════════════════════════════════════ -->
+        <div class="profile-tab-content" id="tab-friends">
+
+            <div class="friend-search-bar">
+                <input type="text" id="friendSearchInput" placeholder="Поиск игрока по нику..." autocomplete="off"
+                    onkeydown="if(event.key==='Enter') searchFriendsHandler()">
+                <button onclick="searchFriendsHandler()">Найти</button>
+            </div>
+
+            <div id="searchResultsBox" style="display:none;" class="search-results-box"></div>
+
+            <div id="friendsList"></div>
+        </div>
+
+        <!-- ═══ ТАБ: УВЕДОМЛЕНИЯ ═══════════════════════════════════════════ -->
+        <div class="profile-tab-content" id="tab-notifs">
+            <div id="notifsList"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ═══════════════ МОДАЛЬНЫЕ ОКНА ══════════════════════════════════════════ -->
+
+<!-- Настройки команды -->
+<div id="teamSettingsModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">⚙️ Настройки команды</span>
+            <button class="p-modal-close" onclick="closeTeamSettingsModal()">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <div id="tsError" class="p-modal-error"></div>
+            <div>
+                <label class="p-field-label" for="tsName">Название</label>
+                <input type="text" id="tsName" class="p-field-input" placeholder="Название команды" maxlength="64">
+            </div>
+            <div>
+                <label class="p-field-label" for="tsTag">Тег (макс. 8 символов)</label>
+                <input type="text" id="tsTag" class="p-field-input" placeholder="TAG" maxlength="8" style="text-transform:uppercase;">
+            </div>
+            <div>
+                <label class="p-field-label" for="tsLogo">Логотип (ссылка на изображение)</label>
+                <input type="url" id="tsLogo" class="p-field-input" placeholder="https://...">
+            </div>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeTeamSettingsModal()">Отмена</button>
+            <button class="p-btn-save" id="tsSaveBtn" onclick="saveTeamSettings()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Пригласить в команду -->
+<div id="inviteModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">Пригласить в команду</span>
+            <button class="p-modal-close" onclick="closeInviteModal()">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <div id="inviteError" class="p-modal-error"></div>
+            <p style="color:var(--text-gray);font-size:14px;margin-bottom:8px;">
+                Выберите роль для <strong id="inviteTargetName" style="color:white;"></strong>:
+            </p>
+            <div style="display:flex;gap:12px;margin-top:4px;">
+                <button class="btn-team-settings" style="flex:1;" onclick="sendTeamInvite('main')">⚔️ Основной состав</button>
+                <button class="p-btn-cancel"      style="flex:1;padding:10px;" onclick="sendTeamInvite('sub')">🔄 Замена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Подтверждение: распустить -->
+<div id="confirmDeleteModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title" style="color:#e05c5c;">⚠️ Распустить команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmDeleteModal')">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">
+                Команда будет <strong style="color:#e05c5c;">расформирована навсегда</strong>.<br>
+                Все участники автоматически покинут её.
+            </p>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeModal('confirmDeleteModal')">Отмена</button>
+            <button class="btn-team-danger" id="confirmDeleteBtn" onclick="doDeleteTeam()">💀 Распустить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Подтверждение: покинуть -->
+<div id="confirmLeaveModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title" style="color:#e05c5c;">🚪 Покинуть команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmLeaveModal')">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">
+                Вы уверены, что хотите покинуть команду?
+            </p>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeModal('confirmLeaveModal')">Отмена</button>
+            <button class="btn-team-danger" onclick="doLeaveTeam()">Покинуть</button>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<script src="script.js" defer></script>
+</body>
+</html>

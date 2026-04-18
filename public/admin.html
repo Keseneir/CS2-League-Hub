@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #0b0f12;
+            --card:     #12171d;
+            --card2:    #0e1318;
+            --border:   #1f252c;
+            --accent:   #e6b022;
+            --accent-d: rgba(230,176,34,0.12);
+            --green:    #4caf82;
+            --red:      #e05c5c;
+            --gray:     #aebbc7;
+            --gray2:    #5c6b7f;
+            --text:     white;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--gray); min-height: 100vh; }
+
+        /* ── TOP BAR ─────────────────────────────────── */
+        .topbar {
+            background: var(--card2);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            gap: 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-logo { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 16px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+        .topbar-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; letter-spacing: 0.5px; }
+        .topbar-nav { display: flex; gap: 4px; margin-left: auto; }
+        .tab-btn {
+            background: none; border: 1px solid transparent; color: var(--gray2);
+            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 1px;
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: var(--text); border-color: var(--border); }
+        .tab-btn.active { background: var(--accent-d); color: var(--accent); border-color: rgba(230,176,34,0.3); }
+        .topbar-user { display: flex; align-items: center; gap: 8px; margin-left: 16px; }
+        .topbar-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(230,176,34,0.3); }
+        .topbar-name { font-size: 12px; font-weight: 600; color: var(--gray); white-space: nowrap; }
+        .topbar-logout { font-size: 11px; color: var(--gray2); text-decoration: none; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); transition: all 0.2s; white-space: nowrap; }
+        .topbar-logout:hover { color: var(--red); border-color: rgba(224,92,92,0.4); }
+
+        /* ── LAYOUT ──────────────────────────────────── */
+        .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .section-title {
+            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 18px;
+            color: var(--text); text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+        }
+        .section-title .count { font-size: 13px; color: var(--gray2); font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+        /* ── CARDS GRID ──────────────────────────────── */
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-bottom: 28px; }
+
+        /* ── FORM CARD ───────────────────────────────── */
+        .form-card {
+            background: var(--card); border: 1px solid rgba(230,176,34,0.2);
+            border-radius: 12px; overflow: hidden;
+        }
+        .form-card-header {
+            padding: 16px 20px; background: var(--card2); border-bottom: 1px solid var(--border);
+            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px;
+            text-transform: uppercase; letter-spacing: 1px; color: var(--accent);
+        }
+        .form-card-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--gray2); margin-bottom: 6px; }
+        .field-input, .field-select {
+            width: 100%; background: #0e1318; border: 1px solid var(--border); border-radius: 8px;
+            padding: 9px 13px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px;
+            outline: none; transition: border-color 0.2s;
+        }
+        .field-input:focus, .field-select:focus { border-color: rgba(230,176,34,0.5); }
+        .field-input::placeholder { color: #4a5a6b; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field-error { color: var(--red); font-size: 12px; display: none; margin-top: 4px; }
+
+        /* ── BUTTONS ─────────────────────────────────── */
+        .btn { border-radius: 6px; padding: 9px 18px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; border: 1px solid; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        .btn-primary   { background: var(--accent); color: #000; border-color: transparent; }
+        .btn-primary:hover { background: #ffc933; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-ghost  { background: transparent; color: var(--gray); border-color: var(--border); }
+        .btn-ghost:hover { color: var(--text); border-color: #aebbc7; }
+        .btn-danger { background: rgba(224,92,92,0.1); color: var(--red); border-color: rgba(224,92,92,0.3); }
+        .btn-danger:hover { background: rgba(224,92,92,0.2); border-color: var(--red); }
+        .btn-success { background: rgba(76,175,130,0.1); color: var(--green); border-color: rgba(76,175,130,0.3); }
+        .btn-success:hover { background: rgba(76,175,130,0.2); }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+        /* ── TABLE ───────────────────────────────────── */
+        .data-table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table thead tr { background: var(--card2); border-bottom: 2px solid var(--border); }
+        .data-table th { padding: 12px 16px; text-align: left; font-family: 'Montserrat', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gray2); white-space: nowrap; }
+        .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        .data-table tbody tr:last-child { border-bottom: none; }
+        .data-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+        .data-table td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
+        .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        .team-cell { display: flex; align-items: center; gap: 10px; }
+        .team-logo-sm { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; background: var(--accent-d); border: 1px solid rgba(230,176,34,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; color: var(--accent); flex-shrink: 0; font-family: 'Montserrat', sans-serif; overflow: hidden; }
+        .team-logo-sm img { width: 100%; height: 100%; object-fit: cover; }
+        .team-name-cell { font-weight: 700; color: var(--text); }
+        .team-tag-cell { font-size: 11px; color: var(--gray2); }
+        .user-cell { display: flex; align-items: center; gap: 8px; }
+        .user-avatar-sm { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+
+        .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; font-family: 'Montserrat', sans-serif; white-space: nowrap; }
+        .badge-active  { background: rgba(76,175,130,0.15); color: var(--green); }
+        .badge-archive { background: rgba(92,107,127,0.15); color: var(--gray2); }
+        .badge-pending  { background: rgba(230,176,34,0.15); color: var(--accent); }
+        .badge-accepted { background: rgba(76,175,130,0.15); color: var(--green); }
+        .badge-rejected { background: rgba(224,92,92,0.15); color: var(--red); }
+
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* ── INLINE EDIT ─────────────────────────────── */
+        .pts-input { width: 72px; background: #0e1318; border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-align: center; font-size: 13px; padding: 4px 6px; outline: none; font-family: 'Montserrat', sans-serif; font-weight: 700; }
+        .pts-input:focus { border-color: rgba(230,176,34,0.5); }
+
+        /* ── TOAST ───────────────────────────────────── */
+        #toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 12px 20px; font-weight: 600; font-size: 13px;
+            display: none; pointer-events: none; max-width: 320px;
+        }
+
+        /* ── MODAL ───────────────────────────────────── */
+        .modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; display: none; }
+        .modal-overlay.open { display: flex; }
+        .modal-panel { background: #12171d; border: 1px solid rgba(230,176,34,0.25); border-radius: 16px; width: 100%; max-width: 480px; overflow: hidden; }
+        .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+        .modal-head-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; }
+        .modal-close-btn { background: #1a2128; border: none; color: var(--gray); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .modal-close-btn:hover { background: var(--red); color: white; }
+        .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+        .modal-foot { padding: 14px 22px 18px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+        .modal-error { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); color: var(--red); border-radius: 6px; padding: 9px 13px; font-size: 12px; display: none; }
+
+        /* ── EMPTY ───────────────────────────────────── */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--gray2); }
+        .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+        .empty-state p { font-size: 14px; }
+
+        /* ── SEASONS STRIP ───────────────────────────── */
+        .seasons-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .season-chip {
+            background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .season-chip.active { border-color: rgba(230,176,34,0.4); background: var(--accent-d); color: var(--accent); }
+        .season-chip:hover:not(.active) { border-color: var(--gray2); color: var(--text); }
+
+        /* ── MATCH FORM ──────────────────────────────── */
+        .match-row { display: flex; align-items: center; gap: 12px; }
+        .vs-badge { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--gray2); flex-shrink: 0; }
+
+        /* ── RESPONSIVE ──────────────────────────────── */
+        @media (max-width: 680px) {
+            .topbar-nav { display: none; }
+            .field-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+    <span class="topbar-logo">CS2 League Hub</span>
+    <span class="topbar-badge">ADMIN</span>
+
+    <nav class="topbar-nav">
+        <button class="tab-btn active" data-tab="leaderboard">🏆 Лидерборд</button>
+        <button class="tab-btn" data-tab="teams">🛡️ Команды</button>
+        <button class="tab-btn" data-tab="applications">📋 Заявки</button>
+    </nav>
+
+    <div class="topbar-user" id="topbarUser" style="margin-left:auto;">
+        <img id="topbarAvatar" src="" alt="" class="topbar-avatar" onerror="this.style.display='none'">
+        <span class="topbar-name" id="topbarName">—</span>
+        <a href="/logout" class="topbar-logout">Выйти</a>
+    </div>
+</header>
+
+<main class="main">
+
+    <!-- ══════════════ ТАБ: ЛИДЕРБОРД ══════════════ -->
+    <div class="tab-panel active" id="panel-leaderboard">
+
+        <!-- Сезоны -->
+        <div class="section-title">Сезоны</div>
+        <div class="seasons-strip" id="seasonsStrip">
+            <div class="empty-state" style="padding:20px;"><div class="empty-state-icon">📅</div><p>Загрузка...</p></div>
+        </div>
+
+        <!-- Создать сезон -->
+        <div class="cards-grid" style="max-width:500px;">
+            <div class="form-card">
+                <div class="form-card-header">➕ Создать сезон</div>
+                <div class="form-card-body">
+                    <div id="seasonCreateError" class="modal-error"></div>
+                    <div>
+                        <label class="field-label">Название</label>
+                        <input type="text" id="snName" class="field-input" placeholder="Сезон 3 · 2026" maxlength="64">
+                    </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Год</label>
+                            <input type="number" id="snYear" class="field-input" value="2026" min="2020" max="2099">
+                        </div>
+                        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                                <input type="checkbox" id="snActive" style="width:16px;height:16px;accent-color:var(--accent);">
+                                Сделать активным
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btnCreateSeason" onclick="createSeason()">Создать сезон</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Добавить команду в лидерборд -->
+        <div class="section-title" style="margin-top:8px;">
+            Таблица сезона
+            <span class="count" id="lbSeasonLabel">— выберите сезон</span>
+        </div>
+
+        <div class="cards-grid" style="max-width:520px;margin-bottom:20px;">
+            <div class="form-card">
+                <div class="form-card-header">➕ Добавить команду</div>
+                <div class="form-card-body">
+                    <div id="addTeamError" class="modal-error"></div>
+                    <div>
+                        <label class="field-label">Команда</label>
+                        <select id="addTeamSelect" class="field-select">
+                            <option value="">— выберите команду —</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Стартовые очки</label>
+                        <input type="number" id="addTeamPts" class="field-input" value="100" min="0" max="9999">
+                    </div>
+                    <button class="btn btn-primary" onclick="addTeamToLeaderboard()">Добавить в таблицу</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица команд сезона -->
+        <div class="data-table-wrap" id="lbTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">🏆</div><p>Выберите сезон выше</p></div>
+        </div>
+
+        <!-- Записать матч -->
+        <div class="section-title" style="margin-top:8px;">⚔️ Записать матч</div>
+        <div class="cards-grid" style="max-width:600px;">
+            <div class="form-card">
+                <div class="form-card-header">Результат матча</div>
+                <div class="form-card-body">
+                    <div id="matchError" class="modal-error"></div>
+                    <div class="match-row">
+                        <div style="flex:1;">
+                            <label class="field-label">Победитель</label>
+                            <select id="matchWinner" class="field-select"><option value="">—</option></select>
+                        </div>
+                        <span class="vs-badge">VS</span>
+                        <div style="flex:1;">
+                            <label class="field-label">Проигравший</label>
+                            <select id="matchLoser" class="field-select"><option value="">—</option></select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label">Разница раундов (победителя)</label>
+                        <input type="number" id="matchRD" class="field-input" value="0" min="-50" max="50" placeholder="например: 6">
+                    </div>
+                    <button class="btn btn-primary" onclick="recordMatch()">✔ Записать матч</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════ ТАБ: КОМАНДЫ ══════════════ -->
+    <div class="tab-panel" id="panel-teams">
+        <div class="section-title">
+            Зарегистрированные команды
+            <span class="count" id="teamsCount"></span>
+        </div>
+        <div class="data-table-wrap" id="teamsTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">🛡️</div><p>Загрузка...</p></div>
+        </div>
+    </div>
+
+    <!-- ══════════════ ТАБ: ЗАЯВКИ ══════════════ -->
+    <div class="tab-panel" id="panel-applications">
+        <div class="section-title">
+            Заявки на участие
+            <span class="count" id="appsCount"></span>
+        </div>
+        <div class="data-table-wrap" id="appsTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">📋</div><p>Загрузка...</p></div>
+        </div>
+    </div>
+
+</main>
+
+<!-- Модал: ручное редактирование очков -->
+<div class="modal-overlay" id="editStatModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title">✏️ Редактировать статистику</span>
+            <button class="modal-close-btn" onclick="closeModal('editStatModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="editStatError" class="modal-error"></div>
+            <p style="font-size:13px;color:var(--gray2);margin-bottom:4px;">Команда: <strong id="editStatTeamName" style="color:white;"></strong></p>
+            <div class="field-row">
+                <div><label class="field-label">Очки</label><input type="number" id="esPts" class="field-input" min="0"></div>
+                <div><label class="field-label">Победы</label><input type="number" id="esWins" class="field-input" min="0"></div>
+            </div>
+            <div class="field-row">
+                <div><label class="field-label">Поражения</label><input type="number" id="esLosses" class="field-input" min="0"></div>
+                <div><label class="field-label">Матчи</label><input type="number" id="esMatches" class="field-input" min="0"></div>
+            </div>
+            <div class="field-row">
+                <div><label class="field-label">Round Diff</label><input type="number" id="esRD" class="field-input"></div>
+                <div><label class="field-label">Серия побед</label><input type="number" id="esStreak" class="field-input" min="0"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" id="esKing" style="width:16px;height:16px;accent-color:var(--accent);">
+                Статус «Царь горы»
+            </label>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('editStatModal')">Отмена</button>
+            <button class="btn btn-primary" id="editStatSaveBtn" onclick="saveStatEdit()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модал: подтверждение удаления -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title" style="color:var(--red);">⚠️ Подтверждение</span>
+            <button class="modal-close-btn" onclick="closeModal('confirmModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMsg" style="font-size:14px;color:var(--gray);line-height:1.7;"></p>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Отмена</button>
+            <button class="btn btn-danger" id="confirmOkBtn">Подтвердить</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════
+   UTILITIES
+════════════════════════════════════════════════ */
+function toast(msg, type = "ok") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.color = type === "ok" ? "#4caf82" : "#e05c5c";
+    t.style.display = "block";
+    clearTimeout(t._t);
+    t._t = setTimeout(() => { t.style.display = "none"; }, 3200);
+}
+
+function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+}
+function hideError(elId) {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = "none";
+}
+
+function closeModal(id) {
+    document.getElementById(id)?.classList.remove("open");
+    document.body.style.overflow = "";
+}
+function openModal(id) {
+    document.getElementById(id)?.classList.add("open");
+    document.body.style.overflow = "hidden";
+}
+
+function initials(name) {
+    return (name || "?").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function logoEl(logo, name, size = 30) {
+    const init = initials(name);
+    if (logo) return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;"><img src="${logo}" alt="${name}" onerror="this.parentNode.textContent='${init}'"></div>`;
+    return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;">${init}</div>`;
+}
+
+/* ════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════ */
+let _seasons    = [];
+let _activeSid  = null;
+let _lbStats    = [];        // TeamStat[] текущего сезона
+let _allTeams   = [];        // Team[] все зарегистрированные
+let _editStatId = null;
+
+/* ════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════ */
+async function init() {
+    // Загружаем текущего пользователя
+    try {
+        const res  = await fetch("/api/user");
+        const user = await res.json();
+        if (!user || !user.isAdmin) {
+            document.body.innerHTML = `<div style="text-align:center;padding:100px 20px;font-family:'Montserrat',sans-serif;color:#e05c5c;"><div style="font-size:48px;margin-bottom:20px;">🔒</div><h2>Нет доступа</h2><p style="color:#5c6b7f;margin-top:10px;"><a href="/" style="color:#e6b022;">На главную</a></p></div>`;
+            return;
+        }
+        if (user.avatar) document.getElementById("topbarAvatar").src = user.avatar;
+        document.getElementById("topbarName").textContent = user.displayName;
+    } catch { /* если api/user недоступен — всё равно показываем панель */ }
+
+    await Promise.all([loadSeasons(), loadAllTeams()]);
+    loadApplications();
+}
+
+/* ════════════════════════════════════════════════
+   TABS
+════════════════════════════════════════════════ */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", function() {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+        this.classList.add("active");
+        document.getElementById("panel-" + this.dataset.tab)?.classList.add("active");
+        if (this.dataset.tab === "teams")        loadAllTeams();
+        if (this.dataset.tab === "applications") loadApplications();
+    });
+});
+
+document.querySelectorAll(".modal-overlay").forEach(o => {
+    o.addEventListener("click", function(e) { if (e.target === this) closeModal(this.id); });
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id)); });
+
+/* ════════════════════════════════════════════════
+   SEASONS
+════════════════════════════════════════════════ */
+async function loadSeasons() {
+    try {
+        const res = await fetch("/api/admin/seasons");
+        if (!res.ok) throw new Error();
+        _seasons = await res.json();
+    } catch { _seasons = []; }
+
+    renderSeasonsStrip();
+    if (_seasons.length > 0) {
+        const active = _seasons.find(s => s.isActive) || _seasons[0];
+        await selectSeason(active._id);
+    }
+}
+
+function renderSeasonsStrip() {
+    const strip = document.getElementById("seasonsStrip");
+    if (!_seasons.length) {
+        strip.innerHTML = `<div style="color:var(--gray2);font-size:13px;padding:8px 0;">Сезонов пока нет — создайте первый выше</div>`;
+        return;
+    }
+    strip.innerHTML = _seasons.map(s => `
+        <div class="season-chip${s._id === _activeSid ? " active" : ""}" onclick="selectSeason('${s._id}')">
+            ${s.isActive ? "🔴 " : ""}${s.name}
+            <span style="font-size:10px;color:var(--gray2);">${s.isActive ? "активный" : "архив"}</span>
+            <button onclick="event.stopPropagation();deleteSeason('${s._id}','${s.name}')" style="background:none;border:none;color:var(--gray2);cursor:pointer;font-size:13px;padding:0 2px;" title="Удалить">✕</button>
+            ${!s.isActive ? `<button onclick="event.stopPropagation();activateSeason('${s._id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;font-weight:700;padding:0 2px;" title="Активировать">▶</button>` : ""}
+        </div>
+    `).join("");
+}
+
+async function selectSeason(sid) {
+    _activeSid = sid;
+    renderSeasonsStrip();
+    const s = _seasons.find(x => x._id === sid);
+    if (s) document.getElementById("lbSeasonLabel").textContent = s.name;
+    await loadLbStats();
+    buildMatchSelects();
+}
+
+async function createSeason() {
+    hideError("seasonCreateError");
+    const name = document.getElementById("snName").value.trim();
+    const year = document.getElementById("snYear").value;
+    const isActive = document.getElementById("snActive").checked;
+    if (!name) { showError("seasonCreateError", "Введите название сезона"); return; }
+    const btn = document.getElementById("btnCreateSeason");
+    btn.disabled = true; btn.textContent = "Создаём...";
+    try {
+        const res = await fetch("/api/admin/seasons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, year, isActive }) });
+        const d   = await res.json();
+        if (!res.ok) { showError("seasonCreateError", d.error || "Ошибка"); return; }
+        toast("Сезон создан!", "ok");
+        document.getElementById("snName").value = "";
+        document.getElementById("snActive").checked = false;
+        await loadSeasons();
+        if (d.season?._id) selectSeason(d.season._id);
+    } catch { showError("seasonCreateError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Создать сезон"; }
+}
+
+async function activateSeason(sid) {
+    try {
+        await fetch(`/api/admin/seasons/${sid}/activate`, { method: "PATCH" });
+        toast("Сезон активирован", "ok");
+        await loadSeasons();
+    } catch { toast("Ошибка", "err"); }
+}
+
+async function deleteSeason(sid, name) {
+    _confirmAction(`Удалить сезон «${name}» и все его статистики? Это необратимо.`, async () => {
+        try {
+            await fetch(`/api/admin/seasons/${sid}`, { method: "DELETE" });
+            toast("Сезон удалён", "ok");
+            if (_activeSid === sid) { _activeSid = null; _lbStats = []; document.getElementById("lbTableWrap").innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><p>Выберите сезон</p></div>`; }
+            await loadSeasons();
+        } catch { toast("Ошибка", "err"); }
+    });
+}
+
+/* ════════════════════════════════════════════════
+   LEADERBOARD STATS
+════════════════════════════════════════════════ */
+async function loadLbStats() {
+    if (!_activeSid) return;
+    try {
+        const res = await fetch(`/api/admin/leaderboard/${_activeSid}`);
+        _lbStats  = res.ok ? await res.json() : [];
+    } catch { _lbStats = []; }
+    renderLbTable();
+}
+
+function renderLbTable() {
+    const wrap = document.getElementById("lbTableWrap");
+    if (!_lbStats.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><p>В этом сезоне нет команд — добавьте выше</p></div>`;
+        return;
+    }
+    const sorted = [..._lbStats].sort((a, b) => b.pts - a.pts);
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr>
+            <th>#</th><th>Команда</th>
+            <th class="num">Очки</th><th class="num">М</th><th class="num">В</th><th class="num">П</th>
+            <th class="num">Серия</th><th class="num">Царь</th>
+            <th>Действия</th>
+        </tr></thead>
+        <tbody>${sorted.map((s, i) => `
+        <tr>
+            <td style="color:var(--gray2);font-weight:700;">${i + 1}</td>
+            <td><div class="team-cell">
+                ${logoEl(s.teamId?.logo, s.teamId?.name)}
+                <div>
+                    <div class="team-name-cell">${s.teamId?.name || "—"}</div>
+                    <div class="team-tag-cell">[${s.teamId?.tag || "?"}]</div>
+                </div>
+            </div></td>
+            <td class="num"><strong style="color:var(--accent);font-size:15px;">${s.pts}</strong></td>
+            <td class="num">${s.matches}</td>
+            <td class="num" style="color:var(--green);">${s.wins}</td>
+            <td class="num" style="color:var(--red);">${s.losses}</td>
+            <td class="num">${s.winStreak >= 3 ? `🔥${s.winStreak}` : s.winStreak}</td>
+            <td class="num">${s.isKingOfHill ? "👑" : "—"}</td>
+            <td><div class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="openEditStat('${s._id}', '${(s.teamId?.name || "").replace(/'/g,"\\'")}', ${s.pts}, ${s.wins}, ${s.losses}, ${s.matches}, ${s.roundDiff}, ${s.winStreak}, ${s.isKingOfHill})">✏️ Правка</button>
+                <button class="btn btn-danger btn-sm" onclick="removeFromLb('${s._id}','${(s.teamId?.name || "").replace(/'/g,"\\'")}')">✕ Убрать</button>
+            </div></td>
+        </tr>`).join("")}
+        </tbody>
+    </table>`;
+}
+
+async function addTeamToLeaderboard() {
+    hideError("addTeamError");
+    const teamId = document.getElementById("addTeamSelect").value;
+    const pts    = parseInt(document.getElementById("addTeamPts").value) || 100;
+    if (!teamId)      { showError("addTeamError", "Выберите команду");   return; }
+    if (!_activeSid)  { showError("addTeamError", "Выберите сезон");     return; }
+    try {
+        const res = await fetch("/api/admin/leaderboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teamId, seasonId: _activeSid, pts }) });
+        const d   = await res.json();
+        if (!res.ok) { showError("addTeamError", d.error || "Ошибка"); return; }
+        toast("Команда добавлена в сезон!", "ok");
+        document.getElementById("addTeamSelect").value = "";
+        await loadLbStats();
+        buildMatchSelects();
+    } catch { showError("addTeamError", "Ошибка соединения"); }
+}
+
+async function removeFromLb(statId, name) {
+    _confirmAction(`Убрать команду «${name}» из таблицы сезона?`, async () => {
+        try {
+            await fetch(`/api/admin/leaderboard/${statId}`, { method: "DELETE" });
+            toast("Команда убрана из таблицы", "ok");
+            await loadLbStats();
+            buildMatchSelects();
+        } catch { toast("Ошибка", "err"); }
+    });
+}
+
+/* ── Edit stat modal ── */
+function openEditStat(id, name, pts, wins, losses, matches, rd, streak, king) {
+    _editStatId = id;
+    document.getElementById("editStatTeamName").textContent = name;
+    document.getElementById("esPts").value     = pts;
+    document.getElementById("esWins").value    = wins;
+    document.getElementById("esLosses").value  = losses;
+    document.getElementById("esMatches").value = matches;
+    document.getElementById("esRD").value      = rd;
+    document.getElementById("esStreak").value  = streak;
+    document.getElementById("esKing").checked  = king;
+    hideError("editStatError");
+    openModal("editStatModal");
+}
+
+async function saveStatEdit() {
+    hideError("editStatError");
+    if (!_editStatId) return;
+    const body = {
+        pts:          parseInt(document.getElementById("esPts").value),
+        wins:         parseInt(document.getElementById("esWins").value),
+        losses:       parseInt(document.getElementById("esLosses").value),
+        matches:      parseInt(document.getElementById("esMatches").value),
+        roundDiff:    parseInt(document.getElementById("esRD").value),
+        winStreak:    parseInt(document.getElementById("esStreak").value),
+        isKingOfHill: document.getElementById("esKing").checked,
+    };
+    const btn = document.getElementById("editStatSaveBtn");
+    btn.disabled = true; btn.textContent = "Сохранение...";
+    try {
+        const res = await fetch(`/api/admin/leaderboard/${_editStatId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const d   = await res.json();
+        if (!res.ok) { showError("editStatError", d.error || "Ошибка"); return; }
+        closeModal("editStatModal");
+        toast("Статистика обновлена!", "ok");
+        await loadLbStats();
+    } catch { showError("editStatError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
+}
+
+/* ════════════════════════════════════════════════
+   MATCH
+════════════════════════════════════════════════ */
+function buildMatchSelects() {
+    const opts = `<option value="">—</option>` + _lbStats.map(s =>
+        `<option value="${s._id}">${s.teamId?.name || "?"}</option>`
+    ).join("");
+    document.getElementById("matchWinner").innerHTML = opts;
+    document.getElementById("matchLoser").innerHTML  = opts;
+}
+
+async function recordMatch() {
+    hideError("matchError");
+    const winnerId = document.getElementById("matchWinner").value;
+    const loserId  = document.getElementById("matchLoser").value;
+    const rd       = parseInt(document.getElementById("matchRD").value) || 0;
+    if (!winnerId) { showError("matchError", "Выберите победителя");   return; }
+    if (!loserId)  { showError("matchError", "Выберите проигравшего"); return; }
+    if (winnerId === loserId) { showError("matchError", "Победитель и проигравший не могут совпадать"); return; }
+    const btn = document.querySelector('[onclick="recordMatch()"]');
+    if (btn) { btn.disabled = true; btn.textContent = "Записываем..."; }
+    try {
+        const res = await fetch("/api/admin/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seasonId: _activeSid, winnerId, loserId, winnerRoundDiff: rd }) });
+        const d   = await res.json();
+        if (!res.ok) { showError("matchError", d.error || "Ошибка"); return; }
+        toast(`✅ Матч записан! Победа: +${d.winner.pts - (d.winner.pts - (d.winner.pts > 0 ? 1 : 0))} | Поражение`, "ok");
+        document.getElementById("matchWinner").value = "";
+        document.getElementById("matchLoser").value  = "";
+        document.getElementById("matchRD").value     = "0";
+        await loadLbStats();
+        buildMatchSelects();
+    } catch { showError("matchError", "Ошибка соединения"); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = "✔ Записать матч"; } }
+}
+
+/* ════════════════════════════════════════════════
+   TEAMS
+════════════════════════════════════════════════ */
+async function loadAllTeams() {
+    try {
+        const res = await fetch("/api/admin/teams");
+        _allTeams = res.ok ? await res.json() : [];
+    } catch { _allTeams = []; }
+
+    // Обновляем select для добавления в лидерборд
+    const sel = document.getElementById("addTeamSelect");
+    sel.innerHTML = `<option value="">— выберите команду —</option>` +
+        _allTeams.map(t => `<option value="${t._id}">${t.name} [${t.tag}]</option>`).join("");
+
+    document.getElementById("teamsCount").textContent = `(${_allTeams.length})`;
+    renderTeamsTable();
+}
+
+function renderTeamsTable() {
+    const wrap = document.getElementById("teamsTableWrap");
+    if (!_allTeams.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🛡️</div><p>Команд пока нет</p></div>`;
+        return;
+    }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr><th>Команда</th><th>Тег</th><th>Капитан</th><th class="num">Осн.</th><th class="num">Замены</th><th>Действия</th></tr></thead>
+        <tbody>${_allTeams.map(t => `
+        <tr>
+            <td><div class="team-cell">
+                ${logoEl(t.logo, t.name)}
+                <span class="team-name-cell">${t.name}</span>
+            </div></td>
+            <td><span class="badge badge-active">[${t.tag}]</span></td>
+            <td><div class="user-cell">
+                ${t.captainId?.avatar ? `<img src="${t.captainId.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">` : ""}
+                <span style="font-size:13px;">${t.captainId?.displayName || "—"}</span>
+            </div></td>
+            <td class="num">${(t.members || []).length}/5</td>
+            <td class="num">${(t.subs || []).length}/5</td>
+            <td><div class="actions">
+                <button class="btn btn-danger btn-sm" onclick="disbandTeam('${t._id}','${(t.name).replace(/'/g,"\\'")}')">💀 Расформировать</button>
+            </div></td>
+        </tr>`).join("")}
+        </tbody>
+    </table>`;
+}
+
+async function disbandTeam(teamId, name) {
+    _confirmAction(`Расформировать команду «${name}»? Все участники будут освобождены.`, async () => {
+        try {
+            const res = await fetch(`/api/admin/teams/${teamId}`, { method: "DELETE" });
+            const d   = await res.json();
+            if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
+            toast(`Команда «${name}» расформирована`, "ok");
+            await loadAllTeams();
+        } catch { toast("Ошибка соединения", "err"); }
+    });
+}
+
+/* ════════════════════════════════════════════════
+   APPLICATIONS
+════════════════════════════════════════════════ */
+async function loadApplications() {
+    try {
+        const res = await fetch("/api/admin/applications");
+        const apps = res.ok ? await res.json() : [];
+        document.getElementById("appsCount").textContent = `(${apps.length})`;
+        renderAppsTable(apps);
+    } catch {
+        document.getElementById("appsTableWrap").innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить заявки</p></div>`;
+    }
+}
+
+function renderAppsTable(apps) {
+    const wrap = document.getElementById("appsTableWrap");
+    if (!apps.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>Заявок пока нет</p></div>`;
+        return;
+    }
+    const statusMap = { pending: ["badge-pending","⏳ Ожидание"], accepted: ["badge-accepted","✅ Принята"], rejected: ["badge-rejected","❌ Отклонена"] };
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr><th>Игрок</th><th>Команда</th><th class="num">Часов</th><th>FACEIT</th><th>Контакты</th><th>Статус</th><th>Действия</th></tr></thead>
+        <tbody>${apps.map(a => {
+            const [cls, label] = statusMap[a.status] || ["badge-pending","⏳"];
+            return `<tr>
+                <td><div class="user-cell">
+                    ${a.userId?.avatar ? `<img src="${a.userId.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">` : ""}
+                    <div>
+                        <div style="font-weight:700;color:white;font-size:13px;">${a.userId?.displayName || "—"}</div>
+                        <div style="font-size:11px;color:var(--gray2);">${a.userId?.steamId || ""}</div>
+                    </div>
+                </div></td>
+                <td style="font-size:13px;">${a.teamId ? `[${a.teamId.tag}] ${a.teamId.name}` : "—"}</td>
+                <td class="num">${a.hoursInCS2}</td>
+                <td>${a.faceitLevel}</td>
+                <td style="font-size:12px;max-width:160px;word-break:break-word;">${a.contacts}</td>
+                <td><span class="badge ${cls}">${label}</span></td>
+                <td><div class="actions">
+                    <button class="btn btn-success btn-sm" onclick="updateApp('${a._id}','accepted')">✅ Принять</button>
+                    <button class="btn btn-danger btn-sm"  onclick="updateApp('${a._id}','rejected')">❌ Отклонить</button>
+                </div></td>
+            </tr>`;
+        }).join("")}
+        </tbody>
+    </table>`;
+}
+
+async function updateApp(id, status) {
+    try {
+        const res = await fetch(`/api/admin/applications/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+        if (!res.ok) { toast("Ошибка", "err"); return; }
+        toast(status === "accepted" ? "✅ Заявка принята" : "❌ Заявка отклонена", "ok");
+        loadApplications();
+    } catch { toast("Ошибка соединения", "err"); }
+}
+
+/* ════════════════════════════════════════════════
+   CONFIRM MODAL
+════════════════════════════════════════════════ */
+let _confirmCb = null;
+function _confirmAction(msg, cb) {
+    _confirmCb = cb;
+    document.getElementById("confirmMsg").textContent = msg;
+    openModal("confirmModal");
+}
+document.getElementById("confirmOkBtn").addEventListener("click", async function() {
+    closeModal("confirmModal");
+    if (_confirmCb) { await _confirmCb(); _confirmCb = null; }
+});
+
+/* ════════════════════════════════════════════════
+   START
+════════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>

@@ -303,6 +303,9 @@
             Зарегистрированные команды
             <span class="count" id="teamsCount"></span>
         </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <input type="text" id="teamSearchInput" class="field-input" placeholder="🔍 Поиск по названию или тегу..." oninput="filterTeamsTable()" style="max-width:380px;">
+        </div>
         <div class="data-table-wrap" id="teamsTableWrap">
             <div class="empty-state"><div class="empty-state-icon">🛡️</div><p>Загрузка...</p></div>
         </div>
@@ -319,6 +322,28 @@
         </div>
     </div>
 
+
+<!-- Модал: своё сообщение команде -->
+<div class="modal-overlay" id="customNoticeModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title">💬 Сообщение команде</span>
+            <button class="modal-close-btn" onclick="closeModal('customNoticeModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="noticeError" class="modal-error"></div>
+            <p style="font-size:13px;color:var(--gray2);">Команда: <strong id="noticeTeamName" style="color:white;"></strong></p>
+            <div>
+                <label class="field-label">Текст сообщения</label>
+                <textarea id="noticeText" class="field-input" rows="3" placeholder="Например: Пожалуйста, обновите состав..." style="resize:vertical;min-height:80px;"></textarea>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('customNoticeModal')">Отмена</button>
+            <button class="btn btn-primary" id="noticeSendBtn" onclick="submitCustomNotice()">Отправить</button>
+        </div>
+    </div>
+</div>
 </main>
 
 <!-- Модал: ручное редактирование очков -->
@@ -741,6 +766,9 @@ function renderTeamsTable() {
             <td class="num">${(t.members || []).length}/5</td>
             <td class="num">${(t.subs || []).length}/5</td>
             <td><div class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','rename')" title="Требование сменить название">✏️ Название</button>
+                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','logo')"   title="Требование обновить логотип">🖼 Лого</button>
+                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','custom')" title="Своё сообщение">💬</button>
                 <button class="btn btn-danger btn-sm" onclick="disbandTeam('${t._id}','${(t.name).replace(/'/g,"\\'")}')">💀 Расформировать</button>
             </div></td>
         </tr>`).join("")}

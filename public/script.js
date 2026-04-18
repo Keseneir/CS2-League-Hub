@@ -263,6 +263,7 @@ if (document.getElementById("newsContainer")) {
 if (document.getElementById("tableContainer")) {
 
     let _tableData  = [];
+    let _rosterMap  = {}; // teamId -> {members, subs}
     let _seasons    = [];
     let _currentSid = null;
 
@@ -310,6 +311,15 @@ if (document.getElementById("tableContainer")) {
             return;
         }
 
+        // Загружаем составы команд из БД параллельно
+        const teamIds = _tableData.map(r => r.teamId).filter(Boolean);
+        if (teamIds.length) {
+            fetch("/api/leaderboard/rosters?ids=" + teamIds.join(","))
+                .then(r => r.ok ? r.json() : {})
+                .then(rMap => { _rosterMap = rMap; })
+                .catch(() => {});
+        }
+
         const html = _tableData.map((r, i) => {
             const rank      = i + 1;
             const rankClass = rank <= 3 ? `rank-${rank}` : "rank-other";
@@ -319,7 +329,7 @@ if (document.getElementById("tableContainer")) {
             const crown     = r.isKingOfHill ? ' <span title="Царь горы" style="font-size:14px;">👑</span>' : "";
             const streak    = r.winStreak >= 3 ? ` <span style="font-size:11px;color:#e8a05b;font-weight:700;">🔥×${r.winStreak}</span>` : "";
             return `
-            <tr class="${rankClass}">
+            <tr class="${rankClass}" onclick="openLbTeamModal(${i})" style="cursor:pointer;" title="Состав команды">
                 <td><span class="rank-badge">${rank}</span></td>
                 <td><div class="team-name">${renderAvatar(r, i)}${r.team}${crown}${streak}</div></td>
                 <td class="num"><span class="points">${r.pts}</span></td>
@@ -365,6 +375,66 @@ if (document.getElementById("tableContainer")) {
             else { noRow.querySelector("td").textContent = `😕 Команда «${q}» не найдена`; noRow.style.display = ""; }
         } else if (noRow) { noRow.style.display = "none"; }
     }
+
+    // ─── Модал состава команды (лидерборд) ──────────────────────────────────
+    window.openLbTeamModal = function(idx) {
+        const r = _tableData[idx];
+        if (!r) return;
+        const modal     = document.getElementById("lbRosterModal");
+        const nameEl    = document.getElementById("lbRosterTeamName");
+        const logoEl    = document.getElementById("lbRosterAvatar");
+        const mainEl    = document.getElementById("lbRosterMain");
+        const subEl     = document.getElementById("lbRosterSubs");
+        if (!modal) return;
+
+        if (nameEl) nameEl.textContent = `[${r.tag}] ${r.team}`;
+
+        if (logoEl) {
+            if (r.logo) {
+                logoEl.innerHTML = `<img src="${r.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
+            } else {
+                logoEl.textContent = r.tag?.slice(0,2) || "?";
+                logoEl.style.cssText = "display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:var(--accent);";
+            }
+        }
+
+        const roster  = _rosterMap[r.teamId] || {};
+        const members = roster.members || [];
+        const subs    = roster.subs    || [];
+
+        function silhouette(name, c) {
+            const init = (name||"?").trim().split(/\s+/).map(w=>w[0]).join("").toUpperCase().slice(0,2);
+            return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;">
+                <svg viewBox="0 0 40 52" style="width:36px;height:46px;opacity:0.85;" fill="${c||"#aebbc7"}">
+                    <ellipse cx="20" cy="10" rx="8" ry="8"/>
+                    <path d="M6 42 Q6 24 13 22 L17 20 Q20 19 23 20 L27 22 Q34 24 34 42 Z"/>
+                    <path d="M6 28 Q1 33 1 42 L7 42 Q7 34 11 29 Z"/>
+                    <path d="M34 28 Q39 33 39 42 L33 42 Q33 34 29 29 Z"/>
+                </svg>
+                <span style="font-size:12px;font-weight:700;color:white;text-align:center;word-break:break-all;max-width:80px;">${name||"?"}</span>
+            </div>`;
+        }
+
+        if (mainEl) {
+            mainEl.innerHTML = members.length
+                ? members.map(m => silhouette(m.displayName, "#e6b022")).join("")
+                : `<div style="color:#5c6b7f;font-size:13px;padding:20px;">Нет данных</div>`;
+        }
+        if (subEl) {
+            subEl.innerHTML = subs.length
+                ? subs.map(m => silhouette(m.displayName, "#5c6b7f")).join("")
+                : `<div style="color:#5c6b7f;font-size:13px;padding:12px;">Замен нет</div>`;
+        }
+
+        modal.classList.add("open");
+        document.body.style.overflow = "hidden";
+    };
+
+    const _lbRosterModal = document.getElementById("lbRosterModal");
+    const _lbRosterClose = document.getElementById("lbRosterClose");
+    if (_lbRosterClose) _lbRosterClose.addEventListener("click", () => { _lbRosterModal?.classList.remove("open"); document.body.style.overflow = ""; });
+    if (_lbRosterModal)  _lbRosterModal.addEventListener("click", e => { if (e.target === _lbRosterModal) { _lbRosterModal.classList.remove("open"); document.body.style.overflow = ""; } });
+    // ─────────────────────────────────────────────────────────────────────────
 
     async function loadSeasons() {
         try {
@@ -605,19 +675,16 @@ if (document.getElementById("joinForm")) {
                 const data = await res.json();
 
                 if (res.ok && data.ok) {
-                    // 2. Параллельная отправка в Formspree (не блокирует показ успеха)
-                    fetch("https://formspree.io/f/xnjlqzbk", {
-                        method:  "POST",
-                        headers: { "Accept": "application/json" },
-                        body:    Object.assign(
-                            new FormData(),
-                            (() => {
-                                const fd = new FormData();
-                                Object.entries(formPayload).forEach(([k, v]) => fd.append(k, v));
-                                return fd;
-                            })()
-                        ),
-                    }).catch(() => {/* Formspree недоступен — не критично */});
+                    // 2. Параллельная отправка в Formspree
+                    (function() {
+                        const fd = new FormData();
+                        Object.entries(formPayload).forEach(([k, v]) => fd.append(k, v));
+                        fetch("https://formspree.io/f/xnjlqzbk", {
+                            method: "POST",
+                            headers: { "Accept": "application/json" },
+                            body: fd,
+                        }).catch(() => {});
+                    })();
 
                     this.style.display = "none";
                     const pw = document.getElementById("progressWrap"); if (pw) pw.style.display = "none";
@@ -796,21 +863,19 @@ if (document.getElementById("profileContent")) {
     }
 
     function renderMemberRow(m, captainId, d) {
-        const isCap   = m._id?.toString() === captainId;
-        const isMe    = m._id?.toString() === d._id?.toString();
-        const myCap   = d.isCaptain;
-        const mId     = m._id?.toString();
-
-        let actions = "";
-        if (myCap && !isMe) {
-            actions += `<button class="btn-member-action btn-member-kick" onclick="kickMember('${mId}','${m.displayName}')">Кик</button>`;
-            actions += `<button class="btn-member-action" onclick="transferCaptain('${mId}','${m.displayName}')">👑 Капитан</button>`;
-        }
-
-        return `<div class="member-row">
+        const isCap  = m._id?.toString() === captainId;
+        const isMe   = m._id?.toString() === d._id?.toString();
+        const myCap  = d.isCaptain;
+        const mId    = m._id?.toString();
+        const nameEsc = (m.displayName || "Игрок").replace(/'/g, "\\'");
+        // Если я капитан и это не я — строка кликабельна
+        const clickAttr = (myCap && !isMe)
+            ? `onclick="openMemberModal('${mId}','${nameEsc}',${isCap})" style="cursor:pointer;" title="Управление игроком"`
+            : "";
+        return `<div class="member-row" ${clickAttr}>
             ${avatarEl(m.avatar, m.displayName, "member-avatar")}
             <span class="member-name">${m.displayName || "Игрок"}${isCap ? '<span class="captain-crown" title="Капитан">👑</span>' : ""}</span>
-            ${actions ? `<div class="member-actions">${actions}</div>` : ""}
+            ${(myCap && !isMe) ? '<span style="font-size:11px;color:var(--gray2);margin-left:auto;padding-right:4px;">⋯</span>' : ""}
         </div>`;
     }
 
@@ -871,11 +936,38 @@ if (document.getElementById("profileContent")) {
 
     // ─── ТАБ: УВЕДОМЛЕНИЯ ─────────────────────────────────────────────────────
 
+    function appStatusIcon(status) {
+        return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳";
+    }
+    function appStatusLabel(status) {
+        return status === "accepted" ? "Принята" : status === "rejected" ? "Отклонена" : "На рассмотрении";
+    }
+    function appStatusColor(status) {
+        return status === "accepted" ? "#4caf82" : status === "rejected" ? "#e05c5c" : "#e6b022";
+    }
+
     function renderNotifsTab(d) {
         const el       = document.getElementById("notifsList");
         const requests = d.friendRequests || [];
         const invites  = d.teamInvites    || [];
+        const apps     = d.applications   || [];
         let html = "";
+
+        if (apps.length > 0) {
+            html += `<div class="notif-block">
+                <div class="notif-block-title">📋 Статус заявки на участие</div>
+                ${apps.map(a => `<div class="friend-row">
+                    <div style="font-size:24px;flex-shrink:0;">${appStatusIcon(a.status)}</div>
+                    <div class="friend-info">
+                        <div class="friend-name" style="color:${appStatusColor(a.status)};">${appStatusLabel(a.status)}</div>
+                        <div class="friend-sub">
+                            ${a.faceitLevel ? `FACEIT: ${a.faceitLevel} · ` : ""}
+                            ${new Date(a.createdAt).toLocaleDateString("ru-RU")}
+                        </div>
+                    </div>
+                </div>`).join("")}
+            </div>`;
+        }
 
         if (requests.length > 0) {
             html += `<div class="notif-block">
@@ -918,9 +1010,10 @@ if (document.getElementById("profileContent")) {
     // ─── ЗНАЧКИ ───────────────────────────────────────────────────────────────
 
     function updateBadges(d) {
-        const frCount = (d.friendRequests || []).length;
-        const tiCount = (d.teamInvites    || []).length;
-        const total   = frCount + tiCount;
+        const frCount  = (d.friendRequests || []).length;
+        const tiCount  = (d.teamInvites    || []).length;
+        const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
+        const total    = frCount + tiCount + appCount;
 
         const frBadge = document.getElementById("friendReqBadge");
         if (frBadge) { frBadge.textContent = frCount; frBadge.style.display = frCount > 0 ? "inline-flex" : "none"; }
@@ -1047,6 +1140,52 @@ if (document.getElementById("profileContent")) {
     };
 
     // ─── ДЕЙСТВИЯ: УПРАВЛЕНИЕ КОМАНДОЙ ───────────────────────────────────────
+
+    // ─── Модал управления участником ─────────────────────────────────────
+    let _memberModalId   = null;
+    let _memberModalName = null;
+
+    window.openMemberModal = function(userId, name, isCap) {
+        _memberModalId   = userId;
+        _memberModalName = name;
+        document.getElementById("memberModalName").textContent = name;
+        // Скрываем "назначить капитаном" если уже капитан
+        const capBtn = document.getElementById("memberModalCapBtn");
+        if (capBtn) capBtn.style.display = isCap ? "none" : "flex";
+        openModal("memberModal");
+    };
+
+    window.closeMemberModal = function() { closeModal("memberModal"); };
+
+    window.memberModalKick = function() {
+        closeModal("memberModal");
+        if (_memberModalId) kickMember(_memberModalId, _memberModalName);
+    };
+    window.memberModalCaptain = function() {
+        closeModal("memberModal");
+        if (_memberModalId) transferCaptain(_memberModalId, _memberModalName);
+    };
+    window.memberModalRole = async function() {
+        closeModal("memberModal");
+        if (!_memberModalId || !_profileData?.team) return;
+        const team  = _profileData.team;
+        const isSub = (team.subs || []).some(s => s._id?.toString() === _memberModalId);
+        const newRole = isSub ? "main" : "sub";
+        const label   = isSub ? "основной состав" : "замену";
+        if (!confirm(`Перевести ${_memberModalName} в ${label}?`)) return;
+        try {
+            const res = await fetch(`/api/team/member/${_memberModalId}/role`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: newRole })
+            });
+            const d = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Роль изменена", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+    // ──────────────────────────────────────────────────────────────────────────
 
     window.kickMember = async function(userId, name) {
         if (!confirm(`Исключить ${name} из команды?`)) return;

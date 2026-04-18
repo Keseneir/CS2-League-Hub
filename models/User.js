@@ -18,6 +18,16 @@ const userSchema = new mongoose.Schema(
       createdAt: { type: Date, default: Date.now }
     }],
 
+    // Уведомления от администрации
+    adminNotices: [{
+      type:      { type: String, default: "custom" },
+      message:   { type: String, default: "" },
+      teamId:    { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+      teamName:  { type: String, default: "" },
+      read:      { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }],
+
     // Приглашения в команду
     teamInvites: [{
       teamId:    { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },

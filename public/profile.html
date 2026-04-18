@@ -32,6 +32,7 @@
                 <span id="headerPoints" class="header-points"></span>
             </div>
             <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="profile.html" class="header-profile-link" style="background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);" id="headerProfileLinkActive">Профиль</a>
             <a href="/logout" class="header-logout-btn">Выйти</a>
         </div>
     </div>
@@ -224,6 +225,22 @@
         <div class="p-modal-footer">
             <button class="p-btn-cancel" onclick="closeModal('confirmDeleteModal')">Отмена</button>
             <button class="btn-team-danger" id="confirmDeleteBtn" onclick="doDeleteTeam()">💀 Распустить</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Модал управления участником команды -->
+<div id="memberModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">👤 <span id="memberModalName"></span></span>
+            <button class="p-modal-close" onclick="closeMemberModal()">✕</button>
+        </div>
+        <div class="p-modal-body" style="gap:10px;">
+            <button onclick="memberModalKick()"    class="btn-team-danger"    style="width:100%;justify-content:center;">🚫 Исключить из команды</button>
+            <button onclick="memberModalCaptain()" id="memberModalCapBtn" class="btn-team-settings" style="width:100%;justify-content:center;">👑 Назначить капитаном</button>
+            <button onclick="memberModalRole()"    class="p-btn-cancel"       style="width:100%;padding:10px;text-align:center;">🔄 Сменить роль (замена ↔ основа)</button>
         </div>
     </div>
 </div>

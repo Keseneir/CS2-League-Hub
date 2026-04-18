@@ -163,6 +163,10 @@ app.get("/api/profile", requireAuth, async (req, res) => {
       }
     }
 
+    // Заявки пользователя
+    const applications = await Application.find({ userId: req.user._id })
+      .sort({ createdAt: -1 }).limit(5).lean();
+
     res.json({
       _id:            user._id,
       steamId:        user.steamId,
@@ -174,6 +178,7 @@ app.get("/api/profile", requireAuth, async (req, res) => {
       friends:        user.friends        || [],
       friendRequests: user.friendRequests || [],
       teamInvites:    user.teamInvites    || [],
+      applications:   applications,
       isAdmin:        user.steamId === ADMIN_STEAM_ID,
     });
   } catch (err) {
@@ -628,6 +633,28 @@ app.get("/api/leaderboard", async (req, res) => {
   }
 });
 
+// Составы команд для лидерборда (запрос с массивом teamId)
+app.get("/api/leaderboard/rosters", async (req, res) => {
+  try {
+    const ids = (req.query.ids || "").split(",").filter(Boolean).slice(0, 30);
+    if (!ids.length) return res.json({});
+    const teams = await Team.find({ _id: { $in: ids } })
+      .populate("members", "displayName")
+      .populate("subs",    "displayName")
+      .lean();
+    const map = {};
+    teams.forEach(t => {
+      map[t._id.toString()] = {
+        members: (t.members || []).map(m => ({ displayName: m.displayName })),
+        subs:    (t.subs    || []).map(m => ({ displayName: m.displayName })),
+      };
+    });
+    res.json(map);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
 // Список всех сезонов (для выпадающего списка на странице лидерборда)
 app.get("/api/seasons", async (req, res) => {
   try {
@@ -870,6 +897,42 @@ app.get("/api/admin/leaderboard/:seasonId", requireAdmin, async (req, res) => {
       .lean();
     res.json(stats);
   } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Отправить команде требование (предупреждение/запрос изменений)
+app.post("/api/admin/teams/:teamId/notice", requireAdmin, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId)
+      .populate("captainId", "_id");
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    const { type, message } = req.body; // type: "rename"|"logo"|"custom"
+    const labels = { rename: "Требование сменить название", logo: "Требование обновить логотип", custom: "Сообщение от администрации" };
+    const captain = await User.findById(team.captainId._id || team.captainId);
+    if (!captain) return res.status(404).json({ error: "Капитан не найден" });
+    captain.teamInvites.push({
+      teamId: team._id,
+      from:   req.user._id,
+      role:   "main",
+      _notice: true,
+      _noticeType: type,
+      _noticeMsg: message || labels[type] || "Сообщение от администрации",
+    });
+    // Используем отдельное поле для уведомлений-предупреждений
+    if (!captain.adminNotices) captain.adminNotices = [];
+    captain.adminNotices.push({
+      type:    type || "custom",
+      message: message || labels[type] || "Сообщение от администрации",
+      teamId:  team._id,
+      teamName:team.name,
+      read:    false,
+      createdAt: new Date(),
+    });
+    await captain.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

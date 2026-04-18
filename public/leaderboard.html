@@ -7,6 +7,10 @@
     <title>Таблица лидеров — CS2 League Hub</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+<style>
+#lbRosterModal.open { display: flex !important; }
+@keyframes modalIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+</style>
 </head>
 <body class="page-leaderboard">
 
@@ -19,7 +23,21 @@
             <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-mobile-link">Telegram</a>
             <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-mobile-link">Discord</a>
         </div>
-        <a href="https://cs2-league-hub.vercel.app/join.html" target="_blank" class="btn-apply">ПОДАТЬ ЗАЯВКУ</a>
+
+        <a href="/auth/steam?redirect=/leaderboard.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+            </div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+        <a href="join.html" id="btnApply" class="btn-apply">ПОДАТЬ ЗАЯВКУ</a>
     </div>
 </header>
 
@@ -204,5 +222,25 @@
 </div>
 
 <script src="script.js" defer></script>
+
+<!-- Модал состава команды (лидерборд) -->
+<div id="lbRosterModal" class="page-leaderboard" style="position:fixed;inset:0;z-index:400;display:none;;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#12171d;border:1px solid rgba(230,176,34,0.25);border-radius:16px;width:100%;max-width:520px;overflow:hidden;animation:modalIn 0.25s ease;">
+        <div style="display:flex;align-items:center;gap:14px;padding:20px 24px;border-bottom:1px solid #1f252c;">
+            <div id="lbRosterAvatar" style="width:48px;height:48px;border-radius:10px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.3);flex-shrink:0;overflow:hidden;"></div>
+            <div style="flex:1;min-width:0;">
+                <div id="lbRosterTeamName" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:17px;color:white;"></div>
+                <div style="font-size:12px;color:#5c6b7f;margin-top:3px;">Состав команды</div>
+            </div>
+            <button id="lbRosterClose" style="background:#1a2128;border:none;color:#aebbc7;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0;">✕</button>
+        </div>
+        <div style="padding:20px 24px 24px;">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;">⚔️ Основной состав</div>
+            <div id="lbRosterMain" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;"></div>
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;">🔄 Замены</div>
+            <div id="lbRosterSubs" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -28,7 +28,6 @@ async function checkAuth() {
         const profile      = document.getElementById("headerUserProfile");
         const avatar       = document.getElementById("headerAvatar");
         const name         = document.getElementById("headerName");
-        const points       = document.getElementById("headerPoints");
         const teamBadge    = document.getElementById("headerTeamBadge");
         const btnApply     = document.getElementById("btnApply");
         const heroBtnApply = document.getElementById("heroBtnApply");
@@ -38,12 +37,27 @@ async function checkAuth() {
             if (profile)   profile.style.display   = "flex";
             if (avatar)    avatar.src              = user.avatar;
             if (name)      name.textContent        = user.displayName;
-            if (points)    points.textContent      = user.points + " очков";
 
             if (teamBadge && user.team) {
                 teamBadge.textContent   = `[${user.team.tag}] ${user.team.name}`;
                 teamBadge.style.display = "inline-flex";
             }
+            // Динамически добавляем ссылку "Профиль" в хедер
+            if (profile && !document.getElementById("_dynProfileLink")) {
+                const link = document.createElement("a");
+                link.id        = "_dynProfileLink";
+                link.href      = "/profile.html";
+                link.className = "header-profile-link";
+                link.textContent = "Профиль";
+                const isProfilePage = window.location.pathname.includes("profile");
+                if (isProfilePage) {
+                    link.style.cssText = "background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
+                }
+                const logoutBtn = profile.querySelector(".header-logout-btn");
+                if (logoutBtn) profile.insertBefore(link, logoutBtn);
+                else profile.appendChild(link);
+            }
+
             if (btnApply)     { btnApply.href     = "/join.html"; btnApply.removeAttribute("target"); }
             if (heroBtnApply) { heroBtnApply.href = "/join.html"; heroBtnApply.removeAttribute("target"); }
         } else {
@@ -770,7 +784,6 @@ if (document.getElementById("profileContent")) {
 
         document.getElementById("profileAvatar").src              = d.avatar || "";
         document.getElementById("profileDisplayName").textContent = d.displayName || "—";
-        document.getElementById("profilePointsBadge").textContent = (d.points || 0) + " очков";
         document.getElementById("profileRankBadge").textContent   = d.rank || "Unranked";
 
         if (d.team) {

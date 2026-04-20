@@ -179,6 +179,7 @@ app.get("/api/profile", requireAuth, async (req, res) => {
       friendRequests: user.friendRequests || [],
       teamInvites:    user.teamInvites    || [],
       applications:   applications,
+      adminNotices:   (user.adminNotices || []).filter(n => !n.read),
       isAdmin:        user.steamId === ADMIN_STEAM_ID,
     });
   } catch (err) {
@@ -190,10 +191,31 @@ app.get("/api/profile", requireAuth, async (req, res) => {
 app.get("/api/notifications/count", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select("friendRequests teamInvites").lean();
+      .select("friendRequests teamInvites adminNotices").lean();
     const fr = (user.friendRequests || []).length;
     const ti = (user.teamInvites    || []).length;
-    res.json({ friendRequests: fr, teamInvites: ti, total: fr + ti });
+    const an = (user.adminNotices   || []).length;
+    const apps = await Application.find({ userId: req.user._id }).select("status").lean();
+    const ap = apps.filter(a => a.status !== "pending").length;
+    res.json({ friendRequests: fr, teamInvites: ti, adminNotices: an, applications: ap, total: fr + ti + an + ap });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── API: DISMISS ADMIN NOTICE ───────────────────────────────────────────────
+app.post("/api/profile/dismiss-notice", requireAuth, async (req, res) => {
+  try {
+    const { idx } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: "Не найдено" });
+    const notices = user.adminNotices || [];
+    if (idx >= 0 && idx < notices.length) {
+      notices.splice(idx, 1);
+      user.adminNotices = notices;
+      await user.save();
+    }
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }
@@ -541,10 +563,15 @@ app.patch("/api/team/member/:userId/role", requireAuth, async (req, res) => {
     if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
     const team = await Team.findById(req.user.teamId);
     if (!team) return res.status(404).json({ error: "Команда не найдена" });
-    if (team.captainId.toString() !== req.user._id.toString())
+
+    const targetId  = req.params.userId;
+    const isSelf    = targetId === req.user._id.toString();
+    const isCaptain = team.captainId.toString() === req.user._id.toString();
+
+    // Капитан может менять роль любого участника, включая себя.
+    if (!isCaptain)
       return res.status(403).json({ error: "Только капитан может менять роли" });
 
-    const targetId = req.params.userId;
     const newRole  = req.body.role;
     if (!["main","sub"].includes(newRole)) return res.status(400).json({ error: "Неверная роль" });
 
@@ -577,10 +604,20 @@ app.post("/api/applications", requireAuth, async (req, res) => {
     if (existing) return res.status(400).json({ error: "У вас уже есть активная заявка." });
     const { hoursInCS2, faceitLevel, experience, contacts } = req.body;
     if (!hoursInCS2 || !faceitLevel || !contacts) return res.status(400).json({ error: "Заполните все обязательные поля." });
+
+    // Определяем роль игрока в команде
+    const team = await Team.findById(req.user.teamId);
+    let role = "main";
+    if (team) {
+      const uid = req.user._id.toString();
+      if (team.captainId.toString() === uid) role = "captain";
+      else if ((team.subs || []).some(s => s.toString() === uid)) role = "sub";
+    }
+
     const application = await Application.create({
       userId: req.user._id, teamId: req.user.teamId,
       hoursInCS2: Number(hoursInCS2), faceitLevel,
-      experience: experience || "", contacts, status: "pending"
+      experience: experience || "", contacts, role, status: "pending"
     });
     res.json({ ok: true, application });
   } catch (err) {
@@ -665,7 +702,7 @@ app.get("/api/seasons", async (req, res) => {
   }
 });
 
-// Лидерборд конкретного сезона
+
 app.get("/api/leaderboard/:seasonId", async (req, res) => {
   try {
     const season = await Season.findById(req.params.seasonId).lean();
@@ -691,37 +728,33 @@ app.get("/api/leaderboard/:seasonId", async (req, res) => {
   }
 });
 
-// ─── ЛОГИКА РЕЙТИНГА ─────────────────────────────────────────────────────────
+
 
 function calcPoints(winnerStat, loserStat, roundDiffForWinner) {
-  // Базовые очки
+  
   let winPts  = 25;
   let losePts = -15;
 
-  // Сила соперника
+  
   if (loserStat.pts > winnerStat.pts) {
-    winPts  = 30;   // победа над более сильным
-    losePts = -10;  // поражение от более слабого (loser point of view)
+    winPts  = 30;   
+    losePts = -10;  
   } else {
-    winPts  = 25;   // победа над равным или слабым
-    losePts = -20;  // поражение от слабого
+    winPts  = 25;   
+    losePts = -20;  
   }
 
-  // Серия побед: начиная с 3-й победы подряд — +5 бонус
+  
   const newWinStreak = winnerStat.winStreak + 1;
   if (newWinStreak >= 3) winPts += 5;
 
-  // Победа над Царём горы — +10 бонус
+ 
   if (loserStat.isKingOfHill) winPts += 10;
 
   return { winPts, losePts, newWinStreak };
 }
 
-// ─── API: МАТЧИ ───────────────────────────────────────────────────────────────
 
-// Записать результат матча (только для перехода в историю)
-// POST /api/admin/match
-// body: { seasonId, winnerId (teamStatId), loserId (teamStatId), winnerRoundDiff }
 
 app.post("/api/admin/match", requireAdmin, async (req, res) => {
   const { seasonId, winnerId, loserId, winnerRoundDiff } = req.body;
@@ -742,7 +775,7 @@ app.post("/api/admin/match", requireAdmin, async (req, res) => {
     const rd = parseInt(winnerRoundDiff) || 0;
     const { winPts, losePts, newWinStreak } = calcPoints(winner, loser, rd);
 
-    // Обновить победителя
+    
     winner.pts        = Math.max(0, winner.pts + winPts);
     winner.wins      += 1;
     winner.matches   += 1;
@@ -750,7 +783,7 @@ app.post("/api/admin/match", requireAdmin, async (req, res) => {
     winner.winStreak  = newWinStreak;
     winner.isKingOfHill = newWinStreak >= 3;
 
-    // Обновить проигравшего
+   
     loser.pts         = Math.max(0, loser.pts + losePts);
     loser.losses     += 1;
     loser.matches    += 1;
@@ -766,9 +799,6 @@ app.post("/api/admin/match", requireAdmin, async (req, res) => {
   }
 });
 
-// ─── ADMIN API ────────────────────────────────────────────────────────────────
-
-// Все зарегистрированные команды
 app.get("/api/admin/teams", requireAdmin, async (req, res) => {
   try {
     const teams = await Team.find()
@@ -783,7 +813,7 @@ app.get("/api/admin/teams", requireAdmin, async (req, res) => {
   }
 });
 
-// Расформировать команду (админ)
+
 app.delete("/api/admin/teams/:teamId", requireAdmin, async (req, res) => {
   try {
     await _disbandTeam(req.params.teamId);
@@ -794,7 +824,7 @@ app.delete("/api/admin/teams/:teamId", requireAdmin, async (req, res) => {
   }
 });
 
-// Все сезоны
+
 app.get("/api/admin/seasons", requireAdmin, async (req, res) => {
   try {
     const seasons = await Season.find().sort({ createdAt: -1 }).lean();
@@ -804,13 +834,13 @@ app.get("/api/admin/seasons", requireAdmin, async (req, res) => {
   }
 });
 
-// Создать сезон
+
 app.post("/api/admin/seasons", requireAdmin, async (req, res) => {
   const { name, year, isActive } = req.body;
   if (!name || !year) return res.status(400).json({ error: "Название и год обязательны" });
   try {
     if (isActive) {
-      // Снять активность с других сезонов
+      
       await Season.updateMany({}, { $set: { isActive: false } });
     }
     const season = await Season.create({ name, year: Number(year), isActive: !!isActive });
@@ -820,7 +850,7 @@ app.post("/api/admin/seasons", requireAdmin, async (req, res) => {
   }
 });
 
-// Сделать сезон активным
+
 app.patch("/api/admin/seasons/:id/activate", requireAdmin, async (req, res) => {
   try {
     await Season.updateMany({}, { $set: { isActive: false } });
@@ -831,7 +861,7 @@ app.patch("/api/admin/seasons/:id/activate", requireAdmin, async (req, res) => {
   }
 });
 
-// Удалить сезон (и все его статы)
+
 app.delete("/api/admin/seasons/:id", requireAdmin, async (req, res) => {
   try {
     await TeamStat.deleteMany({ seasonId: req.params.id });
@@ -842,7 +872,7 @@ app.delete("/api/admin/seasons/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// Добавить команду в сезон (создать TeamStat)
+
 app.post("/api/admin/leaderboard", requireAdmin, async (req, res) => {
   const { teamId, seasonId, pts } = req.body;
   if (!teamId || !seasonId) return res.status(400).json({ error: "teamId и seasonId обязательны" });
@@ -861,7 +891,7 @@ app.post("/api/admin/leaderboard", requireAdmin, async (req, res) => {
   }
 });
 
-// Убрать команду из сезона
+
 app.delete("/api/admin/leaderboard/:statId", requireAdmin, async (req, res) => {
   try {
     await TeamStat.findByIdAndDelete(req.params.statId);
@@ -871,7 +901,7 @@ app.delete("/api/admin/leaderboard/:statId", requireAdmin, async (req, res) => {
   }
 });
 
-// Ручная правка очков / статы
+
 app.patch("/api/admin/leaderboard/:statId", requireAdmin, async (req, res) => {
   try {
     const allowed = ["pts","wins","losses","matches","roundDiff","winStreak","isKingOfHill"];
@@ -888,7 +918,7 @@ app.patch("/api/admin/leaderboard/:statId", requireAdmin, async (req, res) => {
   }
 });
 
-// Статы для лидерборда конкретного сезона (для панели)
+
 app.get("/api/admin/leaderboard/:seasonId", requireAdmin, async (req, res) => {
   try {
     const stats = await TeamStat.find({ seasonId: req.params.seasonId })
@@ -901,25 +931,16 @@ app.get("/api/admin/leaderboard/:seasonId", requireAdmin, async (req, res) => {
   }
 });
 
-// Отправить команде требование (предупреждение/запрос изменений)
+
 app.post("/api/admin/teams/:teamId/notice", requireAdmin, async (req, res) => {
   try {
     const team = await Team.findById(req.params.teamId)
       .populate("captainId", "_id");
     if (!team) return res.status(404).json({ error: "Команда не найдена" });
-    const { type, message } = req.body; // type: "rename"|"logo"|"custom"
+    const { type, message } = req.body; 
     const labels = { rename: "Требование сменить название", logo: "Требование обновить логотип", custom: "Сообщение от администрации" };
     const captain = await User.findById(team.captainId._id || team.captainId);
     if (!captain) return res.status(404).json({ error: "Капитан не найден" });
-    captain.teamInvites.push({
-      teamId: team._id,
-      from:   req.user._id,
-      role:   "main",
-      _notice: true,
-      _noticeType: type,
-      _noticeMsg: message || labels[type] || "Сообщение от администрации",
-    });
-    // Используем отдельное поле для уведомлений-предупреждений
     if (!captain.adminNotices) captain.adminNotices = [];
     captain.adminNotices.push({
       type:    type || "custom",
@@ -937,7 +958,7 @@ app.post("/api/admin/teams/:teamId/notice", requireAdmin, async (req, res) => {
   }
 });
 
-// Заявки (admin UI)
+
 app.get("/api/admin/applications", requireAdmin, async (req, res) => {
   try {
     const applications = await Application.find()
@@ -946,6 +967,15 @@ app.get("/api/admin/applications", requireAdmin, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
     res.json(applications);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+app.delete("/api/admin/applications/:id", requireAdmin, async (req, res) => {
+  try {
+    await Application.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }
@@ -964,7 +994,7 @@ app.patch("/api/admin/applications/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// Совместимость со старым маршрутом заявок
+
 app.patch("/admin/applications/:id/status", requireAdmin, async (req, res) => {
   req.params.id = req.params.id;
   const { status } = req.body;
@@ -979,7 +1009,7 @@ app.patch("/admin/applications/:id/status", requireAdmin, async (req, res) => {
   }
 });
 
-// ─── ВСПОМОГАТЕЛЬНАЯ: расформировать команду ─────────────────────────────────
+
 
 async function _disbandTeam(teamId) {
   const team = await Team.findById(teamId);
@@ -992,10 +1022,10 @@ async function _disbandTeam(teamId) {
   await User.updateMany({ _id: { $in: [...allIds] } }, { $set: { teamId: null } });
   await User.updateMany({}, { $pull: { teamInvites: { teamId: team._id } } });
   await Team.findByIdAndDelete(teamId);
-  // Статы в сезонах НЕ удаляем — история матчей остаётся
+  
 }
 
-// ─── STATIC & CATCH-ALL ───────────────────────────────────────────────────────
+
 
 app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {

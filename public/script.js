@@ -509,7 +509,7 @@ if (document.getElementById("joinForm")) {
     let _currentUser = null;
 
     async function initJoinPage() {
-        const user   = await checkAuth();
+        const user = await checkAuth();
         _currentUser = user;
 
         if (!user) {
@@ -521,22 +521,59 @@ if (document.getElementById("joinForm")) {
         const nicknameEl = document.getElementById("nickname");
         if (nicknameEl) nicknameEl.value = user.displayName;
 
-        if (!user.team) {
-            const banner = document.getElementById("noTeamBanner");
-            if (banner) banner.style.display = "block";
-            return;
+        // Получаем полные данные профиля — там есть isCaptain, team.members, team.subs
+        try {
+            const res = await fetch("/api/profile");
+            if (res.ok) {
+                const d = await res.json();
+                if (!d.team) {
+                    const banner = document.getElementById("noTeamBanner");
+                    if (banner) banner.style.display = "block";
+                    return;
+                }
+                // Определяем роль из профиля напрямую
+                let roleLabel, roleColor;
+                if (d.isCaptain) {
+                    roleLabel = "👑 Капитан";
+                    roleColor = "#e6b022";
+                } else {
+                    const myId  = d._id?.toString();
+                    const isSub = (d.team.subs || []).some(m => (m._id || m).toString() === myId);
+                    roleLabel = isSub ? "🔄 Замена" : "⚔️ Основной состав";
+                    roleColor = isSub ? "#aebbc7" : "#4caf82";
+                }
+                renderTeamInfoCard(d.team, roleLabel, roleColor);
+            } else {
+                // Fallback: если не залогинен через /api/profile
+                if (!user.team) {
+                    const banner = document.getElementById("noTeamBanner");
+                    if (banner) banner.style.display = "block";
+                    return;
+                }
+                renderTeamInfoCard(user.team, "⚔️ Основной состав", "#4caf82");
+            }
+        } catch {
+            if (!user.team) {
+                const banner = document.getElementById("noTeamBanner");
+                if (banner) banner.style.display = "block";
+                return;
+            }
+            renderTeamInfoCard(user.team, "⚔️ Основной состав", "#4caf82");
         }
 
-        renderTeamInfoCard(user.team);
         const progress = document.getElementById("progressWrap");
         const form     = document.getElementById("joinForm");
         if (progress) progress.style.display = "flex";
         if (form)     form.style.display     = "block";
     }
 
-    function renderTeamInfoCard(team) {
+    function renderTeamInfoCard(team, roleLabel, roleColor) {
         const card = document.getElementById("teamInfoCard");
         if (!card) return;
+
+        roleLabel = roleLabel || "⚔️ Основной состав";
+        roleColor = roleColor || "#4caf82";
+
         card.innerHTML = `
             <div class="team-card">
                 ${team.logo
@@ -544,9 +581,14 @@ if (document.getElementById("joinForm")) {
                     : `<div class="team-card-logo-placeholder">[${team.tag}]</div>`}
                 <div class="team-card-info">
                     <div class="team-card-name">[${team.tag}] ${team.name}</div>
-                    <div class="team-card-sub">Ваша команда · Капитан</div>
+                    <div class="team-card-sub" style="color:${roleColor};font-weight:700;">${roleLabel}</div>
                 </div>
             </div>`;
+
+        // Записываем роль в скрытое поле (уходит в Formspree)
+        const roleInput = document.getElementById("playerRole");
+        const cleanRole = roleLabel.replace(/\p{Emoji}/gu, "").trim();
+        if (roleInput) roleInput.value = cleanRole;
     }
 
     window.openCreateTeamModal = function() {
@@ -659,6 +701,7 @@ if (document.getElementById("joinForm")) {
                     faceit_level: document.getElementById("faceit_level").value,
                     experience:   document.getElementById("experience").value,
                     contacts:     document.getElementById("contacts").value,
+                    player_role:  document.getElementById("playerRole")?.value || "",
                 };
 
                 // 1. Отправка в MongoDB (основная)
@@ -719,6 +762,14 @@ if (document.getElementById("joinForm")) {
         });
     }
 })();
+
+/* ================================================
+   HELP MODAL (profile page)
+   ================================================ */
+window.openHelpModal = function() {
+    const m = document.getElementById("helpModal");
+    if (m) { m.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
+};
 
 /* ================================================
    PROFILE PAGE
@@ -856,6 +907,14 @@ if (document.getElementById("profileContent")) {
         if (d.isCaptain) {
             captainActionsEl.style.display = "flex";
             memberActionsEl.style.display  = "none";
+            // Добавляем кнопку смены своей роли для капитана
+            const myId   = d._id?.toString();
+            const isSub  = (team.subs    || []).some(m => m._id?.toString() === myId);
+            const selfRoleBtn = document.getElementById("captainSelfRoleBtn");
+            if (selfRoleBtn) {
+                selfRoleBtn.textContent = isSub ? "⚔️ Перейти в основной состав" : "🔄 Перейти в замены";
+                selfRoleBtn.onclick = () => captainChangeSelfRole(myId, isSub ? "main" : "sub");
+            }
         } else {
             captainActionsEl.style.display = "none";
             memberActionsEl.style.display  = "flex";
@@ -913,7 +972,7 @@ if (document.getElementById("profileContent")) {
             </div>
             <div class="friend-actions">
                 <button class="btn-fr btn-fr-accept" onclick="acceptFriend('${from._id}')">✓ Принять</button>
-                <button class="btn-fr btn-fr-reject" onclick="rejectFriend('${from._id}')">✕</button>
+                <button class="btn-fr btn-fr-reject" onclick="rejectFriend('${from._id}')">✕ Отклонить</button>
             </div>
         </div>`;
     }
@@ -952,6 +1011,26 @@ if (document.getElementById("profileContent")) {
         const invites  = d.teamInvites    || [];
         const apps     = d.applications   || [];
         let html = "";
+
+        // Уведомления от администрации
+        const notices = d.adminNotices || [];
+        if (notices.length > 0) {
+            const icons   = { rename: "✏️", logo: "🖼️", custom: "💬" };
+            const bgMap   = { rename: "rgba(224,92,92,0.08)",  logo: "rgba(91,141,232,0.08)",  custom: "rgba(230,176,34,0.08)" };
+            const borMap  = { rename: "rgba(224,92,92,0.25)",  logo: "rgba(91,141,232,0.25)",  custom: "rgba(230,176,34,0.25)" };
+            const clrMap  = { rename: "#e05c5c",               logo: "#5b8de8",                custom: "#e6b022" };
+            html += `<div class="notif-block">
+                <div class="notif-block-title">🛡️ Сообщения от администрации</div>
+                ${notices.map((n, ni) => `<div class="friend-row" style="background:${bgMap[n.type]||bgMap.custom};border-left:3px solid ${borMap[n.type]||borMap.custom};">
+                    <div style="font-size:22px;flex-shrink:0;">${icons[n.type] || "📢"}</div>
+                    <div class="friend-info">
+                        <div class="friend-name" style="color:${clrMap[n.type]||clrMap.custom};">${n.message || "Сообщение от администрации"}</div>
+                        <div class="friend-sub">Команда: ${n.teamName || "—"} · ${new Date(n.createdAt).toLocaleDateString("ru-RU")}</div>
+                    </div>
+                    <button class="btn-fr btn-fr-reject" style="flex-shrink:0;" onclick="dismissNotice('admin',${ni})">✕</button>
+                </div>`).join("")}
+            </div>`;
+        }
 
         if (apps.length > 0) {
             html += `<div class="notif-block">
@@ -1013,7 +1092,8 @@ if (document.getElementById("profileContent")) {
         const frCount  = (d.friendRequests || []).length;
         const tiCount  = (d.teamInvites    || []).length;
         const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
-        const total    = frCount + tiCount + appCount;
+        const admCount = (d.adminNotices   || []).length;
+        const total    = frCount + tiCount + appCount + admCount;
 
         const frBadge = document.getElementById("friendReqBadge");
         if (frBadge) { frBadge.textContent = frCount; frBadge.style.display = frCount > 0 ? "inline-flex" : "none"; }
@@ -1119,6 +1199,20 @@ if (document.getElementById("profileContent")) {
             closeModal("inviteModal");
             showToast("Приглашение отправлено!", "ok");
         } catch { showModalError("inviteError", "Ошибка соединения"); }
+    };
+
+    // Удалить уведомление
+    window.dismissNotice = async function(type, idx) {
+        if (type === "admin") {
+            try {
+                await fetch("/api/profile/dismiss-notice", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ idx })
+                });
+            } catch {}
+        }
+        await refreshProfile();
     };
 
     window.acceptTeamInvite = async function(teamId) {
@@ -1253,6 +1347,20 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
+    window.captainChangeSelfRole = async function(userId, newRole) {
+        try {
+            const res = await fetch(`/api/team/member/${userId}/role`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: newRole })
+            });
+            const d = await res.json();
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); return; }
+            showToast(newRole === "sub" ? "Вы теперь в составе замен" : "Вы теперь в основном составе", "ok");
+            await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
     window.confirmLeaveTeam = function() { openModal("confirmLeaveModal"); };
 
     window.doLeaveTeam = async function() {
@@ -1300,6 +1408,24 @@ if (document.getElementById("profileContent")) {
         }
     });
 
-    // ─── ЗАПУСК ───────────────────────────────────────────────────────────────
+    // ─── ЗАПУСК + POLLING ────────────────────────────────────────────────────
     loadProfile();
+
+    // Polling: тихое фоновое обновление каждые 5 секунд
+    // Сравниваем только счётчики уведомлений — не перерисовываем если нет изменений
+    let _pollHash = "";
+    async function _silentPoll() {
+        if (document.hidden) return; // не опрашивать если вкладка неактивна
+        try {
+            const res = await fetch("/api/notifications/count");
+            if (!res.ok) return;
+            const counts = await res.json();
+            const hash   = JSON.stringify(counts);
+            if (hash !== _pollHash) {
+                _pollHash = hash;
+                await refreshProfile();
+            }
+        } catch {}
+    }
+    setInterval(_silentPoll, 5000);
 }

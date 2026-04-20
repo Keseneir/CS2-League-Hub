@@ -776,6 +776,52 @@ function renderTeamsTable() {
     </table>`;
 }
 
+function filterTeamsTable() {
+    const q = (document.getElementById("teamSearchInput")?.value || "").toLowerCase().trim();
+    document.querySelectorAll("#teamsTableWrap tbody tr").forEach(tr => {
+        tr.style.display = (!q || tr.textContent.toLowerCase().includes(q)) ? "" : "none";
+    });
+}
+
+let _noticeTeamId = null, _noticeTeamName = null, _noticeType = null;
+
+async function sendNotice(teamId, name, type) {
+    _noticeTeamId = teamId; _noticeTeamName = name; _noticeType = type;
+    if (type === "custom") {
+        document.getElementById("noticeTeamName").textContent = name;
+        document.getElementById("noticeText").value = "";
+        hideError("noticeError");
+        openModal("customNoticeModal");
+        return;
+    }
+    const labels = { rename: "потребовать сменить название", logo: "потребовать обновить логотип" };
+    _confirmAction(`${labels[type] || "отправить уведомление"} команде «${name}»?`, async () => {
+        await _doSendNotice(type, "");
+    });
+}
+
+async function submitCustomNotice() {
+    const msg = document.getElementById("noticeText").value.trim();
+    if (!msg) { showError("noticeError", "Введите текст сообщения"); return; }
+    const btn = document.getElementById("noticeSendBtn");
+    btn.disabled = true; btn.textContent = "Отправляем...";
+    await _doSendNotice(_noticeType, msg);
+    btn.disabled = false; btn.textContent = "Отправить";
+    closeModal("customNoticeModal");
+}
+
+async function _doSendNotice(type, message) {
+    try {
+        const res = await fetch(`/api/admin/teams/${_noticeTeamId}/notice`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, message })
+        });
+        const d = await res.json();
+        if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
+        toast(`✅ Уведомление отправлено капитану «${_noticeTeamName}»`, "ok");
+    } catch { toast("Ошибка соединения", "err"); }
+}
+
 async function disbandTeam(teamId, name) {
     _confirmAction(`Расформировать команду «${name}»? Все участники будут освобождены.`, async () => {
         try {
@@ -810,7 +856,7 @@ function renderAppsTable(apps) {
     }
     const statusMap = { pending: ["badge-pending","⏳ Ожидание"], accepted: ["badge-accepted","✅ Принята"], rejected: ["badge-rejected","❌ Отклонена"] };
     wrap.innerHTML = `<table class="data-table">
-        <thead><tr><th>Игрок</th><th>Команда</th><th class="num">Часов</th><th>FACEIT</th><th>Контакты</th><th>Статус</th><th>Действия</th></tr></thead>
+        <thead><tr><th>Игрок</th><th>Команда</th><th>Роль</th><th class="num">Часов</th><th>FACEIT</th><th>Контакты</th><th>Статус</th><th>Действия</th></tr></thead>
         <tbody>${apps.map(a => {
             const [cls, label] = statusMap[a.status] || ["badge-pending","⏳"];
             return `<tr>
@@ -822,6 +868,11 @@ function renderAppsTable(apps) {
                     </div>
                 </div></td>
                 <td style="font-size:13px;">${a.teamId ? `[${a.teamId.tag}] ${a.teamId.name}` : "—"}</td>
+                <td>${
+                    a.role === "captain" ? '<span class="badge" style="background:rgba(230,176,34,0.15);color:#e6b022;">👑 Капитан</span>' :
+                    a.role === "sub"     ? '<span class="badge" style="background:rgba(92,107,127,0.15);color:#aebbc7;">🔄 Замена</span>' :
+                                          '<span class="badge" style="background:rgba(76,175,130,0.15);color:#4caf82;">⚔️ Основа</span>'
+                }</td>
                 <td class="num">${a.hoursInCS2}</td>
                 <td>${a.faceitLevel}</td>
                 <td style="font-size:12px;max-width:160px;word-break:break-word;">${a.contacts}</td>
@@ -829,11 +880,23 @@ function renderAppsTable(apps) {
                 <td><div class="actions">
                     <button class="btn btn-success btn-sm" onclick="updateApp('${a._id}','accepted')">✅ Принять</button>
                     <button class="btn btn-danger btn-sm"  onclick="updateApp('${a._id}','rejected')">❌ Отклонить</button>
+                    <button class="btn btn-ghost btn-sm"   onclick="deleteApp('${a._id}')">🗑</button>
                 </div></td>
             </tr>`;
         }).join("")}
         </tbody>
     </table>`;
+}
+
+async function deleteApp(id) {
+    _confirmAction("Удалить эту заявку безвозвратно?", async () => {
+        try {
+            const res = await fetch(`/api/admin/applications/${id}`, { method: "DELETE" });
+            if (!res.ok) { toast("Ошибка удаления", "err"); return; }
+            toast("Заявка удалена", "ok");
+            loadApplications();
+        } catch { toast("Ошибка соединения", "err"); }
+    });
 }
 
 async function updateApp(id, status) {

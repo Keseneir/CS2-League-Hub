@@ -32,7 +32,6 @@
                 <span id="headerPoints" class="header-points"></span>
             </div>
             <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
-            <a href="profile.html" class="header-profile-link" style="background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);" id="headerProfileLinkActive">Профиль</a>
             <a href="/logout" class="header-logout-btn">Выйти</a>
         </div>
     </div>
@@ -125,6 +124,7 @@
                 <!-- Кнопки капитана -->
                 <div id="captainActions" class="team-action-bar" style="display:none;">
                     <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
+                    <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
                     <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
                 </div>
 
@@ -297,5 +297,49 @@
 </footer>
 
 <script src="script.js" defer></script>
+
+<!-- Плавающая кнопка помощи -->
+<button id="profileHelpBtn" onclick="document.getElementById('profileHelpModal').classList.remove('p-modal-hidden');document.body.style.overflow='hidden';" style="position:fixed;bottom:28px;right:28px;z-index:300;background:#e6b022;color:#000;border:none;border-radius:50px;padding:12px 20px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 4px 20px rgba(230,176,34,0.4);display:flex;align-items:center;gap:8px;transition:all 0.2s;letter-spacing:0.5px;" onmouseover="this.style.background='#ffc933';this.style.transform='scale(1.05)'" onmouseout="this.style.background='#e6b022';this.style.transform='scale(1)'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Инструкция
+</button>
+
+<!-- Модал инструкций -->
+<div id="profileHelpModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+        <div class="p-modal-header">
+            <span class="p-modal-title">📖 Инструкция для игроков</span>
+            <button class="p-modal-close" onclick="document.getElementById('profileHelpModal').classList.add('p-modal-hidden');document.body.style.overflow='';">✕</button>
+        </div>
+        <div class="p-modal-body" style="gap:20px;">
+
+            <div style="background:rgba(230,176,34,0.07);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:16px 18px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚔️ Шаг 1 — Создание команды</div>
+                <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан команды регистрируется через Steam и в личном кабинете создаёт команду: указывает название, тег и логотип.</p>
+            </div>
+
+            <div style="background:rgba(76,175,130,0.07);border:1px solid rgba(76,175,130,0.2);border-radius:10px;padding:16px 18px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#4caf82;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">👥 Шаг 2 — Набор игроков</div>
+                <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан находит игроков через поиск во вкладке <strong style="color:white;">«Друзья»</strong>, добавляет их в друзья и приглашает в команду с указанием роли.</p>
+                <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                    <div style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#e6b022;">⚔️ Основной состав — 5 игроков</div>
+                    <div style="background:rgba(92,107,127,0.15);border:1px solid rgba(92,107,127,0.3);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#aebbc7;">🔄 Замены — до 5 игроков</div>
+                </div>
+            </div>
+
+            <div style="background:rgba(91,141,232,0.07);border:1px solid rgba(91,141,232,0.2);border-radius:10px;padding:16px 18px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Шаг 3 — Заявка на участие</div>
+                <p style="font-size:13px;line-height:1.7;color:#aebbc7;"><strong style="color:white;">Каждый игрок</strong> команды — капитан, игрок основного состава и замены — обязан самостоятельно подать заявку на странице <a href="join.html" style="color:#5b8de8;text-decoration:underline;">«Подать заявку»</a>.</p>
+                <p style="font-size:12px;color:#5c6b7f;margin-top:8px;">⚠️ Команда не будет допущена к участию, если заявку подали не все игроки.</p>
+            </div>
+
+            <div style="background:rgba(92,107,127,0.08);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#aebbc7;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🔔 Статус заявки</div>
+                <p style="font-size:13px;line-height:1.7;color:#aebbc7;">После подачи заявки её статус отображается во вкладке <strong style="color:white;">«Уведомления»</strong> этого личного кабинета. Администраторы рассматривают заявки и могут также присылать сообщения команде.</p>
+            </div>
+
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -47,7 +47,6 @@
 
 <div class="container">
 
-    <!-- Блок: не авторизован -->
     <div id="authGate" style="display:none;">
         <div class="no-team-banner">
             <div class="no-team-banner-icon">🔒</div>
@@ -62,7 +61,6 @@
         </div>
     </div>
 
-    <!-- Блок: нет команды -->
     <div id="noTeamBanner" style="display:none;">
         <div class="no-team-banner">
             <div class="no-team-banner-icon">🛡️</div>
@@ -76,7 +74,7 @@
         </div>
     </div>
 
-    <!-- Прогресс бар -->
+    
     <div class="progress-wrap" id="progressWrap" style="display:none;">
         <div class="progress-step active" id="ps1">
             <div class="progress-step-circle">1</div>
@@ -99,7 +97,7 @@
         </div>
     </div>
 
-    <!-- Форма заявки -->
+    
     <form id="joinForm" class="join-form" style="display:none;" novalidate>
 
         <div class="form-section" data-section="1">
@@ -113,6 +111,7 @@
                     <label class="field-label">Никнейм (Steam) <span class="req">*</span></label>
                     <div class="field-hint">Подтянуто автоматически из вашего Steam-аккаунта</div>
                     <input type="text" id="nickname" name="nickname" readonly class="input-readonly">
+                    <div id="playerRoleBadge" style="display:none;margin-top:8px;padding:7px 14px;border-radius:6px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.8px;width:fit-content;"></div>
                 </div>
 
                 <div class="field-row">
@@ -237,7 +236,7 @@
 
 </div>
 
-<!-- Модалка: создание команды -->
+
 <div id="createTeamModal" class="ct-modal-overlay" style="display:none;">
     <div class="ct-modal-box">
         <div class="ct-modal-header">

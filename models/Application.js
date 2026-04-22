@@ -8,6 +8,7 @@ const applicationSchema = new mongoose.Schema(
     faceitLevel: { type: String, required: true },
     experience:  { type: String, default: "" },
     contacts:    { type: String, required: true },
+    role:        { type: String, default: "main" }, 
     status:      { type: String, enum: ["pending", "accepted", "rejected"], default: "pending" },
   },
   { timestamps: true }

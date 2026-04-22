@@ -1,10 +1,10 @@
 console.log(
 `%c ██████╗ ██████╗██████╗ ██╗     ██╗  ██╗
-%c██╔════╝██╔════╝╚════██╗██║     ██║  ██║
-%c██║     ███████╗ █████╔╝██║     ███████║
-%c██║     ╚════██║██╔═══╝ ██║     ██╔══██║
-%c╚██████╗██████ ║███████╗███████╗██║  ██║
-%c ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝
+%c ██╔════╝██╔════╝╚════██╗██║     ██║  ██║
+%c ██║     ███████╗ █████╔╝██║     ███████║
+%c ██║     ╚════██║██╔═══╝ ██║     ██╔══██║
+%c ╚██████╗██████ ║███████╗███████╗██║  ██║
+%c  ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝
 %c Developed by Keseneir | CS2 League Hub 2026
 %c 
 %cВНИМАНИЕ: Копирование кода без разрешения автора запрещено.
@@ -16,9 +16,7 @@ console.log(
 'color:#ff4444;font-size:12px;','color:#888;font-size:11px;'
 );
 
-/* ================================================
-   AUTH — подключается на всех страницах
-   ================================================ */
+
 async function checkAuth() {
     try {
         const res  = await fetch("/api/user");
@@ -42,7 +40,7 @@ async function checkAuth() {
                 teamBadge.textContent   = `[${user.team.tag}] ${user.team.name}`;
                 teamBadge.style.display = "inline-flex";
             }
-            // Динамически добавляем ссылку "Профиль" в хедер
+            
             if (profile && !document.getElementById("_dynProfileLink")) {
                 const link = document.createElement("a");
                 link.id        = "_dynProfileLink";
@@ -72,9 +70,7 @@ async function checkAuth() {
 
 document.addEventListener("DOMContentLoaded", checkAuth);
 
-/* ================================================
-   INDEX PAGE — виджет рейтинга
-   ================================================ */
+//индекс
 if (document.getElementById("widgetBody")) {
     const RANK_CLASS = ["r1", "r2", "r3"];
 
@@ -109,9 +105,7 @@ if (document.getElementById("widgetBody")) {
     loadWidget();
 }
 
-/* ================================================
-   NEWS PAGE
-   ================================================ */
+//новости
 if (document.getElementById("newsContainer")) {
     const NEWS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbdqLzy4PvMyR_9Pndokh0E0zNYg13qHTJOwRtBJz1wlwyjrfz_2NsJaskSLLlfXHRMFIT4_CkR_6K/pub?gid=0&single=true&output=csv";
 
@@ -257,13 +251,11 @@ if (document.getElementById("newsContainer")) {
     loadNews();
 }
 
-/* ================================================
-   LEADERBOARD PAGE
-   ================================================ */
+//лидерборд
 if (document.getElementById("tableContainer")) {
 
     let _tableData  = [];
-    let _rosterMap  = {}; // teamId -> {members, subs}
+    let _rosterMap  = {}; 
     let _seasons    = [];
     let _currentSid = null;
 
@@ -311,7 +303,7 @@ if (document.getElementById("tableContainer")) {
             return;
         }
 
-        // Загружаем составы команд из БД параллельно
+        
         const teamIds = _tableData.map(r => r.teamId).filter(Boolean);
         if (teamIds.length) {
             fetch("/api/leaderboard/rosters?ids=" + teamIds.join(","))
@@ -376,7 +368,7 @@ if (document.getElementById("tableContainer")) {
         } else if (noRow) { noRow.style.display = "none"; }
     }
 
-    // ─── Модал состава команды (лидерборд) ──────────────────────────────────
+    
     window.openLbTeamModal = function(idx) {
         const r = _tableData[idx];
         if (!r) return;
@@ -434,7 +426,7 @@ if (document.getElementById("tableContainer")) {
     const _lbRosterClose = document.getElementById("lbRosterClose");
     if (_lbRosterClose) _lbRosterClose.addEventListener("click", () => { _lbRosterModal?.classList.remove("open"); document.body.style.overflow = ""; });
     if (_lbRosterModal)  _lbRosterModal.addEventListener("click", e => { if (e.target === _lbRosterModal) { _lbRosterModal.classList.remove("open"); document.body.style.overflow = ""; } });
-    // ─────────────────────────────────────────────────────────────────────────
+    
 
     async function loadSeasons() {
         try {
@@ -452,7 +444,7 @@ if (document.getElementById("tableContainer")) {
                 const labelEl = document.querySelector(".season-label");
                 if (labelEl) labelEl.textContent = "🏆 " + active.name;
             }
-        } catch { /* нет сезонов — ок */ }
+        } catch {  }
     }
 
     async function loadData(seasonId) {
@@ -502,9 +494,7 @@ if (document.getElementById("tableContainer")) {
 
     init();
 }
-/* ================================================
-   JOIN PAGE
-   ================================================ */
+//заявки
 if (document.getElementById("joinForm")) {
     let _currentUser = null;
 
@@ -521,7 +511,7 @@ if (document.getElementById("joinForm")) {
         const nicknameEl = document.getElementById("nickname");
         if (nicknameEl) nicknameEl.value = user.displayName;
 
-        // Получаем полные данные профиля — там есть isCaptain, team.members, team.subs
+        
         try {
             const res = await fetch("/api/profile");
             if (res.ok) {
@@ -531,7 +521,7 @@ if (document.getElementById("joinForm")) {
                     if (banner) banner.style.display = "block";
                     return;
                 }
-                // Определяем роль из профиля напрямую
+                
                 let roleLabel, roleColor;
                 if (d.isCaptain) {
                     roleLabel = "👑 Капитан";
@@ -544,7 +534,7 @@ if (document.getElementById("joinForm")) {
                 }
                 renderTeamInfoCard(d.team, roleLabel, roleColor);
             } else {
-                // Fallback: если не залогинен через /api/profile
+                
                 if (!user.team) {
                     const banner = document.getElementById("noTeamBanner");
                     if (banner) banner.style.display = "block";
@@ -585,7 +575,7 @@ if (document.getElementById("joinForm")) {
                 </div>
             </div>`;
 
-        // Записываем роль в скрытое поле (уходит в Formspree)
+        
         const roleInput = document.getElementById("playerRole");
         const cleanRole = roleLabel.replace(/\p{Emoji}/gu, "").trim();
         if (roleInput) roleInput.value = cleanRole;
@@ -704,7 +694,7 @@ if (document.getElementById("joinForm")) {
                     player_role:  document.getElementById("playerRole")?.value || "",
                 };
 
-                // 1. Отправка в MongoDB (основная)
+                
                 const res  = await fetch("/api/applications", {
                     method:  "POST",
                     headers: { "Content-Type": "application/json" },
@@ -718,7 +708,7 @@ if (document.getElementById("joinForm")) {
                 const data = await res.json();
 
                 if (res.ok && data.ok) {
-                    // 2. Параллельная отправка в Formspree
+                    
                     (function() {
                         const fd = new FormData();
                         Object.entries(formPayload).forEach(([k, v]) => fd.append(k, v));
@@ -747,9 +737,7 @@ if (document.getElementById("joinForm")) {
     initJoinPage();
 }
 
-/* ================================================
-   ANTI-CLONE
-   ================================================ */
+
 (function() {
     const isOriginal = window.location.hostname === "cs2-league-hub.vercel.app" || window.location.hostname === "localhost";
     if (!isOriginal) {
@@ -763,23 +751,19 @@ if (document.getElementById("joinForm")) {
     }
 })();
 
-/* ================================================
-   HELP MODAL (profile page)
-   ================================================ */
+
 window.openHelpModal = function() {
     const m = document.getElementById("helpModal");
     if (m) { m.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
 };
 
-/* ================================================
-   PROFILE PAGE
-   ================================================ */
+//профиль
 if (document.getElementById("profileContent")) {
 
     let _profileData = null;
     let _inviteTargetId = null;
 
-    // ─── УТИЛИТЫ ──────────────────────────────────────────────────────────────
+    
 
     function avatarEl(src, name, cls) {
         if (src) return `<img src="${src}" alt="${name}" class="${cls}" onerror="this.style.display='none'">`;
@@ -821,7 +805,7 @@ if (document.getElementById("profileContent")) {
         if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
     }
 
-    // ─── ЗАГРУЗКА ПРОФИЛЯ ─────────────────────────────────────────────────────
+    
 
     async function loadProfile() {
         try {
@@ -860,7 +844,7 @@ if (document.getElementById("profileContent")) {
         updateBadges(d);
     }
 
-    // ─── ТАБ: КОМАНДА ─────────────────────────────────────────────────────────
+    
 
     function renderTeamTab(d) {
         const noTeam  = document.getElementById("noTeamState");
@@ -907,7 +891,7 @@ if (document.getElementById("profileContent")) {
         if (d.isCaptain) {
             captainActionsEl.style.display = "flex";
             memberActionsEl.style.display  = "none";
-            // Добавляем кнопку смены своей роли для капитана
+            
             const myId   = d._id?.toString();
             const isSub  = (team.subs    || []).some(m => m._id?.toString() === myId);
             const selfRoleBtn = document.getElementById("captainSelfRoleBtn");
@@ -927,7 +911,7 @@ if (document.getElementById("profileContent")) {
         const myCap  = d.isCaptain;
         const mId    = m._id?.toString();
         const nameEsc = (m.displayName || "Игрок").replace(/'/g, "\\'");
-        // Если я капитан и это не я — строка кликабельна
+        
         const clickAttr = (myCap && !isMe)
             ? `onclick="openMemberModal('${mId}','${nameEsc}',${isCap})" style="cursor:pointer;" title="Управление игроком"`
             : "";
@@ -938,7 +922,7 @@ if (document.getElementById("profileContent")) {
         </div>`;
     }
 
-    // ─── ТАБ: ДРУЗЬЯ ──────────────────────────────────────────────────────────
+    
 
     function renderFriendsTab(d) {
         const friends  = d.friends        || [];
@@ -993,7 +977,7 @@ if (document.getElementById("profileContent")) {
         </div>`;
     }
 
-    // ─── ТАБ: УВЕДОМЛЕНИЯ ─────────────────────────────────────────────────────
+    
 
     function appStatusIcon(status) {
         return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳";
@@ -1012,7 +996,7 @@ if (document.getElementById("profileContent")) {
         const apps     = d.applications   || [];
         let html = "";
 
-        // Уведомления от администрации
+        
         const notices = d.adminNotices || [];
         if (notices.length > 0) {
             const icons   = { rename: "✏️", logo: "🖼️", custom: "💬" };
@@ -1086,7 +1070,7 @@ if (document.getElementById("profileContent")) {
         </div>`;
     }
 
-    // ─── ЗНАЧКИ ───────────────────────────────────────────────────────────────
+    
 
     function updateBadges(d) {
         const frCount  = (d.friendRequests || []).length;
@@ -1102,7 +1086,7 @@ if (document.getElementById("profileContent")) {
         if (nBadge)  { nBadge.textContent  = total;   nBadge.style.display  = total  > 0 ? "inline-flex" : "none"; }
     }
 
-    // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────
+    
 
     window.searchFriendsHandler = async function() {
         const q = (document.getElementById("friendSearchInput").value || "").trim();
@@ -1135,7 +1119,7 @@ if (document.getElementById("profileContent")) {
         </div>`;
     }
 
-    // ─── ДЕЙСТВИЯ: ДРУЗЬЯ ─────────────────────────────────────────────────────
+    
 
     window.addFriend = async function(userId, btn) {
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
@@ -1175,7 +1159,7 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ДЕЙСТВИЯ: ПРИГЛАШЕНИЯ В КОМАНДУ ─────────────────────────────────────
+    
 
     window.openInviteModal = function(userId, name) {
         _inviteTargetId = userId;
@@ -1201,7 +1185,7 @@ if (document.getElementById("profileContent")) {
         } catch { showModalError("inviteError", "Ошибка соединения"); }
     };
 
-    // Удалить уведомление
+    
     window.dismissNotice = async function(type, idx) {
         if (type === "admin") {
             try {
@@ -1233,9 +1217,7 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ДЕЙСТВИЯ: УПРАВЛЕНИЕ КОМАНДОЙ ───────────────────────────────────────
-
-    // ─── Модал управления участником ─────────────────────────────────────
+    
     let _memberModalId   = null;
     let _memberModalName = null;
 
@@ -1243,7 +1225,7 @@ if (document.getElementById("profileContent")) {
         _memberModalId   = userId;
         _memberModalName = name;
         document.getElementById("memberModalName").textContent = name;
-        // Скрываем "назначить капитаном" если уже капитан
+        
         const capBtn = document.getElementById("memberModalCapBtn");
         if (capBtn) capBtn.style.display = isCap ? "none" : "flex";
         openModal("memberModal");
@@ -1279,7 +1261,7 @@ if (document.getElementById("profileContent")) {
             await refreshProfile();
         } catch { showToast("Ошибка соединения", "err"); }
     };
-    // ──────────────────────────────────────────────────────────────────────────
+    
 
     window.kickMember = async function(userId, name) {
         if (!confirm(`Исключить ${name} из команды?`)) return;
@@ -1303,7 +1285,7 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // Настройки команды
+    
     window.openTeamSettingsModal = function() {
         if (!_profileData || !_profileData.team) return;
         document.getElementById("tsName").value  = _profileData.team.name || "";
@@ -1374,7 +1356,7 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ОБНОВЛЕНИЕ БЕЗ ПЕРЕЗАГРУЗКИ ─────────────────────────────────────────
+   
 
     async function refreshProfile() {
         try {
@@ -1384,7 +1366,7 @@ if (document.getElementById("profileContent")) {
         } catch {}
     }
 
-    // ─── ТАБЫ ─────────────────────────────────────────────────────────────────
+    
 
     document.querySelectorAll(".profile-tab-btn").forEach(btn => {
         btn.addEventListener("click", function() {
@@ -1396,7 +1378,7 @@ if (document.getElementById("profileContent")) {
         });
     });
 
-    // Закрытие модалок по клику вне / Escape
+    
     document.querySelectorAll(".p-modal-overlay").forEach(overlay => {
         overlay.addEventListener("click", function(e) {
             if (e.target === this) closeModal(this.id);
@@ -1408,14 +1390,13 @@ if (document.getElementById("profileContent")) {
         }
     });
 
-    // ─── ЗАПУСК + POLLING ────────────────────────────────────────────────────
+    
     loadProfile();
 
-    // Polling: тихое фоновое обновление каждые 5 секунд
-    // Сравниваем только счётчики уведомлений — не перерисовываем если нет изменений
+    
     let _pollHash = "";
     async function _silentPoll() {
-        if (document.hidden) return; // не опрашивать если вкладка неактивна
+        if (document.hidden) return; 
         try {
             const res = await fetch("/api/notifications/count");
             if (!res.ok) return;

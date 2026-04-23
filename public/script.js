@@ -1037,10 +1037,10 @@ if (document.getElementById("profileContent")) {
                 <div class="notif-block-title">🛡️ Сообщения от администрации</div>
                 ${notices.map((n, ni) => `<div class="friend-row" style="background:${bgMap[n.type]||bgMap.custom};border-left:3px solid ${borMap[n.type]||borMap.custom};">
                     <div style="font-size:22px;flex-shrink:0;">${icons[n.type] || "📢"}</div>
-                    <div class="friend-info">
-                        <div class="friend-name" style="color:${clrMap[n.type]||clrMap.custom};">${n.message || "Сообщение от администрации"}</div>
-                        <div class="friend-sub">Команда: ${n.teamName || "—"} · ${new Date(n.createdAt).toLocaleDateString("ru-RU")}</div>
-                    </div>
+                    <div class="friend-info" style="min-width:0;flex:1;">
+            <div class="friend-name" style="color:${clrMap[n.type]||clrMap.custom};white-space:normal;overflow:visible;text-overflow:unset;word-break:break-word;line-height:1.5;">${n.message || "Сообщение от администрации"}</div>
+            <div class="friend-sub">Команда: ${n.teamName || "—"} · ${new Date(n.createdAt).toLocaleDateString("ru-RU")}</div>
+        </div>
                     <button class="btn-fr btn-fr-reject" style="flex-shrink:0;" onclick="dismissNotice('admin',${ni})">✕</button>
                 </div>`).join("")}
             </div>`;

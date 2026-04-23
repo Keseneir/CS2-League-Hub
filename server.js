@@ -637,7 +637,7 @@ app.get("/api/leaderboard", async (req, res) => {
     if (!season) return res.json({ season: null, rows: [] });
 
     const stats = await TeamStat.find({ seasonId: season._id })
-      .populate("teamId", "name tag logo members subs")
+      .populate("teamId", "name tag logo telegram members subs")
       .lean();
 
     // Сортировка: очки → разница раундов → победы

@@ -1108,7 +1108,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 }
 .btn-team-danger:hover { background: rgba(224,92,92,0.2); border-color: #e05c5c; }
 
-/* ─── ТАБ: ДРУЗЬЯ ─── */
+
 .friend-search-bar {
     display: flex;
     gap: 10px;
@@ -1151,7 +1151,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     margin-bottom: 24px;
 }
 
-/* Карточка в списке друзей / результатах поиска */
+
 .friend-row {
     display: flex;
     align-items: center;
@@ -1240,7 +1240,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     margin: 20px 0 10px;
 }
 
-/* ─── ТАБ: УВЕДОМЛЕНИЯ ─── */
+
 .notif-empty {
     text-align: center;
     padding: 60px 20px;
@@ -1266,7 +1266,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     color: var(--text-gray);
 }
 
-/* ─── МОДАЛЬНЫЕ ОКНА (профиль) ─── */
+
 .p-modal-overlay {
     position: fixed;
     inset: 0;
@@ -1392,7 +1392,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 .p-btn-save:hover { background: #ffc933; }
 .p-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ─── АДАПТИВ ─── */
+
 @media (max-width: 600px) {
     .profile-header-card { flex-direction: column; text-align: center; padding: 24px 20px; gap: 16px; }
     .profile-stats-row { justify-content: center; }

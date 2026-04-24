@@ -1413,18 +1413,35 @@ if (document.getElementById("profileContent")) {
 
     
     let _pollHash = "";
-    async function _silentPoll() {
-        if (document.hidden) return; 
-        try {
-            const res = await fetch("/api/notifications/count");
-            if (!res.ok) return;
-            const counts = await res.json();
-            const hash   = JSON.stringify(counts);
-            if (hash !== _pollHash) {
-                _pollHash = hash;
-                await refreshProfile();
+let _pollFirstRun = true;
+
+function _playNotifSound() {
+    try {
+        const audio = new Audio("assets/notification.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+    } catch {}
+}
+
+async function _silentPoll() {
+    if (document.hidden) return;
+    try {
+        const res = await fetch("/api/notifications/count");
+        if (!res.ok) return;
+        const counts = await res.json();
+        const hash   = JSON.stringify(counts);
+        if (hash !== _pollHash) {
+            // Не играем звук при первой загрузке страницы
+            if (!_pollFirstRun && counts.total > (JSON.parse(_pollHash || "{}").total || 0)) {
+                _playNotifSound();
             }
-        } catch {}
-    }
-    setInterval(_silentPoll, 5000);
+            _pollHash    = hash;
+            _pollFirstRun = false;
+            await refreshProfile();
+        } else {
+            _pollFirstRun = false;
+        }
+    } catch {}
+}
+setInterval(_silentPoll, 5000);
 }

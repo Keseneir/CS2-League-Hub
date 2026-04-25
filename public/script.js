@@ -72,19 +72,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     await checkAuth();
 
     
+    const skipPages = ["/privacy.html", "/terms.html"];
+    if (skipPages.some(p => window.location.pathname.endsWith(p))) return;
+
+    let _globalHash      = "";
+    let _globalFirstRun  = true;
+
+    function _playNotifSound() {
+        try {
+            const audio = new Audio("assets/notification.mp3");
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+        } catch {}
+    }
+
     async function _globalNotifPoll() {
         try {
             const res = await fetch("/api/notifications/count");
             if (!res.ok) return;
             const counts = await res.json();
-            const badge  = document.getElementById("_profileNavBadge");
-            if (!badge) return;
-            if (counts.total > 0) {
-                badge.textContent   = counts.total;
-                badge.style.display = "inline-flex";
-            } else {
-                badge.style.display = "none";
+            const hash   = JSON.stringify(counts);
+
+           
+            const badge = document.getElementById("_profileNavBadge");
+            if (badge) {
+                if (counts.total > 0) {
+                    badge.textContent   = counts.total;
+                    badge.style.display = "inline-flex";
+                } else {
+                    badge.style.display = "none";
+                }
             }
+
+            
+            if (!_globalFirstRun && hash !== _globalHash) {
+                const prev = JSON.parse(_globalHash || "{}");
+                if ((counts.total || 0) > (prev.total || 0)) {
+                    _playNotifSound();
+                }
+            }
+
+            _globalHash     = hash;
+            _globalFirstRun = false;
         } catch {}
     }
 

@@ -1066,14 +1066,11 @@ if (document.getElementById("profileContent")) {
 
     const mascotSrc = totalNotifs > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
 
-    let html = `
-        <div style="text-align:center;padding:20px 0 8px;">
-            <img src="${mascotSrc}" alt="mascot"
-                style="width:100px;pointer-events:none;user-select:none;
-                filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));
-                transition:all 0.3s ease;">
-        </div>`;
-        
+   const mascotEl = document.getElementById("profileMascot");
+if (mascotEl) mascotEl.src = mascotSrc;
+
+let html = ``;
+
         if (notices.length > 0) {
             const icons   = { rename: "✏️", logo: "🖼️", custom: "💬" };
             const bgMap   = { rename: "rgba(224,92,92,0.08)",  logo: "rgba(91,141,232,0.08)",  custom: "rgba(230,176,34,0.08)" };

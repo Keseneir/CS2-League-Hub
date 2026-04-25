@@ -68,7 +68,29 @@ async function checkAuth() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", checkAuth);
+document.addEventListener("DOMContentLoaded", async () => {
+    await checkAuth();
+
+    
+    async function _globalNotifPoll() {
+        try {
+            const res = await fetch("/api/notifications/count");
+            if (!res.ok) return;
+            const counts = await res.json();
+            const badge  = document.getElementById("_profileNavBadge");
+            if (!badge) return;
+            if (counts.total > 0) {
+                badge.textContent   = counts.total;
+                badge.style.display = "inline-flex";
+            } else {
+                badge.style.display = "none";
+            }
+        } catch {}
+    }
+
+    _globalNotifPoll();
+    setInterval(_globalNotifPoll, 15000);
+});
 
 //главстраница
 if (document.getElementById("widgetBody")) {

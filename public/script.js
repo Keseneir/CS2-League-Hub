@@ -46,7 +46,7 @@ async function checkAuth() {
                 link.id        = "_dynProfileLink";
                 link.href      = "/profile.html";
                 link.className = "header-profile-link";
-                link.textContent = "Профиль";
+                link.innerHTML = 'Профиль <span id="_profileNavBadge" style="display:none;background:#e05c5c;color:white;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:8px;padding:0 4px;display:none;align-items:center;justify-content:center;line-height:1;margin-left:2px;vertical-align:middle;"></span>';
                 const isProfilePage = window.location.pathname.includes("profile");
                 if (isProfilePage) {
                     link.style.cssText = "background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
@@ -1422,6 +1422,16 @@ function _playNotifSound() {
         audio.play().catch(() => {});
     } catch {}
 }
+function _updateProfileNavBadge(total) {
+    const badge = document.getElementById("_profileNavBadge");
+    if (!badge) return;
+    if (total > 0) {
+        badge.textContent    = total;
+        badge.style.display  = "inline-flex";
+    } else {
+        badge.style.display  = "none";
+    }
+}
 
 async function _silentPoll() {
     if (document.hidden) return;
@@ -1429,9 +1439,9 @@ async function _silentPoll() {
         const res = await fetch("/api/notifications/count");
         if (!res.ok) return;
         const counts = await res.json();
+        _updateProfileNavBadge(counts.total || 0);
         const hash   = JSON.stringify(counts);
         if (hash !== _pollHash) {
-            // Не играем звук при первой загрузке страницы
             if (!_pollFirstRun && counts.total > (JSON.parse(_pollHash || "{}").total || 0)) {
                 _playNotifSound();
             }

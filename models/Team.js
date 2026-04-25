@@ -7,8 +7,8 @@ const teamSchema = new mongoose.Schema(
     logo:      { type: String, default: "" },
     telegram:  { type: String, default: "" },
     captainId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    members:   [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // основной состав, макс 5
-    subs:      [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // замены, макс 5
+    members:   [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], 
+    subs:      [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], 
   },
   { timestamps: true }
 );

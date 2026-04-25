@@ -9,16 +9,16 @@ const userSchema = new mongoose.Schema(
     rank:        { type: String, default: "Unranked" },
     teamId:      { type: mongoose.Schema.Types.ObjectId, ref: "Team", default: null },
 
-    // Список друзей
+    
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
-    // Входящие заявки в друзья
+    
     friendRequests: [{
       from:      { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
       createdAt: { type: Date, default: Date.now }
     }],
 
-    // Уведомления от администрации
+   
     adminNotices: [{
       type:      { type: String, default: "custom" },
       message:   { type: String, default: "" },
@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
       createdAt: { type: Date, default: Date.now }
     }],
 
-    // Приглашения в команду
+    
     teamInvites: [{
       teamId:    { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
       from:      { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },

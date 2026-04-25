@@ -37,7 +37,7 @@
     </div>
 </header>
 
-<!-- Не авторизован -->
+
 <div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
     <div style="font-size:56px; margin-bottom:20px;">🔒</div>
     <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
@@ -48,17 +48,17 @@
     </a>
 </div>
 
-<!-- Загрузка -->
+
 <div id="profileLoading" style="text-align:center;padding:100px 20px;">
     <div class="spinner"></div>
     <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
 </div>
 
-<!-- Основной контент -->
+
 <div id="profileContent" style="display:none;">
     <div class="container">
 
-        <!-- Карточка профиля -->
+        
         <div class="profile-header-card">
             <img id="profileAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
             <div style="flex:1;min-width:0;">
@@ -70,7 +70,7 @@
             </div>
         </div>
 
-        <!-- Табы -->
+        
         <div class="profile-tabs">
             <button class="profile-tab-btn active" data-tab="team">⚔️ Команда</button>
             <button class="profile-tab-btn" data-tab="friends">
@@ -83,7 +83,7 @@
             </button>
         </div>
 
-        <!-- ═══ ТАБ: КОМАНДА ═══════════════════════════════════════════════ -->
+        
         <div class="profile-tab-content active" id="tab-team">
 
             <div id="noTeamState" class="no-team-state" style="display:none;">
@@ -94,7 +94,7 @@
 
             <div id="teamContent" style="display:none;">
 
-                <!-- Шапка команды -->
+                
                 <div class="team-card-header">
                     <div class="team-logo-circle" id="teamLogoEl"></div>
                     <div>
@@ -103,7 +103,7 @@
                     </div>
                 </div>
 
-                <!-- Основной состав -->
+                
                 <div class="roster-block">
                     <div class="roster-block-title">
                         <span>⚔️ Основной состав</span>
@@ -112,7 +112,7 @@
                     <div id="mainRosterList"></div>
                 </div>
 
-                <!-- Замены -->
+                
                 <div class="roster-block">
                     <div class="roster-block-title">
                         <span>🔄 Замены</span>
@@ -121,14 +121,14 @@
                     <div id="subRosterList"></div>
                 </div>
 
-                <!-- Кнопки капитана -->
+                
                 <div id="captainActions" class="team-action-bar" style="display:none;">
                     <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
                     <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
                     <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
                 </div>
 
-                <!-- Кнопки участника -->
+                
                 <div id="memberActions" class="team-action-bar" style="display:none;">
                     <button class="btn-team-danger" onclick="confirmLeaveTeam()">🚪 Покинуть команду</button>
                 </div>
@@ -136,7 +136,7 @@
             </div>
         </div>
 
-        <!-- ═══ ТАБ: ДРУЗЬЯ ════════════════════════════════════════════════ -->
+        
         <div class="profile-tab-content" id="tab-friends">
 
             <div class="friend-search-bar">
@@ -150,7 +150,7 @@
             <div id="friendsList"></div>
         </div>
 
-        <!-- ═══ ТАБ: УВЕДОМЛЕНИЯ ═══════════════════════════════════════════ -->
+        
         <div class="profile-tab-content" id="tab-notifs">
             <div id="notifsList"></div>
         </div>
@@ -158,9 +158,7 @@
     </div>
 </div>
 
-<!-- ═══════════════ МОДАЛЬНЫЕ ОКНА ══════════════════════════════════════════ -->
 
-<!-- Настройки команды -->
 <div id="teamSettingsModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -193,7 +191,7 @@
     </div>
 </div>
 
-<!-- Пригласить в команду -->
+
 <div id="inviteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -213,7 +211,7 @@
     </div>
 </div>
 
-<!-- Подтверждение: распустить -->
+
 <div id="confirmDeleteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -233,7 +231,7 @@
     </div>
 </div>
 
-<!-- Модал управления участником команды -->
+
 <div id="memberModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -301,7 +299,7 @@
 
 <script src="script.js" defer></script>
 
-<!-- Плавающая кнопка помощи -->
+
 <button
     id="profileHelpBtn"
     onclick="document.getElementById('profileHelpModal').classList.remove('p-modal-hidden');document.body.style.overflow='hidden';"
@@ -319,24 +317,20 @@
     Инструкция
 </button>
 
-<!-- Модал инструкций — с маскотом -->
+
 <div id="profileHelpModal" class="p-modal-overlay p-modal-hidden">
 
-    <!--
-        Обёртка нужна чтобы маскот позиционировался
-        относительно модального окна, а не всего экрана.
-        overflow:visible позволяет маскоту вылезти за пределы обёртки.
-    -->
+    
     <div style="position:relative; display:flex; align-items:flex-end;">
 
-        <!-- Маскот — выглядывает из-за левого края модалки -->
+        
         <img
     src="assets/smoke-mascot.png"
     alt="Smoke Mascot"
     style="
         position: absolute;
         top: 10px;
-        left: -500px;
+        left: -285px;
         width: 500px;
         z-index: 0;
         pointer-events: none;
@@ -346,7 +340,7 @@
     "
 >
 
-        <!-- Само модальное окно — поверх маскота -->
+        
         <div class="p-modal-panel" style="max-width:560px;max-height:90vh;overflow-y:auto;position:relative;z-index:1;">
             <div class="p-modal-header">
                 <span class="p-modal-title">📖 Инструкция для игроков</span>

@@ -1055,14 +1055,25 @@ if (document.getElementById("profileContent")) {
     }
 
     function renderNotifsTab(d) {
-        const el       = document.getElementById("notifsList");
-        const requests = d.friendRequests || [];
-        const invites  = d.teamInvites    || [];
-        const apps     = d.applications   || [];
-        let html = "";
+    const el       = document.getElementById("notifsList");
+    const requests = d.friendRequests || [];
+    const invites  = d.teamInvites    || [];
+    const apps     = d.applications   || [];
+    const notices  = d.adminNotices   || [];
 
+    const totalNotifs = requests.length + invites.length + notices.length
+        + (apps || []).filter(a => a.status !== "pending").length;
+
+    const mascotSrc = totalNotifs > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
+
+    let html = `
+        <div style="text-align:center;padding:20px 0 8px;">
+            <img src="${mascotSrc}" alt="mascot"
+                style="width:100px;pointer-events:none;user-select:none;
+                filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+                transition:all 0.3s ease;">
+        </div>`;
         
-        const notices = d.adminNotices || [];
         if (notices.length > 0) {
             const icons   = { rename: "✏️", logo: "🖼️", custom: "💬" };
             const bgMap   = { rename: "rgba(224,92,92,0.08)",  logo: "rgba(91,141,232,0.08)",  custom: "rgba(230,176,34,0.08)" };

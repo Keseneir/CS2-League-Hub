@@ -127,6 +127,14 @@
         .pts-input { width: 72px; background: #0e1318; border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-align: center; font-size: 13px; padding: 4px 6px; outline: none; font-family: 'Montserrat', sans-serif; font-weight: 700; }
         .pts-input:focus { border-color: rgba(230,176,34,0.5); }
 
+        /* ── Rank swatch ── */
+        .rank-swatch {
+            display: inline-flex; align-items: center; gap: 7px;
+            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px;
+            padding: 3px 10px; border-radius: 10px; white-space: nowrap;
+        }
+        .rank-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
         #toast {
             position: fixed; bottom: 24px; right: 24px; z-index: 9999;
             background: var(--card); border: 1px solid var(--border); border-radius: 10px;
@@ -161,7 +169,6 @@
         .match-row { display: flex; align-items: center; gap: 12px; }
         .vs-badge { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--gray2); flex-shrink: 0; }
 
-        /* ── Профиль игрока в заявке ── */
         .player-profile-cell { display: flex; align-items: flex-start; gap: 10px; }
         .player-profile-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
         .player-profile-name { font-weight: 700; color: white; font-size: 13px; }
@@ -178,11 +185,14 @@
         .player-stat-pill.hours  { background: rgba(91,141,232,0.1); border-color: rgba(91,141,232,0.25); color: #5b8de8; }
         .player-profile-bio {
             font-size: 11px; color: var(--gray2); font-style: italic;
-            margin-top: 3px; line-height: 1.5;
-            max-width: 220px;
+            margin-top: 3px; line-height: 1.5; max-width: 220px;
             overflow: hidden; text-overflow: ellipsis;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
         }
+
+        /* colour picker preview */
+        .color-preview-row { display: flex; align-items: center; gap: 10px; }
+        .color-preview-swatch { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; transition: background 0.2s; }
 
         @media (max-width: 680px) {
             .topbar-nav { display: none; }
@@ -201,6 +211,7 @@
         <button class="tab-btn" data-tab="teams">🛡️ Команды</button>
         <button class="tab-btn" data-tab="applications">📋 Заявки</button>
         <button class="tab-btn" data-tab="players">👤 Игроки</button>
+        <button class="tab-btn" data-tab="ranks">🎖️ Ранги</button>
     </nav>
 
     <div class="topbar-user" id="topbarUser" style="margin-left:auto;">
@@ -344,10 +355,56 @@
         </div>
     </div>
 
+    <!-- ══ РАНГИ ══ -->
+    <div class="tab-panel" id="panel-ranks">
+        <div class="section-title">
+            Управление рангами
+            <span class="count" id="ranksCount"></span>
+        </div>
+
+        <div class="cards-grid" style="max-width:500px;">
+            <div class="form-card">
+                <div class="form-card-header">➕ Создать ранг</div>
+                <div class="form-card-body">
+                    <div id="rankCreateError" class="modal-error"></div>
+                    <div>
+                        <label class="field-label">Название</label>
+                        <input type="text" id="rkName" class="field-input" placeholder="например: Silver I" maxlength="32">
+                    </div>
+                    <div>
+                        <label class="field-label">Цвет бейджа</label>
+                        <div class="color-preview-row">
+                            <input type="color" id="rkColor" value="#e6b022"
+                                style="width:48px;height:36px;padding:2px;background:#0e1318;border:1px solid var(--border);border-radius:8px;cursor:pointer;outline:none;"
+                                oninput="updateColorPreview()">
+                            <div class="color-preview-swatch" id="rkColorSwatch" style="background:#e6b022;"></div>
+                            <span id="rkColorLabel" style="font-size:13px;font-family:monospace;color:var(--gray);">#e6b022</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label">Порядок (меньше = выше в списке)</label>
+                        <input type="number" id="rkOrder" class="field-input" value="0" min="0" max="999">
+                    </div>
+                    <button class="btn btn-primary" id="btnCreateRank" onclick="createRank()">Создать ранг</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top:4px;">Список рангов</div>
+        <div class="data-table-wrap" id="ranksTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">🎖️</div><p>Рангов пока нет</p></div>
+        </div>
+
+        <div style="background:rgba(230,176,34,0.06);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--gray2);line-height:1.8;max-width:600px;">
+            💡 <strong style="color:var(--accent);">Как назначить ранг игроку:</strong><br>
+            Перейди во вкладку <strong style="color:white;">👤 Игроки</strong> → найди игрока → нажми кнопку <strong style="color:white;">🎖 Ранг</strong>.
+        </div>
+    </div>
+
 </main>
 
 
-<!-- Модалка: уведомление игроку -->
+<!-- ── Модалка: уведомление игроку ── -->
 <div class="modal-overlay" id="playerNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -369,7 +426,7 @@
     </div>
 </div>
 
-<!-- Модалка: сообщение команде -->
+<!-- ── Модалка: сообщение команде ── -->
 <div class="modal-overlay" id="customNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -391,7 +448,7 @@
     </div>
 </div>
 
-<!-- Модалка: редактировать статистику -->
+<!-- ── Модалка: редактировать статистику ── -->
 <div class="modal-overlay" id="editStatModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -425,7 +482,68 @@
     </div>
 </div>
 
-<!-- Модалка: подтверждение -->
+<!-- ── Модалка: назначить ранг игроку ── -->
+<div class="modal-overlay" id="assignRankModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title">🎖️ Назначить ранг</span>
+            <button class="modal-close-btn" onclick="closeModal('assignRankModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="assignRankError" class="modal-error"></div>
+            <p style="font-size:13px;color:var(--gray2);">Игрок: <strong id="assignRankPlayerName" style="color:white;"></strong></p>
+            <div>
+                <label class="field-label">Ранг</label>
+                <select id="assignRankSelect" class="field-select">
+                    <option value="Unranked">— Unranked (без ранга) —</option>
+                </select>
+            </div>
+            <!-- превью выбранного ранга -->
+            <div id="assignRankPreview" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('assignRankModal')">Отмена</button>
+            <button class="btn btn-primary" id="assignRankSaveBtn" onclick="submitAssignRank()">Назначить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Модалка: редактировать ранг ── -->
+<div class="modal-overlay" id="editRankModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title">✏️ Редактировать ранг</span>
+            <button class="modal-close-btn" onclick="closeModal('editRankModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="editRankError" class="modal-error"></div>
+            <div>
+                <label class="field-label">Название</label>
+                <input type="text" id="erName" class="field-input" maxlength="32">
+            </div>
+            <div>
+                <label class="field-label">Цвет</label>
+                <div class="color-preview-row">
+                    <input type="color" id="erColor"
+                        style="width:48px;height:36px;padding:2px;background:#0e1318;border:1px solid var(--border);border-radius:8px;cursor:pointer;outline:none;"
+                        oninput="updateEditColorPreview()">
+                    <div class="color-preview-swatch" id="erColorSwatch" style="background:#e6b022;"></div>
+                    <span id="erColorLabel" style="font-size:13px;font-family:monospace;color:var(--gray);">#e6b022</span>
+                </div>
+            </div>
+            <div>
+                <label class="field-label">Порядок</label>
+                <input type="number" id="erOrder" class="field-input" min="0" max="999">
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('editRankModal')">Отмена</button>
+            <button class="btn btn-primary" id="editRankSaveBtn" onclick="submitEditRank()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Модалка: подтверждение ── -->
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -446,7 +564,9 @@
 
 <script>
 
-/* ── Утилиты ── */
+/* ══════════════════════════════════════════
+   УТИЛИТЫ
+══════════════════════════════════════════ */
 function toast(msg, type = "ok") {
     const t = document.getElementById("toast");
     t.textContent = msg;
@@ -481,8 +601,18 @@ function logoEl(logo, name, size = 30) {
     if (logo) return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;"><img src="${logo}" alt="${name}" onerror="this.parentNode.textContent='${init}'"></div>`;
     return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;">${init}</div>`;
 }
+function rankSwatchHtml(rankName, color) {
+    if (!rankName || rankName === "Unranked")
+        return `<span style="color:var(--gray2);font-size:12px;">Unranked</span>`;
+    const c = color || "#aebbc7";
+    return `<span class="rank-swatch" style="background:${c}18;border:1px solid ${c}44;color:${c};">
+        <span class="rank-dot" style="background:${c};"></span>${rankName}
+    </span>`;
+}
 
-/* ── Состояние ── */
+/* ══════════════════════════════════════════
+   СОСТОЯНИЕ
+══════════════════════════════════════════ */
 let _seasons    = [];
 let _activeSid  = null;
 let _lbStats    = [];
@@ -490,9 +620,14 @@ let _allTeams   = [];
 let _editStatId = null;
 let _allPlayers = [];
 let _allApps    = [];
-let _playerNoticeId = null;
+let _allRanks   = [];
+let _editRankId = null;
+let _playerNoticeId  = null;
+let _assignRankUserId = null;
 
-/* ── Init ── */
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
 async function init() {
     try {
         const res  = await fetch("/api/user");
@@ -505,11 +640,13 @@ async function init() {
         document.getElementById("topbarName").textContent = user.displayName;
     } catch { }
 
-    await Promise.all([loadSeasons(), loadAllTeams()]);
+    await Promise.all([loadSeasons(), loadAllTeams(), loadRanks()]);
     loadApplications();
 }
 
-/* ── Табы ── */
+/* ══════════════════════════════════════════
+   ТАБЫ
+══════════════════════════════════════════ */
 document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", function() {
         document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -519,6 +656,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         if (this.dataset.tab === "teams")        loadAllTeams();
         if (this.dataset.tab === "applications") loadApplications();
         if (this.dataset.tab === "players")      loadAllPlayers();
+        if (this.dataset.tab === "ranks")        loadRanks();
     });
 });
 
@@ -871,7 +1009,7 @@ async function disbandTeam(teamId, name) {
 }
 
 /* ══════════════════════════════════════════
-   ЗАЯВКИ — главное изменение здесь
+   ЗАЯВКИ
 ══════════════════════════════════════════ */
 async function loadApplications() {
     try {
@@ -907,51 +1045,30 @@ function renderAppsTable(apps) {
         accepted: ["badge-accepted", "✅ Принята"],
         rejected: ["badge-rejected", "❌ Отклонена"]
     };
-
     wrap.innerHTML = `<table class="data-table">
         <thead><tr>
-            <th>Игрок</th>
-            <th>Команда</th>
-            <th>Роль</th>
-            <th>Статус</th>
-            <th>Действия</th>
+            <th>Игрок</th><th>Команда</th><th>Роль</th><th>Статус</th><th>Действия</th>
         </tr></thead>
         <tbody>${apps.map(a => {
             const [cls, label] = statusMap[a.status] || ["badge-pending", "⏳"];
-
-            /* ── Статы из профиля игрока (новые поля) ── */
             const profileFaceit = a.userId?.faceitLevel ?? null;
             const profileHours  = a.userId?.hoursInCS2  ?? null;
             const profileBio    = a.userId?.bio          || "";
-
-            /* FACEIT: 0 = нет аккаунта */
             const faceitPill = profileFaceit !== null
-                ? (profileFaceit === 0
-                    ? `<span class="player-stat-pill faceit">FACEIT: нет</span>`
-                    : `<span class="player-stat-pill faceit">FACEIT lv${profileFaceit}</span>`)
+                ? (profileFaceit === 0 ? `<span class="player-stat-pill faceit">FACEIT: нет</span>` : `<span class="player-stat-pill faceit">FACEIT lv${profileFaceit}</span>`)
                 : "";
-
             const hoursPill = profileHours !== null
-                ? `<span class="player-stat-pill hours">⏱ ${profileHours} ч.</span>`
-                : "";
-
+                ? `<span class="player-stat-pill hours">⏱ ${profileHours} ч.</span>` : "";
             const bioPart = profileBio
-                ? `<div class="player-profile-bio">${profileBio.replace(/</g,"&lt;")}</div>`
-                : "";
-
+                ? `<div class="player-profile-bio">${profileBio.replace(/</g,"&lt;")}</div>` : "";
             return `<tr>
                 <td>
                     <div class="player-profile-cell">
-                        ${a.userId?.avatar
-                            ? `<img src="${a.userId.avatar}" class="user-avatar-sm" style="width:36px;height:36px;border-radius:50%;" onerror="this.style.display='none'">`
-                            : ""}
+                        ${a.userId?.avatar ? `<img src="${a.userId.avatar}" class="user-avatar-sm" style="width:36px;height:36px;border-radius:50%;" onerror="this.style.display='none'">` : ""}
                         <div class="player-profile-info">
                             <div class="player-profile-name">${a.userId?.displayName || "—"}</div>
                             <div class="player-profile-steamid">${a.userId?.steamId || ""}</div>
-                            <div class="player-profile-stats">
-                                ${faceitPill}
-                                ${hoursPill}
-                            </div>
+                            <div class="player-profile-stats">${faceitPill}${hoursPill}</div>
                             ${bioPart}
                         </div>
                     </div>
@@ -969,8 +1086,7 @@ function renderAppsTable(apps) {
                     <button class="btn btn-ghost   btn-sm" onclick="deleteApp('${a._id}')">🗑</button>
                 </div></td>
             </tr>`;
-        }).join("")}
-        </tbody>
+        }).join("")}</tbody>
     </table>`;
 }
 
@@ -1002,8 +1118,12 @@ async function loadAllPlayers() {
     if (!wrap) return;
     wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Загрузка...</p></div>`;
     try {
-        const res = await fetch("/api/admin/users");
-        _allPlayers = res.ok ? await res.json() : [];
+        const [usersRes, ranksRes] = await Promise.all([
+            fetch("/api/admin/users"),
+            fetch("/api/ranks"),
+        ]);
+        _allPlayers = usersRes.ok ? await usersRes.json() : [];
+        if (ranksRes.ok) _allRanks = await ranksRes.json();
         document.getElementById("playersCount").textContent = `(${_allPlayers.length})`;
         renderPlayersTable(_allPlayers);
     } catch {
@@ -1015,12 +1135,12 @@ function filterPlayersTable() {
     const q = (document.getElementById("playerSearchInput")?.value || "").toLowerCase().trim();
     if (!q) { renderPlayersTable(_allPlayers); return; }
     const filtered = _allPlayers.filter(u =>
-        (u.displayName            || "").toLowerCase().includes(q) ||
-        (u.steamId                || "").toLowerCase().includes(q) ||
-        (u.teamId?.name           || "").toLowerCase().includes(q) ||
-        (u.teamId?.tag            || "").toLowerCase().includes(q) ||
-        (u.telegramUsername       || "").toLowerCase().includes(q) ||
-        (u.discordUsername        || "").toLowerCase().includes(q)
+        (u.displayName      || "").toLowerCase().includes(q) ||
+        (u.steamId          || "").toLowerCase().includes(q) ||
+        (u.teamId?.name     || "").toLowerCase().includes(q) ||
+        (u.teamId?.tag      || "").toLowerCase().includes(q) ||
+        (u.telegramUsername || "").toLowerCase().includes(q) ||
+        (u.discordUsername  || "").toLowerCase().includes(q)
     );
     renderPlayersTable(filtered);
 }
@@ -1031,32 +1151,33 @@ function renderPlayersTable(players) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Игроки не найдены</p></div>`;
         return;
     }
+    // Строим карту цветов рангов
+    const rankColorMap = {};
+    _allRanks.forEach(r => { rankColorMap[r.name] = r.color; });
+
     wrap.innerHTML = `<table class="data-table">
         <thead><tr>
             <th>Игрок</th>
             <th>Steam ID</th>
             <th>FACEIT / Часы</th>
+            <th>Ранг</th>
             <th>Команда</th>
             <th>Контакты</th>
             <th>Действия</th>
         </tr></thead>
         <tbody>${players.map(u => {
             const faceitPill = u.faceitLevel !== null && u.faceitLevel !== undefined
-                ? (u.faceitLevel === 0
-                    ? `<span class="player-stat-pill faceit">Нет аккаунта</span>`
-                    : `<span class="player-stat-pill faceit">lv${u.faceitLevel}</span>`)
+                ? (u.faceitLevel === 0 ? `<span class="player-stat-pill faceit">Нет аккаунта</span>` : `<span class="player-stat-pill faceit">lv${u.faceitLevel}</span>`)
                 : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
             const hoursPill = u.hoursInCS2 !== null && u.hoursInCS2 !== undefined
                 ? `<span class="player-stat-pill hours">⏱ ${u.hoursInCS2} ч.</span>`
                 : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
-            const tgLink = u.telegramUsername
-                ? `<a href="https://t.me/${u.telegramUsername}" target="_blank" style="color:#5b8de8;font-size:12px;">tg: @${u.telegramUsername}</a>`
-                : "";
-            const dcLink = u.discordUsername
-                ? `<span style="font-size:12px;color:#aebbc7;">ds: ${u.discordUsername}</span>`
-                : "";
+            const tgLink  = u.telegramUsername ? `<a href="https://t.me/${u.telegramUsername}" target="_blank" style="color:#5b8de8;font-size:12px;">tg: @${u.telegramUsername}</a>` : "";
+            const dcLink  = u.discordUsername  ? `<span style="font-size:12px;color:#aebbc7;">ds: ${u.discordUsername}</span>` : "";
             const socials = [tgLink, dcLink].filter(Boolean).join("<br>");
             const teamStr = u.teamId ? `[${u.teamId.tag}] ${u.teamId.name}` : `<span style="color:var(--gray2);">—</span>`;
+            const rankHtml = rankSwatchHtml(u.rank, rankColorMap[u.rank]);
+            const esc      = (s) => (s || "").replace(/'/g, "\\'");
             return `<tr>
                 <td>
                     <div class="player-profile-cell">
@@ -1071,17 +1192,21 @@ function renderPlayersTable(players) {
                 </td>
                 <td style="font-size:11px;color:var(--gray2);font-family:monospace;">${u.steamId}</td>
                 <td><div style="display:flex;flex-direction:column;gap:4px;">${faceitPill}${hoursPill}</div></td>
+                <td>${rankHtml}</td>
                 <td style="font-size:13px;">${teamStr}</td>
                 <td style="font-size:12px;">${socials || `<span style="color:var(--gray2);">—</span>`}</td>
                 <td><div class="actions">
                     <a href="/profile.html?id=${u.steamId}" target="_blank" class="btn btn-ghost btn-sm">👤 Профиль</a>
-                    <button class="btn btn-primary btn-sm" onclick="openPlayerNotice('${u._id}','${(u.displayName||'').replace(/'/g,"\\'")}')">💬 Написать</button>
+                    <button class="btn btn-primary btn-sm" onclick="openPlayerNotice('${u._id}','${esc(u.displayName)}')">💬 Написать</button>
+                    <button class="btn btn-ghost btn-sm" onclick="openAssignRank('${u._id}','${esc(u.displayName)}','${esc(u.rank)}')">🎖 Ранг</button>
+                    <button class="btn btn-danger btn-sm" onclick="deletePlayer('${u._id}','${esc(u.displayName)}')">🗑 Удалить</button>
                 </div></td>
             </tr>`;
         }).join("")}</tbody>
     </table>`;
 }
 
+/* ── Написать игроку ── */
 function openPlayerNotice(userId, name) {
     _playerNoticeId = userId;
     document.getElementById("playerNoticeName").textContent = name;
@@ -1097,8 +1222,7 @@ async function submitPlayerNotice() {
     if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
     try {
         const res = await fetch(`/api/admin/users/${_playerNoticeId}/notice`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: text })
         });
         const d = await res.json();
@@ -1109,7 +1233,203 @@ async function submitPlayerNotice() {
     _playerNoticeId = null;
 }
 
-/* ── Confirm ── */
+/* ── Назначить ранг ── */
+function openAssignRank(userId, name, currentRank) {
+    _assignRankUserId = userId;
+    document.getElementById("assignRankPlayerName").textContent = name;
+    hideError("assignRankError");
+
+    const sel = document.getElementById("assignRankSelect");
+    sel.innerHTML = `<option value="Unranked">— Unranked (без ранга) —</option>` +
+        _allRanks.map(r => `<option value="${r.name}"${r.name === currentRank ? " selected" : ""}>${r.name}</option>`).join("");
+    if (currentRank && currentRank !== "Unranked") sel.value = currentRank;
+
+    updateAssignRankPreview();
+    sel.addEventListener("change", updateAssignRankPreview);
+    openModal("assignRankModal");
+}
+
+function updateAssignRankPreview() {
+    const sel     = document.getElementById("assignRankSelect");
+    const preview = document.getElementById("assignRankPreview");
+    const val     = sel.value;
+    if (!val || val === "Unranked") {
+        preview.style.display = "none";
+        return;
+    }
+    const rank = _allRanks.find(r => r.name === val);
+    if (!rank) { preview.style.display = "none"; return; }
+    preview.style.display   = "block";
+    preview.style.color     = rank.color;
+    preview.style.background = rank.color + "14";
+    preview.style.borderColor = rank.color + "44";
+    preview.innerHTML = `<span class="rank-dot" style="background:${rank.color};display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;"></span>${rank.name}`;
+}
+
+async function submitAssignRank() {
+    const rank = document.getElementById("assignRankSelect").value;
+    const btn  = document.getElementById("assignRankSaveBtn");
+    btn.disabled = true; btn.textContent = "Сохранение...";
+    try {
+        const res = await fetch(`/api/admin/users/${_assignRankUserId}/rank`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rank })
+        });
+        const d = await res.json();
+        if (!res.ok) { showError("assignRankError", d.error || "Ошибка"); return; }
+        closeModal("assignRankModal");
+        toast("Ранг назначен!", "ok");
+        await loadAllPlayers();
+    } catch { showError("assignRankError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Назначить"; }
+}
+
+/* ── Удалить игрока ── */
+function deletePlayer(userId, name) {
+    _confirmAction(
+        `Удалить игрока «${name}» из базы данных?\n\nЭто действие необратимо. Игрок будет исключён из команды, удалён из списков друзей и все его данные будут уничтожены.`,
+        async () => {
+            try {
+                const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+                const d   = await res.json();
+                if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
+                toast(`Игрок «${name}» удалён`, "ok");
+                await loadAllPlayers();
+            } catch { toast("Ошибка соединения", "err"); }
+        }
+    );
+}
+
+/* ══════════════════════════════════════════
+   РАНГИ
+══════════════════════════════════════════ */
+async function loadRanks() {
+    try {
+        const res = await fetch("/api/admin/ranks");
+        _allRanks = res.ok ? await res.json() : [];
+    } catch { _allRanks = []; }
+    document.getElementById("ranksCount").textContent = `(${_allRanks.length})`;
+    renderRanksTable();
+}
+
+function renderRanksTable() {
+    const wrap = document.getElementById("ranksTableWrap");
+    if (!_allRanks.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎖️</div><p>Рангов пока нет — создайте первый выше</p></div>`;
+        return;
+    }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr>
+            <th>Порядок</th>
+            <th>Ранг</th>
+            <th>Цвет</th>
+            <th>Действия</th>
+        </tr></thead>
+        <tbody>${_allRanks.map(r => `
+        <tr>
+            <td style="color:var(--gray2);font-weight:700;text-align:center;width:60px;">${r.order}</td>
+            <td>${rankSwatchHtml(r.name, r.color)}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:20px;height:20px;border-radius:5px;background:${r.color};border:1px solid rgba(255,255,255,0.1);flex-shrink:0;"></div>
+                    <span style="font-family:monospace;font-size:12px;color:var(--gray2);">${r.color}</span>
+                </div>
+            </td>
+            <td><div class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="openEditRank('${r._id}','${r.name.replace(/'/g,"\\'")}','${r.color}',${r.order})">✏️ Изменить</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteRank('${r._id}','${r.name.replace(/'/g,"\\'")}')">🗑 Удалить</button>
+            </div></td>
+        </tr>`).join("")}
+        </tbody>
+    </table>`;
+}
+
+/* ── Создать ранг ── */
+function updateColorPreview() {
+    const c = document.getElementById("rkColor").value;
+    document.getElementById("rkColorSwatch").style.background = c;
+    document.getElementById("rkColorLabel").textContent = c;
+}
+
+async function createRank() {
+    hideError("rankCreateError");
+    const name  = document.getElementById("rkName").value.trim();
+    const color = document.getElementById("rkColor").value;
+    const order = parseInt(document.getElementById("rkOrder").value) || 0;
+    if (!name) { showError("rankCreateError", "Введите название ранга"); return; }
+    const btn = document.getElementById("btnCreateRank");
+    btn.disabled = true; btn.textContent = "Создаём...";
+    try {
+        const res = await fetch("/api/admin/ranks", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, color, order })
+        });
+        const d = await res.json();
+        if (!res.ok) { showError("rankCreateError", d.error || "Ошибка"); return; }
+        toast(`Ранг «${name}» создан!`, "ok");
+        document.getElementById("rkName").value  = "";
+        document.getElementById("rkOrder").value = "0";
+        document.getElementById("rkColor").value = "#e6b022";
+        updateColorPreview();
+        await loadRanks();
+    } catch { showError("rankCreateError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Создать ранг"; }
+}
+
+/* ── Редактировать ранг ── */
+function updateEditColorPreview() {
+    const c = document.getElementById("erColor").value;
+    document.getElementById("erColorSwatch").style.background = c;
+    document.getElementById("erColorLabel").textContent = c;
+}
+
+function openEditRank(id, name, color, order) {
+    _editRankId = id;
+    document.getElementById("erName").value  = name;
+    document.getElementById("erColor").value = color;
+    document.getElementById("erOrder").value = order;
+    updateEditColorPreview();
+    hideError("editRankError");
+    openModal("editRankModal");
+}
+
+async function submitEditRank() {
+    hideError("editRankError");
+    const name  = document.getElementById("erName").value.trim();
+    const color = document.getElementById("erColor").value;
+    const order = parseInt(document.getElementById("erOrder").value) || 0;
+    if (!name) { showError("editRankError", "Введите название"); return; }
+    const btn = document.getElementById("editRankSaveBtn");
+    btn.disabled = true; btn.textContent = "Сохранение...";
+    try {
+        const res = await fetch(`/api/admin/ranks/${_editRankId}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, color, order })
+        });
+        const d = await res.json();
+        if (!res.ok) { showError("editRankError", d.error || "Ошибка"); return; }
+        closeModal("editRankModal");
+        toast("Ранг обновлён!", "ok");
+        await loadRanks();
+    } catch { showError("editRankError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
+}
+
+/* ── Удалить ранг ── */
+async function deleteRank(id, name) {
+    _confirmAction(`Удалить ранг «${name}»?\n\nУ всех игроков с этим рангом он сбросится в Unranked.`, async () => {
+        try {
+            const res = await fetch(`/api/admin/ranks/${id}`, { method: "DELETE" });
+            if (!res.ok) { toast("Ошибка", "err"); return; }
+            toast(`Ранг «${name}» удалён`, "ok");
+            await loadRanks();
+        } catch { toast("Ошибка соединения", "err"); }
+    });
+}
+
+/* ══════════════════════════════════════════
+   ПОДТВЕРЖДЕНИЕ
+══════════════════════════════════════════ */
 let _confirmCb = null;
 function _confirmAction(msg, cb) {
     _confirmCb = cb;

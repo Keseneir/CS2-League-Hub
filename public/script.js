@@ -48,10 +48,37 @@ async function checkAuth() {
                 link.id        = "_dynProfileLink";
                 link.href      = "/profile.html";
                 link.className = "header-profile-link";
+                link.style.position = "relative";
                 link.textContent = "Профиль";
+
+                // Бейдж уведомлений в хедере
+                const badge = document.createElement("span");
+                badge.id = "_dynNotifBadge";
+                badge.style.cssText = [
+                    "display:none",
+                    "position:absolute",
+                    "top:-7px",
+                    "right:-7px",
+                    "min-width:17px",
+                    "height:17px",
+                    "padding:0 4px",
+                    "background:#e05c5c",
+                    "color:#fff",
+                    "font-family:'Montserrat',sans-serif",
+                    "font-size:10px",
+                    "font-weight:800",
+                    "border-radius:999px",
+                    "align-items:center",
+                    "justify-content:center",
+                    "line-height:1",
+                    "pointer-events:none",
+                    "box-shadow:0 0 0 2px #0b0f14",
+                ].join(";");
+                link.appendChild(badge);
+
                 const isProfilePage = window.location.pathname.includes("profile");
                 if (isProfilePage) {
-                    link.style.cssText = "background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
+                    link.style.cssText += ";background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
                 }
                 const logoutBtn = profile.querySelector(".header-logout-btn");
                 if (logoutBtn) profile.insertBefore(link, logoutBtn);
@@ -71,6 +98,52 @@ async function checkAuth() {
 }
 
 document.addEventListener("DOMContentLoaded", checkAuth);
+
+/* ================================================
+   ГЛОБАЛЬНЫЙ ПОЛЛИНГ УВЕДОМЛЕНИЙ (все страницы)
+   — звук при новых уведомлениях
+   — бейдж с цифрой в хедере рядом с «Профиль»
+   ================================================ */
+(function() {
+    let _globalPrevCount = -1;
+    const _globalAudio   = new Audio("assets/notification.mp3");
+
+    async function globalPollNotifs() {
+        try {
+            const res = await fetch("/api/profile");
+            if (!res.ok) return;
+            const d = await res.json();
+
+            const total =
+                (d.friendRequests || []).length +
+                (d.teamInvites    || []).length +
+                (d.applications   || []).filter(a => a.status !== "pending").length +
+                (d.adminNotices   || []).length;
+
+            // Звук при появлении новых уведомлений
+            if (_globalPrevCount >= 0 && total > _globalPrevCount) {
+                _globalAudio.play().catch(() => {});
+            }
+            _globalPrevCount = total;
+
+            // Бейдж в хедере
+            const badge = document.getElementById("_dynNotifBadge");
+            if (badge) {
+                badge.textContent    = total;
+                badge.style.display  = total > 0 ? "inline-flex" : "none";
+            }
+        } catch {}
+    }
+
+    // Запускаем только если юзер залогинен (хедер появится после checkAuth)
+    // Ждём чуть дольше первого запуска, чтобы checkAuth успел создать бейдж
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(function() {
+            globalPollNotifs();
+            setInterval(globalPollNotifs, 5000);
+        }, 1500);
+    });
+})();
 
 /* ================================================
    INDEX PAGE — виджет рейтинга
@@ -838,7 +911,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         // ─── ПОЛЛИНГ УВЕДОМЛЕНИЙ + ЗВУК + МОЛОТОВ ────────────────────────────
         let _prevNotifCount = -1;
-        const _notifAudio   = new Audio("assets/notification.mp3");
 
         async function pollNotifications() {
             try {
@@ -852,21 +924,20 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 const anCount  = (d.adminNotices   || []).length;
                 const total    = frCount + tiCount + appCount + anCount;
 
-                // Звук при появлении новых уведомлений
+                // При появлении новых уведомлений — тихо обновляем страницу профиля
                 if (_prevNotifCount >= 0 && total > _prevNotifCount) {
-                    _notifAudio.play().catch(() => {});
+                    await refreshProfile();
                 }
                 _prevNotifCount = total;
 
-                // Молотов и бейджи обновляем без полного перерендера
+                // Молотов и бейджи (на случай если refreshProfile не вызвался)
                 updateBadges(d);
 
             } catch {}
         }
 
-        setInterval(pollNotifications, 15000); // каждые 15 секунд
-        // Первый вызов чуть отложен — loadProfile() уже делает первичный updateBadges
-        setTimeout(pollNotifications, 15000);
+        setInterval(pollNotifications, 5000);
+        setTimeout(pollNotifications, 5000);
         // ─────────────────────────────────────────────────────────────────────
     }
 

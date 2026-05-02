@@ -521,25 +521,25 @@ if (document.getElementById("joinForm")) {
         const nicknameEl = document.getElementById("nickname");
         if (nicknameEl) nicknameEl.value = user.displayName;
 
-        // Подтягиваем данные профиля для предзаполнения полей
+        // Подтягиваем данные профиля один раз
+        let prof = null;
         try {
             const profRes = await fetch("/api/profile");
-            if (profRes.ok) {
-                const prof = await profRes.json();
-                const hoursEl  = document.getElementById("hours");
-                const faceitEl = document.getElementById("faceit_level");
-                const contactsEl = document.getElementById("contacts");
-                if (hoursEl  && prof.hoursInCS2  !== null && prof.hoursInCS2  !== undefined) hoursEl.value  = prof.hoursInCS2;
-                if (faceitEl && prof.faceitLevel !== null && prof.faceitLevel !== undefined) {
-                    const val = prof.faceitLevel === 0 ? "no_account" : String(prof.faceitLevel);
-                    faceitEl.value = val;
-                }
-                // Подтягиваем telegram как контакт если контакты пусты
-                if (contactsEl && !contactsEl.value && prof.telegramUsername) {
-                    contactsEl.value = "@" + prof.telegramUsername;
-                }
-            }
+            if (profRes.ok) prof = await profRes.json();
         } catch {}
+
+        if (prof) {
+            const hoursEl    = document.getElementById("hours");
+            const faceitEl   = document.getElementById("faceit_level");
+            const contactsEl = document.getElementById("contacts");
+            if (hoursEl  && prof.hoursInCS2  !== null && prof.hoursInCS2  !== undefined) hoursEl.value  = prof.hoursInCS2;
+            if (faceitEl && prof.faceitLevel !== null && prof.faceitLevel !== undefined) {
+                faceitEl.value = prof.faceitLevel === 0 ? "no_account" : String(prof.faceitLevel);
+            }
+            if (contactsEl && !contactsEl.value && prof.telegramUsername) {
+                contactsEl.value = "@" + prof.telegramUsername;
+            }
+        }
 
         if (!user.team) {
             const banner = document.getElementById("noTeamBanner");
@@ -547,16 +547,29 @@ if (document.getElementById("joinForm")) {
             return;
         }
 
-        renderTeamInfoCard(user.team);
+        // Определяем роль из уже загруженного профиля
+        let roleLabel = "Основной состав";
+        if (prof) {
+            if (prof.isCaptain) {
+                roleLabel = "Капитан";
+            } else if (prof.team) {
+                const myId  = prof._id?.toString();
+                const inSubs = (prof.team.subs || []).some(s => (s._id || s)?.toString() === myId);
+                roleLabel = inSubs ? "Замена" : "Основной состав";
+            }
+        }
+
+        renderTeamInfoCard(user.team, roleLabel);
         const progress = document.getElementById("progressWrap");
         const form     = document.getElementById("joinForm");
         if (progress) progress.style.display = "flex";
         if (form)     form.style.display     = "block";
     }
 
-    function renderTeamInfoCard(team) {
+    function renderTeamInfoCard(team, roleLabel) {
         const card = document.getElementById("teamInfoCard");
         if (!card) return;
+        const role = roleLabel || "Основной состав";
         card.innerHTML = `
             <div class="team-card">
                 ${team.logo
@@ -564,7 +577,7 @@ if (document.getElementById("joinForm")) {
                     : `<div class="team-card-logo-placeholder">[${team.tag}]</div>`}
                 <div class="team-card-info">
                     <div class="team-card-name">[${team.tag}] ${team.name}</div>
-                    <div class="team-card-sub">Ваша команда · Капитан</div>
+                    <div class="team-card-sub">Ваша команда · ${role}</div>
                 </div>
             </div>`;
     }
@@ -620,7 +633,7 @@ if (document.getElementById("joinForm")) {
             closeCreateTeamModal();
             const banner = document.getElementById("noTeamBanner");
             if (banner) banner.style.display = "none";
-            renderTeamInfoCard(data.team);
+            renderTeamInfoCard(data.team, "Капитан");
             const progress = document.getElementById("progressWrap");
             const form     = document.getElementById("joinForm");
             if (progress) progress.style.display = "flex";

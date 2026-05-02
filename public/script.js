@@ -987,13 +987,28 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (pubContent) pubContent.style.display = "block";
 
         const avatar = document.getElementById("pubAvatar");
-        if (avatar) avatar.src = data.avatar || "";
+        if (avatar) {
+            if (data.avatar) {
+                avatar.src          = data.avatar;
+                avatar.style.display = "";
+                avatar.onerror       = function() { this.style.display = "none"; };
+            } else {
+                avatar.style.display = "none";
+            }
+        }
 
         const nameEl = document.getElementById("pubName");
         if (nameEl) nameEl.textContent = data.displayName || "—";
 
         const rankEl = document.getElementById("pubRank");
-        if (rankEl) rankEl.textContent = data.rank || "Unranked";
+        if (rankEl) {
+            rankEl.textContent = data.rank || "Unranked";
+            if (data.rankColor) {
+                rankEl.style.color       = data.rankColor;
+                rankEl.style.borderColor = data.rankColor + "55";
+                rankEl.style.background  = data.rankColor + "18";
+            }
+        }
 
         if (data.team) {
             const tag = document.getElementById("pubTeamTag");

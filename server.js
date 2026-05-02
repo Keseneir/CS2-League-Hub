@@ -13,6 +13,7 @@ const Team        = require("./models/Team");
 const Application = require("./models/Application");
 const Season      = require("./models/Season");
 const TeamStat    = require("./models/TeamStat");
+const Rank        = require("./models/Rank");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -289,11 +290,19 @@ app.get("/api/users/:steamId/public", async (req, res) => {
       team = await Team.findById(user.teamId).select("name tag logo").lean();
     }
 
+    // Цвет ранга (если кастомный)
+    let rankColor = null;
+    if (user.rank && user.rank !== "Unranked") {
+      const rankDoc = await Rank.findOne({ name: user.rank }).select("color").lean();
+      if (rankDoc) rankColor = rankDoc.color;
+    }
+
     return res.json({
       steamId:          user.steamId,
       displayName:      user.displayName,
       avatar:           user.avatar,
       rank:             user.rank || "Unranked",
+      rankColor,
       faceitLevel:      user.faceitLevel,
       hoursInCS2:       user.hoursInCS2,
       bio:              user.bio || "",
@@ -1193,6 +1202,156 @@ async function _disbandTeam(teamId) {
   await User.updateMany({}, { $pull: { teamInvites: { teamId: team._id } } });
   await Team.findByIdAndDelete(teamId);
 }
+
+// ─── API: РАНГИ (публичный список) ───────────────────────────────────────────
+
+app.get("/api/ranks", async (req, res) => {
+  try {
+    const ranks = await Rank.find().sort({ order: 1, name: 1 }).lean();
+    res.json(ranks);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── ADMIN API: РАНГИ ─────────────────────────────────────────────────────────
+
+// Получить все ранги
+app.get("/api/admin/ranks", requireAdmin, async (req, res) => {
+  try {
+    const ranks = await Rank.find().sort({ order: 1, name: 1 }).lean();
+    res.json(ranks);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Создать ранг
+app.post("/api/admin/ranks", requireAdmin, async (req, res) => {
+  try {
+    const { name, color, order } = req.body;
+    if (!name || !String(name).trim())
+      return res.status(400).json({ error: "Название обязательно" });
+    const rank = await Rank.create({
+      name:  String(name).trim(),
+      color: color  || "#e6b022",
+      order: order !== undefined ? Number(order) : 0,
+    });
+    res.json({ ok: true, rank });
+  } catch (err) {
+    if (err.code === 11000)
+      return res.status(400).json({ error: "Звание с таким названием уже существует" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Редактировать ранг
+app.patch("/api/admin/ranks/:id", requireAdmin, async (req, res) => {
+  try {
+    const { name, color, order } = req.body;
+    const update = {};
+    if (name  !== undefined) update.name  = String(name).trim();
+    if (color !== undefined) update.color = color;
+    if (order !== undefined) update.order = Number(order);
+    const oldRank = await Rank.findById(req.params.id);
+    if (!oldRank) return res.status(404).json({ error: "Звание не найдено" });
+    const rank = await Rank.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    // Если название изменилось — обновить у всех игроков
+    if (name && name.trim() !== oldRank.name) {
+      await User.updateMany({ rank: oldRank.name }, { $set: { rank: name.trim() } });
+    }
+    res.json({ ok: true, rank });
+  } catch (err) {
+    if (err.code === 11000)
+      return res.status(400).json({ error: "Звание с таким названием уже существует" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Удалить ранг (у игроков с этим рангом сбрасывается в Unranked)
+app.delete("/api/admin/ranks/:id", requireAdmin, async (req, res) => {
+  try {
+    const rank = await Rank.findByIdAndDelete(req.params.id);
+    if (!rank) return res.status(404).json({ error: "Звание не найдено" });
+    await User.updateMany({ rank: rank.name }, { $set: { rank: "Unranked" } });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Назначить ранг игроку
+app.patch("/api/admin/users/:userId/rank", requireAdmin, async (req, res) => {
+  try {
+    const { rank } = req.body;
+    if (rank === undefined || rank === null)
+      return res.status(400).json({ error: "Укажите ранг" });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (rank !== "Unranked") {
+      const exists = await Rank.findOne({ name: rank });
+      if (!exists)
+        return res.status(400).json({ error: "Звание не найдено. Сначала создайте его." });
+    }
+    user.rank = rank;
+    await user.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── ADMIN API: УДАЛЕНИЕ ИГРОКА ───────────────────────────────────────────────
+
+app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+
+    // Нельзя удалить самого себя (администратора)
+    if (user.steamId === ADMIN_STEAM_ID)
+      return res.status(400).json({ error: "Нельзя удалить аккаунт администратора" });
+
+    // Если в команде — выйти или расформировать (если капитан)
+    if (user.teamId) {
+      const team = await Team.findById(user.teamId);
+      if (team) {
+        const uid = user._id.toString();
+        if (team.captainId.toString() === uid) {
+          await _disbandTeam(user.teamId);
+        } else {
+          team.members = (team.members || []).filter(m => m.toString() !== uid);
+          team.subs    = (team.subs    || []).filter(s => s.toString() !== uid);
+          await team.save();
+        }
+      }
+    }
+
+    // Убрать из списков друзей и входящих заявок у других пользователей
+    await User.updateMany(
+      {},
+      {
+        $pull: {
+          friends:        user._id,
+          friendRequests: { from: user._id },
+          teamInvites:    { from: user._id },
+        }
+      }
+    );
+
+    // Удалить заявки игрока
+    await Application.deleteMany({ userId: user._id });
+
+    // Удалить самого игрока
+    await User.findByIdAndDelete(user._id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
 // ─── STATIC & CATCH-ALL ───────────────────────────────────────────────────────
 

@@ -369,10 +369,16 @@ if (document.getElementById("tableContainer")) {
     }
     function getAccentColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length][0]; }
     function renderAvatar(r, i) {
-        if (r.logo) {
-            return `<img src="${r.logo}" alt="${r.team}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="team-avatar" style="${avatarStyle(i)};display:none;">${initials(r.team)}</div>`;
-        }
-        return `<div class="team-avatar" style="${avatarStyle(i)}">${initials(r.team)}</div>`;
+        const fbStyle = avatarStyle(i);
+        const fbHtml  = `<div class="team-avatar" style="${fbStyle}">${initials(r.team)}</div>`;
+        if (!r.logo) return fbHtml;
+        // wrapper keeps fixed size; img fills it, fallback div hides until needed
+        return `<div style="width:32px;height:32px;border-radius:6px;flex-shrink:0;overflow:hidden;position:relative;">`
+             + `<img src="${r.logo}" alt="${r.team}"
+                  style="width:100%;height:100%;object-fit:cover;display:block;"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+`             + `<div style="display:none;width:100%;height:100%;position:absolute;inset:0;${fbStyle}align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;">${initials(r.team)}</div>`
+             + `</div>`;
     }
 
     function renderTable(rows) {
@@ -505,7 +511,7 @@ if (document.getElementById("tableContainer")) {
             if (r.telegram) {
                 var tgRaw = r.telegram.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
                 var tgUrl = "https://t.me/" + tgRaw;
-                tgWrap.style.display = "flex";
+                tgWrap.style.cssText = "display:flex;flex-shrink:0;align-items:center;";
                 tgWrap.innerHTML = '<a href="' + tgUrl + '" target="_blank" title="Telegram" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;background:#1a2435;border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:8px;padding:0 10px;height:32px;font-family:&quot;Montserrat&quot;,sans-serif;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;flex-shrink:0;"><svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z&quot;/></svg>TG</a>';
             } else {
                 tgWrap.style.display = "none";

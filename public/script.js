@@ -505,8 +505,8 @@ if (document.getElementById("tableContainer")) {
             if (r.telegram) {
                 var tgRaw = r.telegram.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
                 var tgUrl = "https://t.me/" + tgRaw;
-                tgWrap.style.display = "block";
-                tgWrap.innerHTML = '<a href="' + tgUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:7px;background:rgba(91,141,232,0.10);border:1px solid rgba(91,141,232,0.25);color:#5b8de8;border-radius:8px;padding:8px 16px;font-family:&quot;Montserrat&quot;,sans-serif;font-weight:700;font-size:12px;text-decoration:none;"><svg width=&quot;15&quot; height=&quot;15&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z&quot;/></svg> Telegram</a>';
+                tgWrap.style.display = "flex";
+                tgWrap.innerHTML = '<a href="' + tgUrl + '" target="_blank" title="Telegram" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;background:#1a2435;border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:8px;padding:0 10px;height:32px;font-family:&quot;Montserrat&quot;,sans-serif;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;flex-shrink:0;"><svg width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;currentColor&quot;><path d=&quot;M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z&quot;/></svg>TG</a>';
             } else {
                 tgWrap.style.display = "none";
             }

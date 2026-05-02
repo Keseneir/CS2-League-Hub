@@ -32,135 +32,294 @@
                 <span id="headerPoints" class="header-points"></span>
             </div>
             <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
-            <a href="profile.html" class="header-profile-link" style="background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);" id="headerProfileLinkActive">Профиль</a>
             <a href="/logout" class="header-logout-btn">Выйти</a>
         </div>
     </div>
 </header>
 
-<!-- Не авторизован -->
-<div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
-    <div style="font-size:56px; margin-bottom:20px;">🔒</div>
-    <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
-    <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam, чтобы открыть личный кабинет</p>
-    <a href="/auth/steam?redirect=/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
-        Войти через Steam
-    </a>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     РЕЖИМ «ЧУЖОЙ ПРОФИЛЬ» — показывается при ?id=STEAMID в URL
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="publicProfileWrap" style="display:none;">
+    <div class="container" style="max-width:820px;">
 
-<!-- Загрузка -->
-<div id="profileLoading" style="text-align:center;padding:100px 20px;">
-    <div class="spinner"></div>
-    <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
-</div>
-
-<!-- Основной контент -->
-<div id="profileContent" style="display:none;">
-    <div class="container">
-
-        <!-- Карточка профиля -->
-        <div class="profile-header-card">
-            <img id="profileAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
-            <div style="flex:1;min-width:0;">
-                <div class="profile-display-name" id="profileDisplayName">—</div>
-                <div class="profile-stats-row">
-                    <span class="profile-stat-badge" id="profileRankBadge">Unranked</span>
-                    <span class="profile-team-tag" id="profileTeamTagBadge" style="display:none;"></span>
-                </div>
-            </div>
+        <div id="publicLoading" style="text-align:center;padding:100px 20px;">
+            <div class="spinner"></div>
+            <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
         </div>
 
-        <!-- Табы -->
-        <div class="profile-tabs">
-            <button class="profile-tab-btn active" data-tab="team">⚔️ Команда</button>
-            <button class="profile-tab-btn" data-tab="friends">
-                👥 Друзья
-                <span class="tab-badge" id="friendReqBadge" style="display:none;"></span>
-            </button>
-            <button class="profile-tab-btn" data-tab="notifs">
-                🔔 Уведомления
-                <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
-            </button>
+        <div id="publicHidden" style="display:none;text-align:center;padding:100px 20px;">
+            <div style="font-size:56px;margin-bottom:20px;">🔒</div>
+            <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px;text-transform:uppercase;">Профиль скрыт</h2>
+            <p style="color:var(--text-gray);">Этот игрок скрыл свой профиль</p>
         </div>
 
-        <!-- ═══ ТАБ: КОМАНДА ═══════════════════════════════════════════════ -->
-        <div class="profile-tab-content active" id="tab-team">
-
-            <div id="noTeamState" class="no-team-state" style="display:none;">
-                <div class="no-team-icon">🎯</div>
-                <p>Вы пока не состоите в команде</p>
-                <a href="join.html" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;">Подать заявку</a>
-            </div>
-
-            <div id="teamContent" style="display:none;">
-
-                <!-- Шапка команды -->
-                <div class="team-card-header">
-                    <div class="team-logo-circle" id="teamLogoEl"></div>
-                    <div>
-                        <div class="team-card-name" id="teamNameEl">—</div>
-                        <div class="team-card-tag"  id="teamTagEl">—</div>
+        <div id="publicContent" style="display:none;">
+            <div class="profile-header-card" style="position:relative;">
+                <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                <div style="flex:1;min-width:0;">
+                    <div class="profile-display-name" id="pubName">—</div>
+                    <div class="profile-stats-row">
+                        <span class="profile-stat-badge" id="pubRank">Unranked</span>
+                        <span class="profile-team-tag" id="pubTeamTag" style="display:none;"></span>
                     </div>
                 </div>
-
-                <!-- Основной состав -->
-                <div class="roster-block">
-                    <div class="roster-block-title">
-                        <span>⚔️ Основной состав</span>
-                        <span class="roster-count" id="mainCountLabel">0/5</span>
-                    </div>
-                    <div id="mainRosterList"></div>
+                <div id="pubStatsBadges" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
+                    <div id="pubFaceitBadge" style="display:none;"></div>
+                    <div id="pubHoursBadge"  style="display:none;"></div>
                 </div>
-
-                <!-- Замены -->
-                <div class="roster-block">
-                    <div class="roster-block-title">
-                        <span>🔄 Замены</span>
-                        <span class="roster-count" id="subCountLabel">0/5</span>
-                    </div>
-                    <div id="subRosterList"></div>
-                </div>
-
-                <!-- Кнопки капитана -->
-                <div id="captainActions" class="team-action-bar" style="display:none;">
-                    <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
-                    <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
-                </div>
-
-                <!-- Кнопки участника -->
-                <div id="memberActions" class="team-action-bar" style="display:none;">
-                    <button class="btn-team-danger" onclick="confirmLeaveTeam()">🚪 Покинуть команду</button>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ═══ ТАБ: ДРУЗЬЯ ════════════════════════════════════════════════ -->
-        <div class="profile-tab-content" id="tab-friends">
-
-            <div class="friend-search-bar">
-                <input type="text" id="friendSearchInput" placeholder="Поиск игрока по нику..." autocomplete="off"
-                    onkeydown="if(event.key==='Enter') searchFriendsHandler()">
-                <button onclick="searchFriendsHandler()">Найти</button>
             </div>
 
-            <div id="searchResultsBox" style="display:none;" class="search-results-box"></div>
+            <div id="pubBioBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:4px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">О себе</div>
+                <div id="pubBioText" style="font-size:14px;color:var(--text-gray);line-height:1.7;white-space:pre-wrap;"></div>
+            </div>
 
-            <div id="friendsList"></div>
-        </div>
-
-        <!-- ═══ ТАБ: УВЕДОМЛЕНИЯ ═══════════════════════════════════════════ -->
-        <div class="profile-tab-content" id="tab-notifs">
-            <div id="notifsList"></div>
+            <div id="pubTeamBlock" style="display:none;margin-top:14px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Команда</div>
+                <div class="team-card-header" id="pubTeamCard"></div>
+            </div>
         </div>
 
     </div>
 </div>
 
-<!-- ═══════════════ МОДАЛЬНЫЕ ОКНА ══════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════
+     СВОЙ ПРОФИЛЬ
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="ownProfileWrap" style="display:none;">
 
-<!-- Настройки команды -->
+    <div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
+        <div style="font-size:56px; margin-bottom:20px;">🔒</div>
+        <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
+        <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam, чтобы открыть личный кабинет</p>
+        <a href="/auth/steam?redirect=/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+    </div>
+
+    <div id="profileLoading" style="text-align:center;padding:100px 20px;">
+        <div class="spinner"></div>
+        <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
+    </div>
+
+    <div id="profileContent" style="display:none;">
+        <div class="container">
+
+            <div class="profile-header-card" style="position:relative;">
+                <img id="profileAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                <div style="flex:1;min-width:0;">
+                    <div class="profile-display-name" id="profileDisplayName">—</div>
+                    <div class="profile-stats-row">
+                        <span class="profile-stat-badge" id="profileRankBadge">Unranked</span>
+                        <span class="profile-team-tag" id="profileTeamTagBadge" style="display:none;"></span>
+                    </div>
+                </div>
+                <img id="profileMascot"
+                     src="assets/molotov-sleep.png"
+                     alt="mascot"
+                     style="width:170px;pointer-events:none;user-select:none;
+                            mix-blend-mode:screen;position:absolute;bottom:0px;right:24px;
+                            filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));transition:all 0.3s ease;">
+            </div>
+
+            <div class="profile-tabs">
+                <button class="profile-tab-btn active" data-tab="myprofile">
+                    🎮 Мой профиль
+                    <span class="tab-badge" id="profileIncompleteBadge" style="display:none;">!</span>
+                </button>
+                <button class="profile-tab-btn" data-tab="team">⚔️ Команда</button>
+                <button class="profile-tab-btn" data-tab="friends">
+                    👥 Друзья
+                    <span class="tab-badge" id="friendReqBadge" style="display:none;"></span>
+                </button>
+                <button class="profile-tab-btn" data-tab="notifs">
+                    🔔 Уведомления
+                    <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
+                </button>
+            </div>
+
+            <!-- ── МОЙ ПРОФИЛЬ ──────────────────────────────────────────── -->
+            <div class="profile-tab-content active" id="tab-myprofile">
+
+                <div id="profileIncompleteWarning" style="
+                    display:none;
+                    background:rgba(224,92,92,0.1);
+                    border:1px solid rgba(224,92,92,0.3);
+                    border-radius:10px;
+                    padding:14px 18px;
+                    margin-bottom:20px;
+                    font-size:13px;
+                    color:#e05c5c;
+                    line-height:1.6;
+                ">
+                    ⚠️ <strong>Профиль не заполнен.</strong>
+                    Укажите FACEIT уровень и количество часов — без этого нельзя создать команду или принять приглашение.
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:22px;">
+
+                    <!-- FACEIT Level -->
+                    <div>
+                        <label class="p-field-label" for="statFaceit">
+                            FACEIT Уровень
+                            <span style="color:#e05c5c;margin-left:2px;">*</span>
+                        </label>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" id="faceitBtnGroup"></div>
+                        <input type="hidden" id="statFaceit">
+                    </div>
+
+                    <!-- CS2 Hours -->
+                    <div>
+                        <label class="p-field-label" for="statHours">
+                            Часов в CS2
+                            <span style="color:#e05c5c;margin-left:2px;">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            id="statHours"
+                            class="p-field-input"
+                            placeholder="Например: 3500"
+                            min="0" max="99999"
+                            style="max-width:260px;"
+                        >
+                    </div>
+
+                    <!-- Bio -->
+                    <div>
+                        <label class="p-field-label" for="statBio">
+                            О себе
+                            <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно, макс. 300 символов)</span>
+                        </label>
+                        <textarea
+                            id="statBio"
+                            class="p-field-input"
+                            placeholder="Расскажи о себе: роль, опыт, удобное время для игры..."
+                            maxlength="300"
+                            rows="3"
+                            style="resize:vertical;font-family:inherit;"
+                        ></textarea>
+                        <div style="font-size:11px;color:#5c6b7f;margin-top:4px;text-align:right;">
+                            <span id="bioCharCount">0</span>/300
+                        </div>
+                    </div>
+
+                    <!-- Приватность -->
+                    <div style="
+                        display:flex;align-items:center;justify-content:space-between;
+                        background:rgba(92,107,127,0.08);border:1px solid var(--border);
+                        border-radius:10px;padding:14px 18px;
+                    ">
+                        <div>
+                            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;color:white;margin-bottom:3px;">🔒 Скрыть профиль</div>
+                            <div style="font-size:12px;color:#5c6b7f;">Другие игроки не смогут видеть ваш FACEIT, часы и bio</div>
+                        </div>
+                        <label class="toggle-switch" title="Скрыть профиль от других">
+                            <input type="checkbox" id="statPrivate">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div id="statsError"   class="p-modal-error" style="display:none;"></div>
+                    <div id="statsSuccess" style="display:none;color:#4caf82;font-size:13px;font-weight:600;">✅ Данные сохранены!</div>
+
+                    <button
+                        id="statsSaveBtn"
+                        class="p-btn-save"
+                        onclick="saveProfileStats()"
+                        style="align-self:flex-start;padding:11px 28px;"
+                    >
+                        Сохранить
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- ── КОМАНДА ──────────────────────────────────────────────── -->
+            <div class="profile-tab-content" id="tab-team">
+
+                <!-- Блокировка если профиль не заполнен -->
+                <div id="teamTabBlocker" style="display:none;text-align:center;padding:60px 20px;background:rgba(224,92,92,0.05);border:1px solid rgba(224,92,92,0.2);border-radius:14px;">
+                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
+                    <h3 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;text-transform:uppercase;margin-bottom:10px;color:white;">Профиль не заполнен</h3>
+                    <p style="color:var(--text-gray);font-size:14px;margin-bottom:20px;">Чтобы создать команду или вступить в неё, укажите FACEIT уровень и количество часов в CS2.</p>
+                    <button
+                        class="btn-apply"
+                        style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;"
+                        onclick="switchToMyProfileTab()"
+                    >🎮 Заполнить профиль</button>
+                </div>
+
+                <div id="teamTabContent" style="display:none;">
+                    <div id="noTeamState" class="no-team-state" style="display:none;">
+                        <div class="no-team-icon">🎯</div>
+                        <p>Вы пока не состоите в команде</p>
+                        <a href="join.html" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;">Подать заявку</a>
+                    </div>
+
+                    <div id="teamContent" style="display:none;">
+                        <div class="team-card-header">
+                            <div class="team-logo-circle" id="teamLogoEl"></div>
+                            <div>
+                                <div class="team-card-name" id="teamNameEl">—</div>
+                                <div class="team-card-tag"  id="teamTagEl">—</div>
+                            </div>
+                        </div>
+
+                        <div class="roster-block">
+                            <div class="roster-block-title">
+                                <span>⚔️ Основной состав</span>
+                                <span class="roster-count" id="mainCountLabel">0/5</span>
+                            </div>
+                            <div id="mainRosterList"></div>
+                        </div>
+
+                        <div class="roster-block">
+                            <div class="roster-block-title">
+                                <span>🔄 Замены</span>
+                                <span class="roster-count" id="subCountLabel">0/5</span>
+                            </div>
+                            <div id="subRosterList"></div>
+                        </div>
+
+                        <div id="captainActions" class="team-action-bar" style="display:none;">
+                            <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
+                            <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
+                            <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
+                        </div>
+
+                        <div id="memberActions" class="team-action-bar" style="display:none;">
+                            <button class="btn-team-danger" onclick="confirmLeaveTeam()">🚪 Покинуть команду</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── ДРУЗЬЯ ────────────────────────────────────────────────── -->
+            <div class="profile-tab-content" id="tab-friends">
+                <div class="friend-search-bar">
+                    <input type="text" id="friendSearchInput" placeholder="Поиск игрока по нику..." autocomplete="off"
+                        onkeydown="if(event.key==='Enter') searchFriendsHandler()">
+                    <button onclick="searchFriendsHandler()">Найти</button>
+                </div>
+                <div id="searchResultsBox" style="display:none;" class="search-results-box"></div>
+                <div id="friendsList"></div>
+            </div>
+
+            <!-- ── УВЕДОМЛЕНИЯ ───────────────────────────────────────────── -->
+            <div class="profile-tab-content" id="tab-notifs">
+                <div id="notifsList"></div>
+            </div>
+
+        </div>
+    </div>
+
+</div><!-- /ownProfileWrap -->
+
+
+<!-- ── МОДАЛКИ ─────────────────────────────────────────────────────────── -->
+
 <div id="teamSettingsModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -178,6 +337,10 @@
                 <input type="text" id="tsTag" class="p-field-input" placeholder="TAG" maxlength="8" style="text-transform:uppercase;">
             </div>
             <div>
+                <label class="p-field-label" for="tsTelegram">Telegram команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
+                <input type="text" id="tsTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
+            </div>
+            <div>
                 <label class="p-field-label" for="tsLogo">Логотип (ссылка на изображение)</label>
                 <input type="url" id="tsLogo" class="p-field-input" placeholder="https://...">
             </div>
@@ -189,7 +352,6 @@
     </div>
 </div>
 
-<!-- Пригласить в команду -->
 <div id="inviteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -209,7 +371,6 @@
     </div>
 </div>
 
-<!-- Подтверждение: распустить -->
 <div id="confirmDeleteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -229,8 +390,6 @@
     </div>
 </div>
 
-
-<!-- Модал управления участником команды -->
 <div id="memberModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -245,7 +404,6 @@
     </div>
 </div>
 
-<!-- Подтверждение: покинуть -->
 <div id="confirmLeaveModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
@@ -253,9 +411,7 @@
             <button class="p-modal-close" onclick="closeModal('confirmLeaveModal')">✕</button>
         </div>
         <div class="p-modal-body">
-            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">
-                Вы уверены, что хотите покинуть команду?
-            </p>
+            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">Вы уверены, что хотите покинуть команду?</p>
         </div>
         <div class="p-modal-footer">
             <button class="p-btn-cancel" onclick="closeModal('confirmLeaveModal')">Отмена</button>
@@ -297,5 +453,58 @@
 </footer>
 
 <script src="script.js" defer></script>
+
+<!-- Кнопка «Инструкция» (только для своего профиля) -->
+<button
+    id="profileHelpBtn"
+    onclick="document.getElementById('profileHelpModal').classList.remove('p-modal-hidden');document.body.style.overflow='hidden';"
+    style="
+        position:fixed;bottom:28px;right:28px;z-index:300;
+        background:#e6b022;color:#000;border:none;border-radius:50px;
+        padding:12px 20px;font-family:'Montserrat',sans-serif;font-weight:800;
+        font-size:13px;cursor:pointer;box-shadow:0 4px 20px rgba(230,176,34,0.4);
+        display:none;align-items:center;gap:8px;transition:all 0.2s;letter-spacing:0.5px;
+    "
+    onmouseover="this.style.background='#ffc933';this.style.transform='scale(1.05)'"
+    onmouseout="this.style.background='#e6b022';this.style.transform='scale(1)'"
+>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Инструкция
+</button>
+
+<div id="profileHelpModal" class="p-modal-overlay p-modal-hidden">
+    <div style="position:relative; display:flex; align-items:flex-end;">
+        <img src="assets/smoke-mascot.png" alt="Smoke Mascot" style="position:absolute;top:10px;left:-285px;width:500px;z-index:0;pointer-events:none;user-select:none;filter:drop-shadow(-4px 0 12px rgba(0,0,0,0.6));animation:modalIn 0.25s ease;">
+        <div class="p-modal-panel" style="max-width:560px;max-height:90vh;overflow-y:auto;position:relative;z-index:1;">
+            <div class="p-modal-header">
+                <span class="p-modal-title">📖 Инструкция для игроков</span>
+                <button class="p-modal-close" onclick="document.getElementById('profileHelpModal').classList.add('p-modal-hidden');document.body.style.overflow='';">✕</button>
+            </div>
+            <div class="p-modal-body" style="gap:20px;">
+                <div style="background:rgba(91,141,232,0.07);border:1px solid rgba(91,141,232,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎮 Шаг 0 — Заполни профиль</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Перейди во вкладку <strong style="color:white;">«Мой профиль»</strong> и укажи FACEIT уровень и количество часов в CS2. Без этого нельзя создать команду или принять приглашение.</p>
+                </div>
+                <div style="background:rgba(230,176,34,0.07);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚔️ Шаг 1 — Создание команды</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан команды регистрируется через Steam и в личном кабинете создаёт команду: указывает название, тег и логотип.</p>
+                </div>
+                <div style="background:rgba(76,175,130,0.07);border:1px solid rgba(76,175,130,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#4caf82;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">👥 Шаг 2 — Набор игроков</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан находит игроков через поиск во вкладке <strong style="color:white;">«Друзья»</strong>, добавляет их в друзья и приглашает в команду с указанием роли.</p>
+                    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                        <div style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#e6b022;">⚔️ Основной состав — 5 игроков</div>
+                        <div style="background:rgba(92,107,127,0.15);border:1px solid rgba(92,107,127,0.3);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#aebbc7;">🔄 Замены — до 5 игроков</div>
+                    </div>
+                </div>
+                <div style="background:rgba(92,107,127,0.08);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#aebbc7;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🔔 Статус заявки</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">После вступления в команду ваши данные автоматически отправляются администраторам. Статус отображается во вкладке <strong style="color:white;">«Уведомления»</strong>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

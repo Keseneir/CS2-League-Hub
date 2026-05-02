@@ -723,9 +723,12 @@ if (document.getElementById("joinForm")) {
 /* ================================================
    PROFILE PAGE
    ================================================ */
-if (document.getElementById("profileContent")) {
+/* ================================================
+   PROFILE PAGE
+   ================================================ */
+if (document.getElementById("ownProfileWrap") || document.getElementById("publicProfileWrap")) {
 
-    let _profileData = null;
+    let _profileData    = null;
     let _inviteTargetId = null;
 
     // ─── УТИЛИТЫ ──────────────────────────────────────────────────────────────
@@ -770,105 +773,372 @@ if (document.getElementById("profileContent")) {
         if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
     }
 
-    // ─── ЗАГРУЗКА ПРОФИЛЯ ─────────────────────────────────────────────────────
+    // ─── ПУБЛИЧНЫЙ ПРОФИЛЬ ────────────────────────────────────────────────────
+
+    const urlParams    = new URLSearchParams(window.location.search);
+    const publicSteamId = urlParams.get("id");
+
+    if (publicSteamId) {
+        // Режим просмотра чужого профиля
+        const pubWrap = document.getElementById("publicProfileWrap");
+        const ownWrap = document.getElementById("ownProfileWrap");
+        if (pubWrap) pubWrap.style.display = "block";
+        if (ownWrap) ownWrap.style.display = "none";
+
+        const helpBtn = document.getElementById("profileHelpBtn");
+        if (helpBtn) helpBtn.style.display = "none";
+
+        loadPublicProfile(publicSteamId);
+    } else {
+        // Свой профиль
+        loadProfile();
+    }
+
+    async function loadPublicProfile(steamId) {
+        try {
+            const res = await fetch(`/api/users/${steamId}/public`);
+            const pubLoading = document.getElementById("publicLoading");
+            if (pubLoading) pubLoading.style.display = "none";
+
+            if (!res.ok) {
+                const pubHidden = document.getElementById("publicHidden");
+                if (pubHidden) pubHidden.style.display = "block";
+                return;
+            }
+
+            const data = await res.json();
+
+            if (data.isPrivate) {
+                const pubHidden = document.getElementById("publicHidden");
+                if (pubHidden) pubHidden.style.display = "block";
+                return;
+            }
+
+            renderPublicProfile(data);
+        } catch {
+            const pubLoading = document.getElementById("publicLoading");
+            if (pubLoading) pubLoading.innerHTML = '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
+        }
+    }
+
+    function renderPublicProfile(data) {
+        const pubContent = document.getElementById("publicContent");
+        if (pubContent) pubContent.style.display = "block";
+
+        const avatar = document.getElementById("pubAvatar");
+        if (avatar) avatar.src = data.avatar || "";
+
+        const nameEl = document.getElementById("pubName");
+        if (nameEl) nameEl.textContent = data.displayName || "—";
+
+        const rankEl = document.getElementById("pubRank");
+        if (rankEl) rankEl.textContent = data.rank || "Unranked";
+
+        if (data.team) {
+            const tag = document.getElementById("pubTeamTag");
+            if (tag) { tag.textContent = `[${data.team.tag}] ${data.team.name}`; tag.style.display = "inline-flex"; }
+        }
+
+        // FACEIT бейдж
+        const faceitBadge = document.getElementById("pubFaceitBadge");
+        if (faceitBadge && data.faceitLevel !== null && data.faceitLevel !== undefined) {
+            const label = data.faceitLevel === 0 ? "FACEIT: нет аккаунта" : `FACEIT lv${data.faceitLevel}`;
+            faceitBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,95,31,0.12);border:1px solid rgba(255,95,31,0.3);color:#ff5f1f;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${label}</span>`;
+            faceitBadge.style.display = "block";
+        }
+
+        // Часы бейдж
+        const hoursBadge = document.getElementById("pubHoursBadge");
+        if (hoursBadge && data.hoursInCS2 !== null && data.hoursInCS2 !== undefined) {
+            hoursBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">⏱ ${data.hoursInCS2} ч. в CS2</span>`;
+            hoursBadge.style.display = "block";
+        }
+
+        // Bio
+        if (data.bio) {
+            const bioBlock = document.getElementById("pubBioBlock");
+            const bioText  = document.getElementById("pubBioText");
+            if (bioBlock) bioBlock.style.display = "block";
+            if (bioText)  bioText.textContent    = data.bio;
+        }
+
+        // Команда
+        if (data.team) {
+            const teamBlock = document.getElementById("pubTeamBlock");
+            const teamCard  = document.getElementById("pubTeamCard");
+            if (teamBlock) teamBlock.style.display = "block";
+            if (teamCard) {
+                const logoHtml = data.team.logo
+                    ? `<img src="${data.team.logo}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+                    : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.25);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--accent);flex-shrink:0;">${(data.team.tag || "?").slice(0, 2)}</div>`;
+                teamCard.innerHTML = `${logoHtml}<div><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;">${data.team.name}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${data.team.tag}]</div></div>`;
+            }
+        }
+    }
+
+    // ─── ЗАГРУЗКА СВОЕГО ПРОФИЛЯ ──────────────────────────────────────────────
 
     async function loadProfile() {
+        const ownWrap = document.getElementById("ownProfileWrap");
+        const pubWrap = document.getElementById("publicProfileWrap");
+        if (ownWrap) ownWrap.style.display = "block";
+        if (pubWrap) pubWrap.style.display = "none";
+
         try {
             const res = await fetch("/api/profile");
             if (res.status === 401) {
-                document.getElementById("profileLoading").style.display = "none";
-                document.getElementById("authGateProfile").style.display = "block";
+                const loading = document.getElementById("profileLoading");
+                const gate    = document.getElementById("authGateProfile");
+                if (loading) loading.style.display = "none";
+                if (gate)    gate.style.display    = "block";
                 return;
             }
             _profileData = await res.json();
             renderProfile(_profileData);
         } catch {
-            document.getElementById("profileLoading").innerHTML =
-                '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
+            const loading = document.getElementById("profileLoading");
+            if (loading) loading.innerHTML = '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
         }
     }
 
     function renderProfile(d) {
-        document.getElementById("profileLoading").style.display  = "none";
-        document.getElementById("profileContent").style.display  = "block";
+        const loading = document.getElementById("profileLoading");
+        const content = document.getElementById("profileContent");
+        if (loading) loading.style.display = "none";
+        if (content) content.style.display = "block";
 
-        document.getElementById("profileAvatar").src              = d.avatar || "";
-        document.getElementById("profileDisplayName").textContent = d.displayName || "—";
-        document.getElementById("profileRankBadge").textContent   = d.rank || "Unranked";
+        const avatarEl2 = document.getElementById("profileAvatar");
+        if (avatarEl2) avatarEl2.src = d.avatar || "";
+
+        const nameEl = document.getElementById("profileDisplayName");
+        if (nameEl) nameEl.textContent = d.displayName || "—";
+
+        const rankEl = document.getElementById("profileRankBadge");
+        if (rankEl) rankEl.textContent = d.rank || "Unranked";
 
         if (d.team) {
             const tag = document.getElementById("profileTeamTagBadge");
-            tag.textContent   = `[${d.team.tag}] ${d.team.name}`;
-            tag.style.display = "inline-flex";
+            if (tag) { tag.textContent = `[${d.team.tag}] ${d.team.name}`; tag.style.display = "inline-flex"; }
         }
 
+        // Кнопка «Инструкция»
+        const helpBtn = document.getElementById("profileHelpBtn");
+        if (helpBtn) helpBtn.style.display = "inline-flex";
+
+        renderMyProfileTab(d);
         renderTeamTab(d);
         renderFriendsTab(d);
         renderNotifsTab(d);
-
         updateBadges(d);
     }
+
+    // ─── ТАБ: МОЙ ПРОФИЛЬ ────────────────────────────────────────────────────
+
+    function renderMyProfileTab(d) {
+        const faceit = d.faceitLevel ?? null;
+        const hours  = d.hoursInCS2  ?? null;
+        const bio    = d.bio         || "";
+        const priv   = d.isPrivate   || false;
+
+        // Строим кнопки FACEIT (0 = нет аккаунта, 1-10 = уровень)
+        const group = document.getElementById("faceitBtnGroup");
+        if (group) {
+            const levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            group.innerHTML = levels.map(lv => {
+                const label = lv === 0 ? "Нет" : `lv${lv}`;
+                const sel   = faceit === lv;
+                return `<button type="button"
+                    data-level="${lv}"
+                    onclick="selectFaceit(${lv})"
+                    style="padding:7px 13px;border-radius:6px;cursor:pointer;transition:all 0.2s;
+                           font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
+                           border:1px solid ${sel ? "var(--accent)" : "var(--border)"};
+                           background:${sel ? "rgba(230,176,34,0.15)" : "#0e1318"};
+                           color:${sel ? "var(--accent)" : "var(--text-gray)"};"
+                >${label}</button>`;
+            }).join("");
+        }
+
+        const faceitInput = document.getElementById("statFaceit");
+        if (faceitInput) faceitInput.value = faceit !== null ? String(faceit) : "";
+
+        const hoursInput = document.getElementById("statHours");
+        if (hoursInput && hours !== null) hoursInput.value = hours;
+
+        const bioInput = document.getElementById("statBio");
+        if (bioInput) {
+            bioInput.value = bio;
+            const counter = document.getElementById("bioCharCount");
+            if (counter) counter.textContent = bio.length;
+            // Счётчик символов
+            bioInput.addEventListener("input", function() {
+                const c = document.getElementById("bioCharCount");
+                if (c) c.textContent = this.value.length;
+            });
+        }
+
+        const privToggle = document.getElementById("statPrivate");
+        if (privToggle) privToggle.checked = priv;
+
+        // Предупреждение о незаполненном профиле
+        const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
+                             (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
+        const warning = document.getElementById("profileIncompleteWarning");
+        if (warning) warning.style.display = isIncomplete ? "block" : "none";
+
+        const badge = document.getElementById("profileIncompleteBadge");
+        if (badge) badge.style.display = isIncomplete ? "inline-flex" : "none";
+    }
+
+    window.selectFaceit = function(level) {
+        const hiddenInput = document.getElementById("statFaceit");
+        if (hiddenInput) hiddenInput.value = String(level);
+        document.querySelectorAll("#faceitBtnGroup button").forEach(btn => {
+            const lv  = parseInt(btn.dataset.level);
+            const sel = lv === level;
+            btn.style.border     = `1px solid ${sel ? "var(--accent)" : "var(--border)"}`;
+            btn.style.background = sel ? "rgba(230,176,34,0.15)" : "#0e1318";
+            btn.style.color      = sel ? "var(--accent)" : "var(--text-gray)";
+        });
+    };
+
+    window.saveProfileStats = async function() {
+        const faceitVal = document.getElementById("statFaceit")?.value;
+        const hoursVal  = document.getElementById("statHours")?.value;
+        const bioVal    = document.getElementById("statBio")?.value   || "";
+        const privVal   = document.getElementById("statPrivate")?.checked || false;
+
+        const errEl     = document.getElementById("statsError");
+        const successEl = document.getElementById("statsSuccess");
+        const btn       = document.getElementById("statsSaveBtn");
+
+        if (errEl)     { errEl.style.display     = "none"; }
+        if (successEl) { successEl.style.display  = "none"; }
+
+        if (faceitVal === "" || faceitVal === undefined) {
+            if (errEl) { errEl.textContent = "Выберите FACEIT уровень (или «Нет» если нет аккаунта)"; errEl.style.display = "block"; }
+            return;
+        }
+        if (!hoursVal && hoursVal !== "0") {
+            if (errEl) { errEl.textContent = "Укажите количество часов в CS2"; errEl.style.display = "block"; }
+            return;
+        }
+
+        if (btn) { btn.disabled = true; btn.textContent = "Сохранение..."; }
+
+        try {
+            const res = await fetch("/api/profile/stats", {
+                method:  "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({
+                    faceitLevel: Number(faceitVal),
+                    hoursInCS2:  Number(hoursVal),
+                    bio:         bioVal,
+                    isPrivate:   privVal,
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                if (errEl) { errEl.textContent = data.error || "Ошибка сервера"; errEl.style.display = "block"; }
+            } else {
+                if (successEl) {
+                    successEl.style.display = "block";
+                    setTimeout(() => { if (successEl) successEl.style.display = "none"; }, 3000);
+                }
+                await refreshProfile();
+            }
+        } catch {
+            if (errEl) { errEl.textContent = "Ошибка соединения"; errEl.style.display = "block"; }
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; }
+        }
+    };
+
+    window.switchToMyProfileTab = function() {
+        document.querySelectorAll(".profile-tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".profile-tab-content").forEach(c => c.classList.remove("active"));
+        const btn = document.querySelector('.profile-tab-btn[data-tab="myprofile"]');
+        const tab = document.getElementById("tab-myprofile");
+        if (btn) btn.classList.add("active");
+        if (tab) tab.classList.add("active");
+    };
 
     // ─── ТАБ: КОМАНДА ─────────────────────────────────────────────────────────
 
     function renderTeamTab(d) {
+        const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
+                             (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
+
+        const blocker      = document.getElementById("teamTabBlocker");
+        const tabContent   = document.getElementById("teamTabContent");
+
+        if (blocker && tabContent) {
+            blocker.style.display    = isIncomplete ? "block" : "none";
+            tabContent.style.display = isIncomplete ? "none"  : "block";
+            if (isIncomplete) return;
+        }
+
         const noTeam  = document.getElementById("noTeamState");
         const content = document.getElementById("teamContent");
         if (!d.team) {
-            noTeam.style.display  = "block";
-            content.style.display = "none";
+            if (noTeam)  noTeam.style.display  = "block";
+            if (content) content.style.display = "none";
             return;
         }
-        noTeam.style.display  = "none";
-        content.style.display = "block";
+        if (noTeam)  noTeam.style.display  = "none";
+        if (content) content.style.display = "block";
 
-        const team = d.team;
-        const logoEl = document.getElementById("teamLogoEl");
-        if (team.logo) {
-            logoEl.innerHTML = `<img src="${team.logo}" alt="${team.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
-        } else {
-            logoEl.textContent = team.tag || "?";
+        const team    = d.team;
+        const logoEl2 = document.getElementById("teamLogoEl");
+        if (logoEl2) {
+            if (team.logo) {
+                logoEl2.innerHTML = `<img src="${team.logo}" alt="${team.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
+            } else {
+                logoEl2.textContent = team.tag || "?";
+            }
         }
-        document.getElementById("teamNameEl").textContent = team.name;
-        document.getElementById("teamTagEl").textContent  = "[" + team.tag + "]";
 
-        const mainList   = document.getElementById("mainRosterList");
-        const subList    = document.getElementById("subRosterList");
-        const mainCount  = document.getElementById("mainCountLabel");
-        const subCount   = document.getElementById("subCountLabel");
-        const captainId  = team.captainId?._id?.toString() || team.captainId?.toString();
+        const nameEl2 = document.getElementById("teamNameEl");
+        const tagEl   = document.getElementById("teamTagEl");
+        if (nameEl2) nameEl2.textContent = team.name;
+        if (tagEl)   tagEl.textContent   = "[" + team.tag + "]";
+
+        const mainList  = document.getElementById("mainRosterList");
+        const subList   = document.getElementById("subRosterList");
+        const mainCount = document.getElementById("mainCountLabel");
+        const subCount  = document.getElementById("subCountLabel");
+        const captainId = team.captainId?._id?.toString() || team.captainId?.toString();
 
         const members = team.members || [];
         const subs    = team.subs    || [];
-        mainCount.textContent = members.length + "/5";
-        subCount.textContent  = subs.length    + "/5";
+        if (mainCount) mainCount.textContent = members.length + "/5";
+        if (subCount)  subCount.textContent  = subs.length    + "/5";
 
-        mainList.innerHTML = members.length === 0
+        if (mainList) mainList.innerHTML = members.length === 0
             ? `<div class="roster-empty-hint">Состав пуст</div>`
             : members.map(m => renderMemberRow(m, captainId, d)).join("");
 
-        subList.innerHTML = subs.length === 0
+        if (subList) subList.innerHTML = subs.length === 0
             ? `<div class="roster-empty-hint">Нет замен</div>`
             : subs.map(m => renderMemberRow(m, captainId, d)).join("");
 
         const captainActionsEl = document.getElementById("captainActions");
         const memberActionsEl  = document.getElementById("memberActions");
         if (d.isCaptain) {
-            captainActionsEl.style.display = "flex";
-            memberActionsEl.style.display  = "none";
+            if (captainActionsEl) captainActionsEl.style.display = "flex";
+            if (memberActionsEl)  memberActionsEl.style.display  = "none";
         } else {
-            captainActionsEl.style.display = "none";
-            memberActionsEl.style.display  = "flex";
+            if (captainActionsEl) captainActionsEl.style.display = "none";
+            if (memberActionsEl)  memberActionsEl.style.display  = "flex";
         }
     }
 
     function renderMemberRow(m, captainId, d) {
-        const isCap  = m._id?.toString() === captainId;
-        const isMe   = m._id?.toString() === d._id?.toString();
-        const myCap  = d.isCaptain;
-        const mId    = m._id?.toString();
+        const isCap   = m._id?.toString() === captainId;
+        const isMe    = m._id?.toString() === d._id?.toString();
+        const myCap   = d.isCaptain;
+        const mId     = m._id?.toString();
         const nameEsc = (m.displayName || "Игрок").replace(/'/g, "\\'");
-        // Если я капитан и это не я — строка кликабельна
         const clickAttr = (myCap && !isMe)
             ? `onclick="openMemberModal('${mId}','${nameEsc}',${isCap})" style="cursor:pointer;" title="Управление игроком"`
             : "";
@@ -885,6 +1155,7 @@ if (document.getElementById("profileContent")) {
         const friends  = d.friends        || [];
         const requests = d.friendRequests || [];
         const el       = document.getElementById("friendsList");
+        if (!el) return;
         let html = "";
 
         if (requests.length > 0) {
@@ -936,22 +1207,32 @@ if (document.getElementById("profileContent")) {
 
     // ─── ТАБ: УВЕДОМЛЕНИЯ ─────────────────────────────────────────────────────
 
-    function appStatusIcon(status) {
-        return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳";
-    }
-    function appStatusLabel(status) {
-        return status === "accepted" ? "Принята" : status === "rejected" ? "Отклонена" : "На рассмотрении";
-    }
-    function appStatusColor(status) {
-        return status === "accepted" ? "#4caf82" : status === "rejected" ? "#e05c5c" : "#e6b022";
-    }
+    function appStatusIcon(status)  { return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳"; }
+    function appStatusLabel(status) { return status === "accepted" ? "Принята" : status === "rejected" ? "Отклонена" : "На рассмотрении"; }
+    function appStatusColor(status) { return status === "accepted" ? "#4caf82" : status === "rejected" ? "#e05c5c" : "#e6b022"; }
 
     function renderNotifsTab(d) {
         const el       = document.getElementById("notifsList");
+        if (!el) return;
         const requests = d.friendRequests || [];
         const invites  = d.teamInvites    || [];
         const apps     = d.applications   || [];
+        const notices  = d.adminNotices   || [];
         let html = "";
+
+        if (notices.length > 0) {
+            html += `<div class="notif-block">
+                <div class="notif-block-title">📢 Сообщения от администрации</div>
+                ${notices.map((n, idx) => `<div class="friend-row">
+                    <div style="font-size:24px;flex-shrink:0;">📣</div>
+                    <div class="friend-info">
+                        <div class="friend-name">${n.message}</div>
+                        <div class="friend-sub">${n.teamName ? "Команда: " + n.teamName : ""}</div>
+                    </div>
+                    <button class="btn-fr btn-fr-reject" onclick="dismissNotice(${idx})">✕</button>
+                </div>`).join("")}
+            </div>`;
+        }
 
         if (apps.length > 0) {
             html += `<div class="notif-block">
@@ -960,10 +1241,7 @@ if (document.getElementById("profileContent")) {
                     <div style="font-size:24px;flex-shrink:0;">${appStatusIcon(a.status)}</div>
                     <div class="friend-info">
                         <div class="friend-name" style="color:${appStatusColor(a.status)};">${appStatusLabel(a.status)}</div>
-                        <div class="friend-sub">
-                            ${a.faceitLevel ? `FACEIT: ${a.faceitLevel} · ` : ""}
-                            ${new Date(a.createdAt).toLocaleDateString("ru-RU")}
-                        </div>
+                        <div class="friend-sub">${a.faceitLevel ? `FACEIT: ${a.faceitLevel} · ` : ""}${new Date(a.createdAt).toLocaleDateString("ru-RU")}</div>
                     </div>
                 </div>`).join("")}
             </div>`;
@@ -983,9 +1261,7 @@ if (document.getElementById("profileContent")) {
             </div>`;
         }
 
-        if (!html) {
-            html = `<div class="notif-empty">🔔 Уведомлений нет</div>`;
-        }
+        if (!html) { html = `<div class="notif-empty">🔔 Уведомлений нет</div>`; }
         el.innerHTML = html;
     }
 
@@ -1013,21 +1289,28 @@ if (document.getElementById("profileContent")) {
         const frCount  = (d.friendRequests || []).length;
         const tiCount  = (d.teamInvites    || []).length;
         const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
-        const total    = frCount + tiCount + appCount;
+        const anCount  = (d.adminNotices   || []).length;
+        const total    = frCount + tiCount + appCount + anCount;
 
         const frBadge = document.getElementById("friendReqBadge");
         if (frBadge) { frBadge.textContent = frCount; frBadge.style.display = frCount > 0 ? "inline-flex" : "none"; }
 
-        const nBadge  = document.getElementById("notifsBadge");
-        if (nBadge)  { nBadge.textContent  = total;   nBadge.style.display  = total  > 0 ? "inline-flex" : "none"; }
+        const nBadge = document.getElementById("notifsBadge");
+        if (nBadge)  { nBadge.textContent = total; nBadge.style.display = total > 0 ? "inline-flex" : "none"; }
+
+        const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
+                             (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
+        const incompleteBadge = document.getElementById("profileIncompleteBadge");
+        if (incompleteBadge) incompleteBadge.style.display = isIncomplete ? "inline-flex" : "none";
     }
 
     // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────
 
     window.searchFriendsHandler = async function() {
-        const q = (document.getElementById("friendSearchInput").value || "").trim();
+        const q = (document.getElementById("friendSearchInput")?.value || "").trim();
         if (q.length < 2) { showToast("Введите минимум 2 символа", "err"); return; }
         const box = document.getElementById("searchResultsBox");
+        if (!box) return;
         box.style.display = "block";
         box.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-gray);font-size:14px;">Поиск...</div>`;
         try {
@@ -1040,10 +1323,10 @@ if (document.getElementById("profileContent")) {
 
     function renderSearchResult(u) {
         let btn = "";
-        if (u.isFriend)         btn = `<span class="btn-fr btn-fr-pending">✓ Друг</span>`;
+        if (u.isFriend)            btn = `<span class="btn-fr btn-fr-pending">✓ Друг</span>`;
         else if (u.iRequestedThem) btn = `<span class="btn-fr btn-fr-pending">Отправлено</span>`;
-        else if (u.requestedMe) btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">✓ Принять</button>`;
-        else                    btn = `<button class="btn-fr btn-fr-add" onclick="addFriend('${u._id}', this)">+ Добавить</button>`;
+        else if (u.requestedMe)    btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">✓ Принять</button>`;
+        else                       btn = `<button class="btn-fr btn-fr-add" onclick="addFriend('${u._id}', this)">+ Добавить</button>`;
 
         return `<div class="friend-row">
             ${avatarEl(u.avatar, u.displayName, "friend-avatar")}
@@ -1095,11 +1378,25 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
+    // ─── ДЕЙСТВИЯ: УВЕДОМЛЕНИЯ АДМИНИСТРАЦИИ ─────────────────────────────────
+
+    window.dismissNotice = async function(idx) {
+        try {
+            await fetch("/api/profile/dismiss-notice", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ idx })
+            });
+            await refreshProfile();
+        } catch { showToast("Ошибка", "err"); }
+    };
+
     // ─── ДЕЙСТВИЯ: ПРИГЛАШЕНИЯ В КОМАНДУ ─────────────────────────────────────
 
     window.openInviteModal = function(userId, name) {
         _inviteTargetId = userId;
-        document.getElementById("inviteTargetName").textContent = name;
+        const tNameEl = document.getElementById("inviteTargetName");
+        if (tNameEl) tNameEl.textContent = name;
         hideModalError("inviteError");
         openModal("inviteModal");
     };
@@ -1141,15 +1438,14 @@ if (document.getElementById("profileContent")) {
 
     // ─── ДЕЙСТВИЯ: УПРАВЛЕНИЕ КОМАНДОЙ ───────────────────────────────────────
 
-    // ─── Модал управления участником ─────────────────────────────────────
     let _memberModalId   = null;
     let _memberModalName = null;
 
     window.openMemberModal = function(userId, name, isCap) {
         _memberModalId   = userId;
         _memberModalName = name;
-        document.getElementById("memberModalName").textContent = name;
-        // Скрываем "назначить капитаном" если уже капитан
+        const nameEl = document.getElementById("memberModalName");
+        if (nameEl) nameEl.textContent = name;
         const capBtn = document.getElementById("memberModalCapBtn");
         if (capBtn) capBtn.style.display = isCap ? "none" : "flex";
         openModal("memberModal");
@@ -1168,8 +1464,8 @@ if (document.getElementById("profileContent")) {
     window.memberModalRole = async function() {
         closeModal("memberModal");
         if (!_memberModalId || !_profileData?.team) return;
-        const team  = _profileData.team;
-        const isSub = (team.subs || []).some(s => s._id?.toString() === _memberModalId);
+        const team    = _profileData.team;
+        const isSub   = (team.subs || []).some(s => s._id?.toString() === _memberModalId);
         const newRole = isSub ? "main" : "sub";
         const label   = isSub ? "основной состав" : "замену";
         if (!confirm(`Перевести ${_memberModalName} в ${label}?`)) return;
@@ -1185,7 +1481,6 @@ if (document.getElementById("profileContent")) {
             await refreshProfile();
         } catch { showToast("Ошибка соединения", "err"); }
     };
-    // ──────────────────────────────────────────────────────────────────────────
 
     window.kickMember = async function(userId, name) {
         if (!confirm(`Исключить ${name} из команды?`)) return;
@@ -1209,27 +1504,32 @@ if (document.getElementById("profileContent")) {
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // Настройки команды
     window.openTeamSettingsModal = function() {
         if (!_profileData || !_profileData.team) return;
-        document.getElementById("tsName").value  = _profileData.team.name || "";
-        document.getElementById("tsTag").value   = _profileData.team.tag  || "";
-        document.getElementById("tsLogo").value  = _profileData.team.logo || "";
+        const tsName = document.getElementById("tsName");
+        const tsTag  = document.getElementById("tsTag");
+        const tsLogo = document.getElementById("tsLogo");
+        const tsTg   = document.getElementById("tsTelegram");
+        if (tsName) tsName.value = _profileData.team.name    || "";
+        if (tsTag)  tsTag.value  = _profileData.team.tag     || "";
+        if (tsLogo) tsLogo.value = _profileData.team.logo    || "";
+        if (tsTg)   tsTg.value   = _profileData.team.telegram|| "";
         hideModalError("tsError");
         openModal("teamSettingsModal");
     };
     window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
 
     window.saveTeamSettings = async function() {
-        const name = document.getElementById("tsName").value.trim();
-        const tag  = document.getElementById("tsTag").value.trim();
-        const logo = document.getElementById("tsLogo").value.trim();
+        const name    = document.getElementById("tsName")?.value.trim();
+        const tag     = document.getElementById("tsTag")?.value.trim();
+        const logo    = document.getElementById("tsLogo")?.value.trim();
+        const telegram= document.getElementById("tsTelegram")?.value.trim();
         hideModalError("tsError");
         if (!name || !tag) { showModalError("tsError", "Название и тег обязательны"); return; }
         const btn = document.getElementById("tsSaveBtn");
         if (btn) { btn.disabled = true; btn.textContent = "Сохранение..."; }
         try {
-            const res = await fetch("/api/team", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, tag, logo }) });
+            const res = await fetch("/api/team", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, tag, logo, telegram }) });
             const d   = await res.json();
             if (!res.ok) { showModalError("tsError", d.error || "Ошибка"); if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; } return; }
             closeModal("teamSettingsModal");
@@ -1299,7 +1599,4 @@ if (document.getElementById("profileContent")) {
             document.querySelectorAll(".p-modal-overlay:not(.p-modal-hidden)").forEach(m => closeModal(m.id));
         }
     });
-
-    // ─── ЗАПУСК ───────────────────────────────────────────────────────────────
-    loadProfile();
 }

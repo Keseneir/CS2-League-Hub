@@ -9,6 +9,12 @@ const userSchema = new mongoose.Schema(
     rank:        { type: String, default: "Unranked" },
     teamId:      { type: mongoose.Schema.Types.ObjectId, ref: "Team", default: null },
 
+    // Профиль игрока
+    faceitLevel: { type: Number,  default: null },
+    hoursInCS2:  { type: Number,  default: null },
+    bio:         { type: String,  default: "" },
+    isPrivate:   { type: Boolean, default: false },
+
     // Список друзей
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 

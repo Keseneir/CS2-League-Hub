@@ -835,6 +835,39 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     } else {
         // Свой профиль
         loadProfile();
+
+        // ─── ПОЛЛИНГ УВЕДОМЛЕНИЙ + ЗВУК + МОЛОТОВ ────────────────────────────
+        let _prevNotifCount = -1;
+        const _notifAudio   = new Audio("assets/notification.mp3");
+
+        async function pollNotifications() {
+            try {
+                const res = await fetch("/api/profile");
+                if (!res.ok) return;
+                const d = await res.json();
+
+                const frCount  = (d.friendRequests || []).length;
+                const tiCount  = (d.teamInvites    || []).length;
+                const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
+                const anCount  = (d.adminNotices   || []).length;
+                const total    = frCount + tiCount + appCount + anCount;
+
+                // Звук при появлении новых уведомлений
+                if (_prevNotifCount >= 0 && total > _prevNotifCount) {
+                    _notifAudio.play().catch(() => {});
+                }
+                _prevNotifCount = total;
+
+                // Молотов и бейджи обновляем без полного перерендера
+                updateBadges(d);
+
+            } catch {}
+        }
+
+        setInterval(pollNotifications, 15000); // каждые 15 секунд
+        // Первый вызов чуть отложен — loadProfile() уже делает первичный updateBadges
+        setTimeout(pollNotifications, 15000);
+        // ─────────────────────────────────────────────────────────────────────
     }
 
     async function loadPublicProfile(steamId) {
@@ -1444,6 +1477,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                              (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
         const incompleteBadge = document.getElementById("profileIncompleteBadge");
         if (incompleteBadge) incompleteBadge.style.display = isIncomplete ? "inline-flex" : "none";
+
+        // Молотов: спит если уведов нет, бодрствует если есть
+        const mascot = document.getElementById("profileMascot");
+        if (mascot) {
+            mascot.src = total > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
+        }
     }
 
     // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────

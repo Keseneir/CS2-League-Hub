@@ -799,7 +799,7 @@ app.get("/api/leaderboard", async (req, res) => {
     if (!season) return res.json({ season: null, rows: [] });
 
     const stats = await TeamStat.find({ seasonId: season._id })
-      .populate("teamId", "name tag logo members subs")
+      .populate("teamId", "name tag logo telegram members subs")
       .lean();
 
     stats.sort((a, b) =>
@@ -811,9 +811,10 @@ app.get("/api/leaderboard", async (req, res) => {
     const rows = stats.map(s => ({
       _id:          s._id,
       teamId:       s.teamId?._id,
-      team:         s.teamId?.name  || "—",
-      tag:          s.teamId?.tag   || "—",
-      logo:         s.teamId?.logo  || "",
+      team:         s.teamId?.name     || "—",
+      tag:          s.teamId?.tag      || "—",
+      logo:         s.teamId?.logo     || "",
+      telegram:     s.teamId?.telegram || "",
       pts:          s.pts,
       wins:         s.wins,
       losses:       s.losses,
@@ -868,14 +869,14 @@ app.get("/api/leaderboard/:seasonId", async (req, res) => {
     if (!season) return res.status(404).json({ error: "Сезон не найден" });
 
     const stats = await TeamStat.find({ seasonId: season._id })
-      .populate("teamId", "name tag logo members subs")
+      .populate("teamId", "name tag logo telegram members subs")
       .lean();
 
     stats.sort((a, b) => b.pts - a.pts || b.roundDiff - a.roundDiff || b.wins - a.wins);
 
     const rows = stats.map(s => ({
       _id: s._id, teamId: s.teamId?._id,
-      team: s.teamId?.name || "—", tag: s.teamId?.tag || "—", logo: s.teamId?.logo || "",
+      team: s.teamId?.name || "—", tag: s.teamId?.tag || "—", logo: s.teamId?.logo || "", telegram: s.teamId?.telegram || "",
       pts: s.pts, wins: s.wins, losses: s.losses, matches: s.matches,
       wr: s.matches > 0 ? Math.round((s.wins / s.matches) * 100) : 0,
       roundDiff: s.roundDiff, winStreak: s.winStreak, isKingOfHill: s.isKingOfHill,

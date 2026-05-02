@@ -172,10 +172,12 @@ app.get("/api/profile", requireAuth, async (req, res) => {
       avatar:         user.avatar,
       rank:           user.rank        || "Unranked",
       // ── Новые поля профиля ──
-      faceitLevel:    user.faceitLevel ?? null,
-      hoursInCS2:     user.hoursInCS2  ?? null,
-      bio:            user.bio         || "",
-      isPrivate:      user.isPrivate   || false,
+      faceitLevel:      user.faceitLevel      ?? null,
+      hoursInCS2:       user.hoursInCS2       ?? null,
+      bio:              user.bio              || "",
+      isPrivate:        user.isPrivate        || false,
+      telegramUsername: user.telegramUsername || "",
+      discordUsername:  user.discordUsername  || "",
       // ────────────────────────
       team,
       isCaptain,
@@ -196,7 +198,7 @@ app.get("/api/profile", requireAuth, async (req, res) => {
 
 app.patch("/api/profile/stats", requireAuth, async (req, res) => {
   try {
-    const { faceitLevel, hoursInCS2, bio, isPrivate } = req.body;
+    const { faceitLevel, hoursInCS2, bio, isPrivate, telegramUsername, discordUsername } = req.body;
     const update = {};
 
     if (faceitLevel !== undefined) {
@@ -222,6 +224,18 @@ app.patch("/api/profile/stats", requireAuth, async (req, res) => {
 
     if (isPrivate !== undefined) {
       update.isPrivate = Boolean(isPrivate);
+    }
+
+    if (telegramUsername !== undefined) {
+      const tg = String(telegramUsername).trim().replace(/^@/, "");
+      if (tg.length > 64) return res.status(400).json({ error: "Telegram: не более 64 символов" });
+      update.telegramUsername = tg;
+    }
+
+    if (discordUsername !== undefined) {
+      const dc = String(discordUsername).trim();
+      if (dc.length > 64) return res.status(400).json({ error: "Discord: не более 64 символов" });
+      update.discordUsername = dc;
     }
 
     await User.findByIdAndUpdate(req.user._id, { $set: update });
@@ -256,7 +270,7 @@ app.post("/api/profile/dismiss-notice", requireAuth, async (req, res) => {
 app.get("/api/users/:steamId/public", async (req, res) => {
   try {
     const user = await User.findOne({ steamId: req.params.steamId })
-      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId")
+      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId telegramUsername discordUsername")
       .lean();
 
     if (!user) return res.status(404).json({ error: "Пользователь не найден" });
@@ -276,14 +290,16 @@ app.get("/api/users/:steamId/public", async (req, res) => {
     }
 
     return res.json({
-      steamId:     user.steamId,
-      displayName: user.displayName,
-      avatar:      user.avatar,
-      rank:        user.rank || "Unranked",
-      faceitLevel: user.faceitLevel,
-      hoursInCS2:  user.hoursInCS2,
-      bio:         user.bio || "",
-      isPrivate:   false,
+      steamId:          user.steamId,
+      displayName:      user.displayName,
+      avatar:           user.avatar,
+      rank:             user.rank || "Unranked",
+      faceitLevel:      user.faceitLevel,
+      hoursInCS2:       user.hoursInCS2,
+      bio:              user.bio || "",
+      isPrivate:        false,
+      telegramUsername: user.telegramUsername || "",
+      discordUsername:  user.discordUsername  || "",
       team,
     });
   } catch (err) {
@@ -920,6 +936,39 @@ app.post("/api/admin/match", requireAdmin, async (req, res) => {
 
     await Promise.all([winner.save(), loser.save()]);
     res.json({ ok: true, winner, loser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ── Список всех игроков (admin) ──────────────────────────────────────────────
+
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio telegramUsername discordUsername teamId createdAt")
+      .populate("teamId", "name tag")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ── Уведомление любому игроку (admin) ────────────────────────────────────────
+
+app.post("/api/admin/users/:userId/notice", requireAdmin, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !String(message).trim()) return res.status(400).json({ error: "Текст сообщения обязателен" });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (!user.adminNotices) user.adminNotices = [];
+    user.adminNotices.push({ type: "custom", message: String(message).trim(), read: false, createdAt: new Date() });
+    await user.save();
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

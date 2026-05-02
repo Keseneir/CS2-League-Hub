@@ -63,11 +63,26 @@
                         <span class="profile-stat-badge" id="pubRank">Unranked</span>
                         <span class="profile-team-tag" id="pubTeamTag" style="display:none;"></span>
                     </div>
+                    <!-- Кнопка «Добавить в друзья» / статус дружбы -->
+                    <div id="pubFriendBtnWrap" style="margin-top:12px;display:none;">
+                        <button id="pubFriendBtn" onclick="pubAddFriend()" style="
+                            padding:8px 18px;border-radius:6px;cursor:pointer;
+                            font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
+                            background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.35);
+                            color:#5b8de8;transition:all 0.2s;letter-spacing:0.5px;
+                        ">+ Добавить в друзья</button>
+                    </div>
                 </div>
                 <div id="pubStatsBadges" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
                     <div id="pubFaceitBadge" style="display:none;"></div>
                     <div id="pubHoursBadge"  style="display:none;"></div>
                 </div>
+            </div>
+
+            <!-- Соцсети -->
+            <div id="pubSocialsBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 24px;margin-top:4px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Контакты</div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;" id="pubSocialsRow"></div>
             </div>
 
             <div id="pubBioBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:4px;">
@@ -202,6 +217,24 @@
                         ></textarea>
                         <div style="font-size:11px;color:#5c6b7f;margin-top:4px;text-align:right;">
                             <span id="bioCharCount">0</span>/300
+                        </div>
+                    </div>
+
+                    <!-- Соцсети -->
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div>
+                            <label class="p-field-label" for="statTelegram">
+                                Telegram
+                                <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно, без @)</span>
+                            </label>
+                            <input type="text" id="statTelegram" class="p-field-input" placeholder="username" maxlength="64" style="max-width:300px;">
+                        </div>
+                        <div>
+                            <label class="p-field-label" for="statDiscord">
+                                Discord
+                                <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span>
+                            </label>
+                            <input type="text" id="statDiscord" class="p-field-input" placeholder="username или username#1234" maxlength="64" style="max-width:300px;">
                         </div>
                     </div>
 

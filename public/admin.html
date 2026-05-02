@@ -200,6 +200,7 @@
         <button class="tab-btn active" data-tab="leaderboard">🏆 Лидерборд</button>
         <button class="tab-btn" data-tab="teams">🛡️ Команды</button>
         <button class="tab-btn" data-tab="applications">📋 Заявки</button>
+        <button class="tab-btn" data-tab="players">👤 Игроки</button>
     </nav>
 
     <div class="topbar-user" id="topbarUser" style="margin-left:auto;">
@@ -321,13 +322,52 @@
             Заявки на участие
             <span class="count" id="appsCount"></span>
         </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <input type="text" id="appSearchInput" class="field-input" placeholder="🔍 Поиск по нику или команде..." oninput="filterAppsTable()" style="max-width:380px;">
+        </div>
         <div class="data-table-wrap" id="appsTableWrap">
             <div class="empty-state"><div class="empty-state-icon">📋</div><p>Загрузка...</p></div>
         </div>
     </div>
 
+    <!-- ══ ИГРОКИ ══ -->
+    <div class="tab-panel" id="panel-players">
+        <div class="section-title">
+            Все игроки
+            <span class="count" id="playersCount"></span>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <input type="text" id="playerSearchInput" class="field-input" placeholder="🔍 Поиск по нику, SteamID или команде..." oninput="filterPlayersTable()" style="max-width:440px;">
+        </div>
+        <div class="data-table-wrap" id="playersTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">👤</div><p>Загрузка...</p></div>
+        </div>
+    </div>
+
 </main>
 
+
+<!-- Модалка: уведомление игроку -->
+<div class="modal-overlay" id="playerNoticeModal">
+    <div class="modal-panel">
+        <div class="modal-head">
+            <span class="modal-head-title">💬 Сообщение игроку</span>
+            <button class="modal-close-btn" onclick="closeModal('playerNoticeModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="playerNoticeError" class="modal-error"></div>
+            <p style="font-size:13px;color:var(--gray2);">Игрок: <strong id="playerNoticeName" style="color:white;"></strong></p>
+            <div>
+                <label class="field-label">Текст сообщения</label>
+                <textarea id="playerNoticeText" class="field-input" rows="3" placeholder="Введите сообщение..." style="resize:vertical;min-height:80px;"></textarea>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('playerNoticeModal')">Отмена</button>
+            <button class="btn btn-primary" id="playerNoticeSendBtn" onclick="submitPlayerNotice()">Отправить</button>
+        </div>
+    </div>
+</div>
 
 <!-- Модалка: сообщение команде -->
 <div class="modal-overlay" id="customNoticeModal">
@@ -448,6 +488,9 @@ let _activeSid  = null;
 let _lbStats    = [];
 let _allTeams   = [];
 let _editStatId = null;
+let _allPlayers = [];
+let _allApps    = [];
+let _playerNoticeId = null;
 
 /* ── Init ── */
 async function init() {
@@ -475,6 +518,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         document.getElementById("panel-" + this.dataset.tab)?.classList.add("active");
         if (this.dataset.tab === "teams")        loadAllTeams();
         if (this.dataset.tab === "applications") loadApplications();
+        if (this.dataset.tab === "players")      loadAllPlayers();
     });
 });
 
@@ -832,12 +876,24 @@ async function disbandTeam(teamId, name) {
 async function loadApplications() {
     try {
         const res  = await fetch("/api/admin/applications");
-        const apps = res.ok ? await res.json() : [];
-        document.getElementById("appsCount").textContent = `(${apps.length})`;
-        renderAppsTable(apps);
+        _allApps = res.ok ? await res.json() : [];
+        document.getElementById("appsCount").textContent = `(${_allApps.length})`;
+        renderAppsTable(_allApps);
     } catch {
         document.getElementById("appsTableWrap").innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить заявки</p></div>`;
     }
+}
+
+function filterAppsTable() {
+    const q = (document.getElementById("appSearchInput")?.value || "").toLowerCase().trim();
+    if (!q) { renderAppsTable(_allApps); return; }
+    const filtered = _allApps.filter(a =>
+        (a.userId?.displayName || "").toLowerCase().includes(q) ||
+        (a.userId?.steamId     || "").toLowerCase().includes(q) ||
+        (a.teamId?.name        || "").toLowerCase().includes(q) ||
+        (a.teamId?.tag         || "").toLowerCase().includes(q)
+    );
+    renderAppsTable(filtered);
 }
 
 function renderAppsTable(apps) {
@@ -936,6 +992,121 @@ async function updateApp(id, status) {
         toast(status === "accepted" ? "✅ Заявка принята" : "❌ Заявка отклонена", "ok");
         loadApplications();
     } catch { toast("Ошибка соединения", "err"); }
+}
+
+/* ══════════════════════════════════════════
+   ИГРОКИ
+══════════════════════════════════════════ */
+async function loadAllPlayers() {
+    const wrap = document.getElementById("playersTableWrap");
+    if (!wrap) return;
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Загрузка...</p></div>`;
+    try {
+        const res = await fetch("/api/admin/users");
+        _allPlayers = res.ok ? await res.json() : [];
+        document.getElementById("playersCount").textContent = `(${_allPlayers.length})`;
+        renderPlayersTable(_allPlayers);
+    } catch {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить игроков</p></div>`;
+    }
+}
+
+function filterPlayersTable() {
+    const q = (document.getElementById("playerSearchInput")?.value || "").toLowerCase().trim();
+    if (!q) { renderPlayersTable(_allPlayers); return; }
+    const filtered = _allPlayers.filter(u =>
+        (u.displayName            || "").toLowerCase().includes(q) ||
+        (u.steamId                || "").toLowerCase().includes(q) ||
+        (u.teamId?.name           || "").toLowerCase().includes(q) ||
+        (u.teamId?.tag            || "").toLowerCase().includes(q) ||
+        (u.telegramUsername       || "").toLowerCase().includes(q) ||
+        (u.discordUsername        || "").toLowerCase().includes(q)
+    );
+    renderPlayersTable(filtered);
+}
+
+function renderPlayersTable(players) {
+    const wrap = document.getElementById("playersTableWrap");
+    if (!players.length) {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Игроки не найдены</p></div>`;
+        return;
+    }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr>
+            <th>Игрок</th>
+            <th>Steam ID</th>
+            <th>FACEIT / Часы</th>
+            <th>Команда</th>
+            <th>Контакты</th>
+            <th>Действия</th>
+        </tr></thead>
+        <tbody>${players.map(u => {
+            const faceitPill = u.faceitLevel !== null && u.faceitLevel !== undefined
+                ? (u.faceitLevel === 0
+                    ? `<span class="player-stat-pill faceit">Нет аккаунта</span>`
+                    : `<span class="player-stat-pill faceit">lv${u.faceitLevel}</span>`)
+                : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
+            const hoursPill = u.hoursInCS2 !== null && u.hoursInCS2 !== undefined
+                ? `<span class="player-stat-pill hours">⏱ ${u.hoursInCS2} ч.</span>`
+                : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
+            const tgLink = u.telegramUsername
+                ? `<a href="https://t.me/${u.telegramUsername}" target="_blank" style="color:#5b8de8;font-size:12px;">tg: @${u.telegramUsername}</a>`
+                : "";
+            const dcLink = u.discordUsername
+                ? `<span style="font-size:12px;color:#aebbc7;">ds: ${u.discordUsername}</span>`
+                : "";
+            const socials = [tgLink, dcLink].filter(Boolean).join("<br>");
+            const teamStr = u.teamId ? `[${u.teamId.tag}] ${u.teamId.name}` : `<span style="color:var(--gray2);">—</span>`;
+            return `<tr>
+                <td>
+                    <div class="player-profile-cell">
+                        ${u.avatar
+                            ? `<img src="${u.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">`
+                            : `<div style="width:28px;height:28px;border-radius:50%;background:rgba(230,176,34,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:var(--accent);flex-shrink:0;">${initials(u.displayName)}</div>`}
+                        <div class="player-profile-info">
+                            <div class="player-profile-name">${u.displayName || "—"}</div>
+                            ${u.bio ? `<div class="player-profile-bio">${u.bio.replace(/</g,"&lt;")}</div>` : ""}
+                        </div>
+                    </div>
+                </td>
+                <td style="font-size:11px;color:var(--gray2);font-family:monospace;">${u.steamId}</td>
+                <td><div style="display:flex;flex-direction:column;gap:4px;">${faceitPill}${hoursPill}</div></td>
+                <td style="font-size:13px;">${teamStr}</td>
+                <td style="font-size:12px;">${socials || `<span style="color:var(--gray2);">—</span>`}</td>
+                <td><div class="actions">
+                    <a href="/profile.html?id=${u.steamId}" target="_blank" class="btn btn-ghost btn-sm">👤 Профиль</a>
+                    <button class="btn btn-primary btn-sm" onclick="openPlayerNotice('${u._id}','${(u.displayName||'').replace(/'/g,"\\'")}')">💬 Написать</button>
+                </div></td>
+            </tr>`;
+        }).join("")}</tbody>
+    </table>`;
+}
+
+function openPlayerNotice(userId, name) {
+    _playerNoticeId = userId;
+    document.getElementById("playerNoticeName").textContent = name;
+    document.getElementById("playerNoticeText").value = "";
+    hideError("playerNoticeError");
+    openModal("playerNoticeModal");
+}
+
+async function submitPlayerNotice() {
+    const text = document.getElementById("playerNoticeText")?.value.trim();
+    if (!text) { showError("playerNoticeError", "Введите текст сообщения"); return; }
+    const btn = document.getElementById("playerNoticeSendBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
+    try {
+        const res = await fetch(`/api/admin/users/${_playerNoticeId}/notice`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+        const d = await res.json();
+        if (!res.ok) { showError("playerNoticeError", d.error || "Ошибка"); if (btn) { btn.disabled = false; btn.textContent = "Отправить"; } return; }
+        closeModal("playerNoticeModal");
+        toast("Сообщение отправлено!", "ok");
+    } catch { showError("playerNoticeError", "Ошибка соединения"); if (btn) { btn.disabled = false; btn.textContent = "Отправить"; } }
+    _playerNoticeId = null;
 }
 
 /* ── Confirm ── */

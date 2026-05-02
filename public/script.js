@@ -521,6 +521,26 @@ if (document.getElementById("joinForm")) {
         const nicknameEl = document.getElementById("nickname");
         if (nicknameEl) nicknameEl.value = user.displayName;
 
+        // Подтягиваем данные профиля для предзаполнения полей
+        try {
+            const profRes = await fetch("/api/profile");
+            if (profRes.ok) {
+                const prof = await profRes.json();
+                const hoursEl  = document.getElementById("hours");
+                const faceitEl = document.getElementById("faceit_level");
+                const contactsEl = document.getElementById("contacts");
+                if (hoursEl  && prof.hoursInCS2  !== null && prof.hoursInCS2  !== undefined) hoursEl.value  = prof.hoursInCS2;
+                if (faceitEl && prof.faceitLevel !== null && prof.faceitLevel !== undefined) {
+                    const val = prof.faceitLevel === 0 ? "no_account" : String(prof.faceitLevel);
+                    faceitEl.value = val;
+                }
+                // Подтягиваем telegram как контакт если контакты пусты
+                if (contactsEl && !contactsEl.value && prof.telegramUsername) {
+                    contactsEl.value = "@" + prof.telegramUsername;
+                }
+            }
+        } catch {}
+
         if (!user.team) {
             const banner = document.getElementById("noTeamBanner");
             if (banner) banner.style.display = "block";
@@ -661,6 +681,16 @@ if (document.getElementById("joinForm")) {
                     contacts:     document.getElementById("contacts").value,
                 };
 
+                // 0. Обновляем профиль актуальными данными из формы (приоритет — заявка)
+                try {
+                    const faceitNum = formPayload.faceit_level === "no_account" ? 0 : Number(formPayload.faceit_level);
+                    await fetch("/api/profile/stats", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ faceitLevel: faceitNum, hoursInCS2: Number(formPayload.hours) })
+                    });
+                } catch {}
+
                 // 1. Отправка в MongoDB (основная)
                 const res  = await fetch("/api/applications", {
                     method:  "POST",
@@ -796,17 +826,22 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     async function loadPublicProfile(steamId) {
         try {
-            const res = await fetch(`/api/users/${steamId}/public`);
+            // Загружаем профиль игрока + данные текущего юзера параллельно
+            const [pubRes, meRes] = await Promise.all([
+                fetch(`/api/users/${steamId}/public`),
+                fetch("/api/profile").catch(() => null)
+            ]);
+
             const pubLoading = document.getElementById("publicLoading");
             if (pubLoading) pubLoading.style.display = "none";
 
-            if (!res.ok) {
+            if (!pubRes.ok) {
                 const pubHidden = document.getElementById("publicHidden");
                 if (pubHidden) pubHidden.style.display = "block";
                 return;
             }
 
-            const data = await res.json();
+            const data = await pubRes.json();
 
             if (data.isPrivate) {
                 const pubHidden = document.getElementById("publicHidden");
@@ -814,14 +849,23 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 return;
             }
 
-            renderPublicProfile(data);
+            // Парсим текущего пользователя (если авторизован)
+            let meData = null;
+            if (meRes && meRes.ok) {
+                try { meData = await meRes.json(); } catch {}
+            }
+
+            renderPublicProfile(data, meData);
         } catch {
             const pubLoading = document.getElementById("publicLoading");
             if (pubLoading) pubLoading.innerHTML = '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
         }
     }
 
-    function renderPublicProfile(data) {
+    // Хранит _id текущего пользователя для кнопки «Добавить в друзья»
+    let _pubProfileTargetId = null; // MongoDB _id просматриваемого игрока (неизвестен из public route)
+
+    function renderPublicProfile(data, me) {
         const pubContent = document.getElementById("publicContent");
         if (pubContent) pubContent.style.display = "block";
 
@@ -837,6 +881,25 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (data.team) {
             const tag = document.getElementById("pubTeamTag");
             if (tag) { tag.textContent = `[${data.team.tag}] ${data.team.name}`; tag.style.display = "inline-flex"; }
+        }
+
+        // Кнопка «Добавить в друзья» — показываем только если авторизован и это не свой профиль
+        const friendBtnWrap = document.getElementById("pubFriendBtnWrap");
+        const friendBtn     = document.getElementById("pubFriendBtn");
+        if (friendBtnWrap && me && me.steamId && me.steamId !== data.steamId) {
+            friendBtnWrap.style.display = "block";
+            // Проверяем статус дружбы
+            const isFriend     = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
+            const iRequested   = false; // точно не знаем из public route, даём просто кнопку
+            if (isFriend) {
+                friendBtn.textContent = "✓ Уже в друзьях";
+                friendBtn.style.background = "rgba(76,175,130,0.12)";
+                friendBtn.style.borderColor = "rgba(76,175,130,0.35)";
+                friendBtn.style.color = "#4caf82";
+                friendBtn.disabled = true;
+            }
+            // Запоминаем steamId для отправки запроса через поиск по steamId
+            friendBtn.dataset.steamId = data.steamId;
         }
 
         // FACEIT бейдж
@@ -862,6 +925,29 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (bioText)  bioText.textContent    = data.bio;
         }
 
+        // Соцсети
+        const socialsBlock = document.getElementById("pubSocialsBlock");
+        const socialsRow   = document.getElementById("pubSocialsRow");
+        if (socialsBlock && socialsRow) {
+            const links = [];
+            if (data.telegramUsername) {
+                links.push(`<a href="https://t.me/${data.telegramUsername}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.10);border:1px solid rgba(91,141,232,0.25);color:#5b8de8;border-radius:6px;padding:6px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;text-decoration:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+                    @${data.telegramUsername}
+                </a>`);
+            }
+            if (data.discordUsername) {
+                links.push(`<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(114,137,218,0.10);border:1px solid rgba(114,137,218,0.25);color:#7289da;border-radius:6px;padding:6px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+                    ${data.discordUsername}
+                </span>`);
+            }
+            if (links.length) {
+                socialsBlock.style.display = "block";
+                socialsRow.innerHTML = links.join("");
+            }
+        }
+
         // Команда
         if (data.team) {
             const teamBlock = document.getElementById("pubTeamBlock");
@@ -875,6 +961,39 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             }
         }
     }
+
+    // Отправка запроса в друзья с публичного профиля
+    window.pubAddFriend = async function() {
+        const btn = document.getElementById("pubFriendBtn");
+        const steamId = btn?.dataset.steamId;
+        if (!steamId) return;
+        if (btn) { btn.disabled = true; btn.textContent = "..."; }
+        try {
+            // Сначала ищем пользователя по steamId чтобы получить _id
+            const searchRes = await fetch("/api/users/search?q=" + encodeURIComponent(steamId));
+            const results   = searchRes.ok ? await searchRes.json() : [];
+            const target    = results.find(u => u.steamId === steamId);
+            if (!target) {
+                if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
+                alert("Не удалось найти игрока");
+                return;
+            }
+            const res = await fetch(`/api/friends/request/${target._id}`, { method: "POST" });
+            const d   = await res.json();
+            if (!res.ok) {
+                if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
+                alert(d.error || "Ошибка");
+                return;
+            }
+            if (d.autoAccepted) {
+                if (btn) { btn.textContent = "✓ Уже в друзьях"; btn.style.color = "#4caf82"; btn.style.borderColor = "rgba(76,175,130,0.35)"; }
+            } else {
+                if (btn) { btn.textContent = "Заявка отправлена"; btn.style.color = "#e6b022"; btn.style.borderColor = "rgba(230,176,34,0.35)"; }
+            }
+        } catch {
+            if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
+        }
+    };
 
     // ─── ЗАГРУЗКА СВОЕГО ПРОФИЛЯ ──────────────────────────────────────────────
 
@@ -980,6 +1099,11 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const privToggle = document.getElementById("statPrivate");
         if (privToggle) privToggle.checked = priv;
 
+        const tgInput = document.getElementById("statTelegram");
+        if (tgInput) tgInput.value = d.telegramUsername || "";
+        const dcInput = document.getElementById("statDiscord");
+        if (dcInput) dcInput.value = d.discordUsername  || "";
+
         // Предупреждение о незаполненном профиле
         const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
                              (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
@@ -1007,6 +1131,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const hoursVal  = document.getElementById("statHours")?.value;
         const bioVal    = document.getElementById("statBio")?.value   || "";
         const privVal   = document.getElementById("statPrivate")?.checked || false;
+        const tgVal     = (document.getElementById("statTelegram")?.value || "").trim().replace(/^@/, "");
+        const dcVal     = (document.getElementById("statDiscord")?.value  || "").trim();
 
         const errEl     = document.getElementById("statsError");
         const successEl = document.getElementById("statsSuccess");
@@ -1031,10 +1157,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 method:  "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body:    JSON.stringify({
-                    faceitLevel: Number(faceitVal),
-                    hoursInCS2:  Number(hoursVal),
-                    bio:         bioVal,
-                    isPrivate:   privVal,
+                    faceitLevel:      Number(faceitVal),
+                    hoursInCS2:       Number(hoursVal),
+                    bio:              bioVal,
+                    isPrivate:        privVal,
+                    telegramUsername: tgVal,
+                    discordUsername:  dcVal,
                 })
             });
             const data = await res.json();
@@ -1199,6 +1327,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 <div class="friend-sub">${f.teamId ? "Уже в команде" : "Свободен"}</div>
             </div>
             <div class="friend-actions">
+                <a href="/profile.html?id=${f.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤</a>
                 ${canInvite ? `<button class="btn-fr btn-fr-invite" onclick="openInviteModal('${fId}','${f.displayName.replace(/'/g,"\\'")}')">⚔️ Пригласить</button>` : ""}
                 <button class="btn-fr btn-fr-remove" onclick="removeFriend('${fId}','${f.displayName.replace(/'/g,"\\'")}')">Удалить</button>
             </div>
@@ -1334,7 +1463,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 <div class="friend-name">${u.displayName}</div>
                 <div class="friend-sub">Steam ID: ${u.steamId}</div>
             </div>
-            <div class="friend-actions">${btn}</div>
+            <div class="friend-actions">
+                <a href="/profile.html?id=${u.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤 Профиль</a>
+                ${btn}
+            </div>
         </div>`;
     }
 

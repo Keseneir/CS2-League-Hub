@@ -9,6 +9,119 @@
     <title>CS2 League Hub</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Блок активных турниров на главной ── */
+        .tournaments-section {
+            max-width: 960px;
+            margin: 0 auto 48px;
+            padding: 0 20px;
+        }
+        .tournaments-section-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 22px;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .tournaments-section-title a {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e6b022;
+            text-decoration: none;
+            text-transform: none;
+            letter-spacing: 0;
+            margin-left: auto;
+        }
+        .tournaments-section-title a:hover { text-decoration: underline; }
+
+        .tournaments-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .tn-card {
+            background: #12171d;
+            border: 1px solid #1f252c;
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .tn-card:hover {
+            border-color: rgba(230,176,34,0.3);
+            transform: translateY(-2px);
+        }
+        .tn-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .tn-card-name {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            color: #fff;
+        }
+        .tn-badge {
+            font-size: 10px;
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .tn-badge.active   { background: rgba(76,175,130,0.15); color: #4caf82; border: 1px solid rgba(76,175,130,0.3); }
+        .tn-badge.upcoming { background: rgba(230,176,34,0.12); color: #e6b022; border: 1px solid rgba(230,176,34,0.3); }
+
+        .tn-desc {
+            font-size: 13px;
+            color: #aebbc7;
+            line-height: 1.5;
+        }
+        .tn-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 12px;
+            color: #5c6b7f;
+        }
+        .tn-meta strong { color: #aebbc7; }
+        .tn-prize {
+            font-size: 13px;
+            color: #e6b022;
+            font-weight: 600;
+        }
+        .tn-card-footer {
+            margin-top: auto;
+        }
+        .tn-register-btn {
+            display: block;
+            text-align: center;
+            background: #e6b022;
+            color: #000;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .tn-register-btn:hover { background: #ffc933; }
+    </style>
 </head>
 <body class="page-index">
 
@@ -56,6 +169,15 @@
 </div>
 
 <div class="main-section">
+
+    <!-- ── Блок: Активные турниры ── -->
+    <div class="tournaments-section" id="tournamentsSectionWrapper" style="display:none;">
+        <div class="tournaments-section-title">
+            🏆 Активные турниры
+            <a href="join.html">Все турниры →</a>
+        </div>
+        <div class="tournaments-row" id="tournamentsRow"></div>
+    </div>
 
     <div class="about-container">
         <h2>О проекте</h2>
@@ -117,5 +239,56 @@
 </footer>
 
 <script src="script.js" defer></script>
+<script>
+// Загружаем активные турниры на главной
+document.addEventListener("DOMContentLoaded", async () => {
+    try {
+        const res = await fetch("/api/tournaments");
+        if (!res.ok) return;
+        const tournaments = await res.json();
+        if (!tournaments.length) return;
+
+        const wrapper = document.getElementById("tournamentsSectionWrapper");
+        const row     = document.getElementById("tournamentsRow");
+
+        wrapper.style.display = "";
+
+        tournaments.forEach(t => {
+            const statusLabel = t.status === "active" ? "Идёт" : "Скоро";
+            const statusClass = t.status === "active" ? "active" : "upcoming";
+            const dateStr = t.startDate
+                ? new Date(t.startDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+                : "Дата уточняется";
+            const slotsLeft = t.maxTeams - t.teamsCount;
+
+            const card = document.createElement("div");
+            card.className = "tn-card";
+            card.innerHTML = `
+                <div class="tn-card-top">
+                    <div class="tn-card-name">${escHtmlIdx(t.name)}</div>
+                    <div class="tn-badge ${statusClass}">${statusLabel}</div>
+                </div>
+                ${t.description ? `<div class="tn-desc">${escHtmlIdx(t.description)}</div>` : ""}
+                ${t.prize ? `<div class="tn-prize">🏆 ${escHtmlIdx(t.prize)}</div>` : ""}
+                <div class="tn-meta">
+                    <span>📅 <strong>${dateStr}</strong></span>
+                    <span>👥 Заявок: <strong>${t.teamsCount}/${t.maxTeams}</strong></span>
+                </div>
+                <div class="tn-card-footer">
+                    <a href="join.html" class="tn-register-btn">
+                        ${slotsLeft <= 0 ? "Слоты заполнены" : "Зарегистрироваться"}
+                    </a>
+                </div>
+            `;
+            row.appendChild(card);
+        });
+    } catch {}
+});
+
+function escHtmlIdx(str) {
+    return String(str || "")
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
 </body>
 </html>

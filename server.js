@@ -239,6 +239,15 @@ app.patch("/api/profile/stats", requireAuth, async (req, res) => {
       update.discordUsername = dc;
     }
 
+    // Проверяем: хотя бы один контакт должен быть заполнен
+    // Берём финальные значения — либо из запроса, либо из текущего профиля
+    const currentUser = await User.findById(req.user._id).lean();
+    const finalTg = update.telegramUsername !== undefined ? update.telegramUsername : (currentUser.telegramUsername || "");
+    const finalDc = update.discordUsername  !== undefined ? update.discordUsername  : (currentUser.discordUsername  || "");
+    if (!finalTg && !finalDc) {
+      return res.status(400).json({ error: "Укажите хотя бы один контакт: Telegram или Discord" });
+    }
+
     await User.findByIdAndUpdate(req.user._id, { $set: update });
     res.json({ ok: true });
   } catch (err) {

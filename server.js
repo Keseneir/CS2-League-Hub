@@ -14,6 +14,7 @@ const Application = require("./models/Application");
 const Season      = require("./models/Season");
 const TeamStat    = require("./models/TeamStat");
 const Rank        = require("./models/Rank");
+const Tournament  = require("./models/Tournament");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -239,8 +240,7 @@ app.patch("/api/profile/stats", requireAuth, async (req, res) => {
       update.discordUsername = dc;
     }
 
-    // Проверяем: хотя бы один контакт должен быть заполнен
-    // Берём финальные значения — либо из запроса, либо из текущего профиля
+    // Хотя бы один контакт обязателен
     const currentUser = await User.findById(req.user._id).lean();
     const finalTg = update.telegramUsername !== undefined ? update.telegramUsername : (currentUser.telegramUsername || "");
     const finalDc = update.discordUsername  !== undefined ? update.discordUsername  : (currentUser.discordUsername  || "");
@@ -1359,6 +1359,215 @@ app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── API: ТУРНИРЫ (публичные) ─────────────────────────────────────────────────
+
+app.get("/api/tournaments", async (req, res) => {
+  try {
+    const tournaments = await Tournament.find({ status: { $in: ["upcoming", "active"] } })
+      .select("name description startDate status minMembers maxTeams prize registrations")
+      .sort({ startDate: 1, createdAt: -1 })
+      .lean();
+    const result = tournaments.map(t => ({
+      _id:        t._id,
+      name:       t.name,
+      description:t.description,
+      startDate:  t.startDate,
+      status:     t.status,
+      minMembers: t.minMembers,
+      maxTeams:   t.maxTeams,
+      prize:      t.prize,
+      teamsCount: (t.registrations || []).length,
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Для капитана — с пометкой зарегистрирована ли его команда
+app.get("/api/tournaments/my", requireAuth, async (req, res) => {
+  try {
+    const tournaments = await Tournament.find({ status: { $in: ["upcoming", "active"] } })
+      .sort({ startDate: 1, createdAt: -1 })
+      .lean();
+
+    if (!req.user.teamId) return res.json(tournaments.map(t => ({
+      _id: t._id, name: t.name, description: t.description,
+      startDate: t.startDate, status: t.status, minMembers: t.minMembers,
+      maxTeams: t.maxTeams, prize: t.prize,
+      teamsCount: (t.registrations || []).length, isRegistered: false,
+    })));
+
+    const teamIdStr = req.user.teamId.toString();
+    const result = tournaments.map(t => {
+      const reg = (t.registrations || []).find(r => r.teamId.toString() === teamIdStr);
+      return {
+        _id: t._id, name: t.name, description: t.description,
+        startDate: t.startDate, status: t.status, minMembers: t.minMembers,
+        maxTeams: t.maxTeams, prize: t.prize,
+        teamsCount: (t.registrations || []).length,
+        isRegistered: !!reg,
+      };
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Зарегистрировать команду (только капитан)
+app.post("/api/tournaments/:id/register", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId)
+      return res.status(400).json({ error: "Вы не состоите в команде" });
+
+    const team = await Team.findById(req.user.teamId).lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан может регистрировать команду" });
+
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    if (!["upcoming", "active"].includes(tournament.status))
+      return res.status(400).json({ error: "Регистрация на этот турнир закрыта" });
+
+    if ((team.members || []).length < tournament.minMembers)
+      return res.status(400).json({
+        error: `Недостаточно игроков. Нужно минимум ${tournament.minMembers}/5 в основном составе`,
+        code:  "TEAM_INCOMPLETE",
+      });
+
+    if ((tournament.registrations || []).length >= tournament.maxTeams)
+      return res.status(400).json({ error: "Все слоты заняты" });
+
+    if ((tournament.registrations || []).some(r => r.teamId.toString() === req.user.teamId.toString()))
+      return res.status(400).json({ error: "Ваша команда уже зарегистрирована" });
+
+    const { ageConfirmed, rulesAccepted } = req.body;
+    if (!ageConfirmed || !rulesAccepted)
+      return res.status(400).json({ error: "Необходимо подтвердить возраст и принять правила" });
+
+    tournament.registrations.push({
+      teamId: req.user.teamId, captainId: req.user._id,
+      ageConfirmed: true, rulesAccepted: true,
+    });
+    await tournament.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Отменить регистрацию (только капитан)
+app.delete("/api/tournaments/:id/register", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+    const team = await Team.findById(req.user.teamId).lean();
+    if (!team || team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан может отменить регистрацию" });
+
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+
+    const before = (tournament.registrations || []).length;
+    tournament.registrations = (tournament.registrations || []).filter(
+      r => r.teamId.toString() !== req.user.teamId.toString()
+    );
+    if (tournament.registrations.length === before)
+      return res.status(400).json({ error: "Ваша команда не зарегистрирована" });
+
+    await tournament.save();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── ADMIN API: ТУРНИРЫ ───────────────────────────────────────────────────────
+
+app.get("/api/admin/tournaments", requireAdmin, async (req, res) => {
+  try {
+    const tournaments = await Tournament.find().sort({ createdAt: -1 }).lean();
+    const teamIds = [...new Set(
+      tournaments.flatMap(t => (t.registrations || []).map(r => r.teamId.toString()))
+    )];
+    const teams = await Team.find({ _id: { $in: teamIds } }).select("name tag logo").lean();
+    const teamMap = Object.fromEntries(teams.map(t => [t._id.toString(), t]));
+    const result = tournaments.map(t => ({
+      ...t,
+      registrations: (t.registrations || []).map(r => ({
+        ...r, team: teamMap[r.teamId.toString()] || null,
+      })),
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+app.post("/api/admin/tournaments", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    if (!name || !String(name).trim())
+      return res.status(400).json({ error: "Название обязательно" });
+    const tournament = await Tournament.create({
+      name:        String(name).trim(),
+      description: description ? String(description).trim() : "",
+      startDate:   startDate || null,
+      status:      ["upcoming","active","finished"].includes(status) ? status : "upcoming",
+      minMembers:  minMembers ? Math.min(5, Math.max(1, Number(minMembers))) : 5,
+      maxTeams:    maxTeams   ? Math.max(2, Number(maxTeams)) : 16,
+      prize:       prize ? String(prize).trim() : "",
+    });
+    res.json({ ok: true, tournament });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+app.patch("/api/admin/tournaments/:id", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    const update = {};
+    if (name        !== undefined) update.name        = String(name).trim();
+    if (description !== undefined) update.description = String(description).trim();
+    if (startDate   !== undefined) update.startDate   = startDate || null;
+    if (status      !== undefined && ["upcoming","active","finished"].includes(status)) update.status = status;
+    if (minMembers  !== undefined) update.minMembers  = Math.min(5, Math.max(1, Number(minMembers)));
+    if (maxTeams    !== undefined) update.maxTeams    = Math.max(2, Number(maxTeams));
+    if (prize       !== undefined) update.prize       = String(prize).trim();
+    const tournament = await Tournament.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    res.json({ ok: true, tournament });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+app.delete("/api/admin/tournaments/:id", requireAdmin, async (req, res) => {
+  try {
+    await Tournament.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+app.delete("/api/admin/tournaments/:id/registrations/:teamId", requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    tournament.registrations = (tournament.registrations || []).filter(
+      r => r.teamId.toString() !== req.params.teamId
+    );
+    await tournament.save();
+    res.json({ ok: true });
+  } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

@@ -63,7 +63,6 @@
                         <span class="profile-stat-badge" id="pubRank">Unranked</span>
                         <span class="profile-team-tag" id="pubTeamTag" style="display:none;"></span>
                     </div>
-                    <!-- Кнопка «Добавить в друзья» / статус дружбы -->
                     <div id="pubFriendBtnWrap" style="margin-top:12px;display:none;">
                         <button id="pubFriendBtn" onclick="pubAddFriend()" style="
                             padding:8px 18px;border-radius:6px;cursor:pointer;
@@ -79,7 +78,6 @@
                 </div>
             </div>
 
-            <!-- Соцсети -->
             <div id="pubSocialsBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 24px;margin-top:4px;">
                 <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Контакты</div>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;" id="pubSocialsRow"></div>
@@ -175,7 +173,6 @@
 
                 <div style="display:flex;flex-direction:column;gap:22px;">
 
-                    <!-- FACEIT Level -->
                     <div>
                         <label class="p-field-label" for="statFaceit">
                             FACEIT Уровень
@@ -185,7 +182,6 @@
                         <input type="hidden" id="statFaceit">
                     </div>
 
-                    <!-- CS2 Hours -->
                     <div>
                         <label class="p-field-label" for="statHours">
                             Часов в CS2
@@ -201,7 +197,6 @@
                         >
                     </div>
 
-                    <!-- Bio -->
                     <div>
                         <label class="p-field-label" for="statBio">
                             О себе
@@ -220,7 +215,6 @@
                         </div>
                     </div>
 
-                    <!-- Соцсети -->
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div>
                             <label class="p-field-label" for="statTelegram">
@@ -238,7 +232,6 @@
                         </div>
                     </div>
 
-                    <!-- Приватность -->
                     <div style="
                         display:flex;align-items:center;justify-content:space-between;
                         background:rgba(92,107,127,0.08);border:1px solid var(--border);
@@ -272,7 +265,6 @@
             <!-- ── КОМАНДА ──────────────────────────────────────────────── -->
             <div class="profile-tab-content" id="tab-team">
 
-                <!-- Блокировка если профиль не заполнен -->
                 <div id="teamTabBlocker" style="display:none;text-align:center;padding:60px 20px;background:rgba(224,92,92,0.05);border:1px solid rgba(224,92,92,0.2);border-radius:14px;">
                     <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h3 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;text-transform:uppercase;margin-bottom:10px;color:white;">Профиль не заполнен</h3>
@@ -375,10 +367,8 @@
             </div>
             <div>
                 <label class="p-field-label">Логотип команды</label>
-                <!-- Скрытое поле с итоговым URL (читается saveTeamSettings) -->
                 <input type="hidden" id="tsLogo">
                 <div id="tsLogoUploadArea" style="display:flex;align-items:center;gap:14px;margin-top:4px;">
-                    <!-- Превью -->
                     <div id="tsLogoPreview" style="
                         width:56px;height:56px;border-radius:10px;
                         background:#1f252c;border:1px solid #2a3340;
@@ -596,9 +586,46 @@
                 <label class="p-field-label" for="ctTelegram">Telegram команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
                 <input type="text" id="ctTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
             </div>
+            <!-- ── Логотип: загрузка через Cloudinary (как в настройках команды) -->
             <div>
-                <label class="p-field-label" for="ctLogo">Логотип <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(ссылка, необязательно)</span></label>
-                <input type="url" id="ctLogo" class="p-field-input" placeholder="https://...">
+                <label class="p-field-label">Логотип команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
+                <!-- Скрытое поле с итоговым URL — читается submitCreateTeam -->
+                <input type="hidden" id="ctLogo">
+                <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+                    <!-- Превью -->
+                    <div id="ctLogoPreview" style="
+                        width:56px;height:56px;border-radius:10px;
+                        background:#1f252c;border:1px solid #2a3340;
+                        display:flex;align-items:center;justify-content:center;
+                        overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
+                    <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <label for="ctLogoFile" style="
+                                display:inline-block;cursor:pointer;
+                                background:#1f252c;border:1px solid #2a3340;
+                                border-radius:7px;padding:8px 16px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#aebbc7;
+                                transition:border-color 0.2s,color 0.2s;">
+                                📁 Выбрать файл
+                            </label>
+                            <button type="button" id="ctLogoDeleteBtn" onclick="clearCreateTeamLogo()" style="
+                                display:none;cursor:pointer;
+                                background:none;border:1px solid rgba(224,92,92,0.35);
+                                border-radius:7px;padding:8px 14px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#e05c5c;
+                                transition:border-color 0.2s,background 0.2s;">
+                                🗑 Удалить лого
+                            </button>
+                        </div>
+                        <input type="file" id="ctLogoFile" accept="image/*" style="display:none;">
+                        <div id="ctLogoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">
+                            Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP
+                        </div>
+                        <div id="ctLogoUploadError" style="margin-top:4px;font-size:11px;color:#e05c5c;display:none;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="p-modal-footer">

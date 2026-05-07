@@ -694,7 +694,7 @@ if (document.getElementById("joinForm")) {
         document.body.style.overflow = "hidden";
         const errEl = document.getElementById("ctError");
         if (errEl) errEl.style.display = "none";
-        ["ctName","ctTag","ctLogo"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+        ["ctName","ctTag","ctLogo","ctTelegram"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
     };
 
     window.closeCreateTeamModal = function() {
@@ -713,14 +713,16 @@ if (document.getElementById("joinForm")) {
     });
 
     window.submitCreateTeam = async function() {
-        const nameEl  = document.getElementById("ctName");
-        const tagEl   = document.getElementById("ctTag");
-        const logoEl  = document.getElementById("ctLogo");
-        const errEl   = document.getElementById("ctError");
-        const btn     = document.getElementById("ctSubmitBtn");
-        const name    = nameEl ? nameEl.value.trim() : "";
-        const tag     = tagEl  ? tagEl.value.trim()  : "";
-        const logo    = logoEl ? logoEl.value.trim()  : "";
+        const nameEl     = document.getElementById("ctName");
+        const tagEl      = document.getElementById("ctTag");
+        const logoEl     = document.getElementById("ctLogo");
+        const telegramEl = document.getElementById("ctTelegram");
+        const errEl      = document.getElementById("ctError");
+        const btn        = document.getElementById("ctSubmitBtn");
+        const name     = nameEl     ? nameEl.value.trim()     : "";
+        const tag      = tagEl      ? tagEl.value.trim()      : "";
+        const logo     = logoEl     ? logoEl.value.trim()     : "";
+        const telegram = telegramEl ? telegramEl.value.trim() : "";
 
         if (errEl) errEl.style.display = "none";
         if (!name || !tag) { if (errEl) { errEl.textContent = "Заполните название и тег команды."; errEl.style.display = "block"; } return; }
@@ -728,7 +730,7 @@ if (document.getElementById("joinForm")) {
         if (btn) { btn.disabled = true; btn.textContent = "Создание..."; }
 
         try {
-            const res  = await fetch("/api/teams", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name,tag,logo}) });
+            const res  = await fetch("/api/teams", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name,tag,logo,telegram}) });
             const data = await res.json();
             if (!res.ok) {
                 if (errEl) { errEl.textContent = data.error || "Ошибка сервера."; errEl.style.display = "block"; }
@@ -736,16 +738,8 @@ if (document.getElementById("joinForm")) {
                 return;
             }
             closeCreateTeamModal();
-            const banner = document.getElementById("noTeamBanner");
-            if (banner) banner.style.display = "none";
-            renderTeamInfoCard(data.team, "Капитан");
-            const progress = document.getElementById("progressWrap");
-            const form     = document.getElementById("joinForm");
-            if (progress) progress.style.display = "flex";
-            if (form)     form.style.display     = "block";
-            if (_currentUser) _currentUser.team = data.team;
-            const teamBadge = document.getElementById("headerTeamBadge");
-            if (teamBadge) { teamBadge.textContent = `[${data.team.tag}] ${data.team.name}`; teamBadge.style.display = "inline-flex"; }
+            showToast("Команда создана!", "ok");
+            await refreshProfile();
         } catch {
             if (errEl) { errEl.textContent = "Ошибка соединения."; errEl.style.display = "block"; }
             if (btn)   { btn.disabled = false; btn.textContent = "Создать команду"; }

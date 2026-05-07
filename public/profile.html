@@ -288,7 +288,7 @@
                     <div id="noTeamState" class="no-team-state" style="display:none;">
                         <div class="no-team-icon">🎯</div>
                         <p>Вы пока не состоите в команде</p>
-                        <a href="join.html" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;">Подать заявку</a>
+                        <button onclick="openCreateTeamModal()" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;border:none;cursor:pointer;">+ Создать команду</button>
                     </div>
 
                     <div id="teamContent" style="display:none;">
@@ -571,6 +571,39 @@
                     <p style="font-size:13px;line-height:1.7;color:#aebbc7;">После вступления в команду ваши данные автоматически отправляются администраторам. Статус отображается во вкладке <strong style="color:white;">«Уведомления»</strong>.</p>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Модалка: Создать команду ─────────────────────────────────────────── -->
+<div id="createTeamModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">⚔️ Создать команду</span>
+            <button class="p-modal-close" onclick="closeCreateTeamModal()">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <div id="ctError" class="p-modal-error"></div>
+            <div>
+                <label class="p-field-label" for="ctName">Название команды</label>
+                <input type="text" id="ctName" class="p-field-input" placeholder="Название" maxlength="64">
+            </div>
+            <div>
+                <label class="p-field-label" for="ctTag">Тег <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(до 8 символов)</span></label>
+                <input type="text" id="ctTag" class="p-field-input" placeholder="TAG" maxlength="8" style="text-transform:uppercase;">
+            </div>
+            <div>
+                <label class="p-field-label" for="ctTelegram">Telegram команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
+                <input type="text" id="ctTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
+            </div>
+            <div>
+                <label class="p-field-label" for="ctLogo">Логотип <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(ссылка, необязательно)</span></label>
+                <input type="url" id="ctLogo" class="p-field-input" placeholder="https://...">
+            </div>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeCreateTeamModal()">Отмена</button>
+            <button class="p-btn-save" id="ctSubmitBtn" onclick="submitCreateTeam()">Создать команду</button>
         </div>
     </div>
 </div>

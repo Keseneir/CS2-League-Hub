@@ -374,8 +374,33 @@
                 <input type="text" id="tsTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
             </div>
             <div>
-                <label class="p-field-label" for="tsLogo">Логотип (ссылка на изображение)</label>
-                <input type="url" id="tsLogo" class="p-field-input" placeholder="https://...">
+                <label class="p-field-label">Логотип команды</label>
+                <!-- Скрытое поле с итоговым URL (читается saveTeamSettings) -->
+                <input type="hidden" id="tsLogo">
+                <div id="tsLogoUploadArea" style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+                    <!-- Превью -->
+                    <div id="tsLogoPreview" style="
+                        width:56px;height:56px;border-radius:10px;
+                        background:#1f252c;border:1px solid #2a3340;
+                        display:flex;align-items:center;justify-content:center;
+                        overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
+                    <div style="flex:1;">
+                        <label for="tsLogoFile" id="tsLogoFileLabel" style="
+                            display:inline-block;cursor:pointer;
+                            background:#1f252c;border:1px solid #2a3340;
+                            border-radius:7px;padding:8px 16px;
+                            font-size:12px;font-family:'Montserrat',sans-serif;
+                            font-weight:700;letter-spacing:0.5px;color:#aebbc7;
+                            transition:border-color 0.2s,color 0.2s;">
+                            📁 Выбрать файл
+                        </label>
+                        <input type="file" id="tsLogoFile" accept="image/*" style="display:none;">
+                        <div id="tsLogoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">
+                            Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP
+                        </div>
+                        <div id="tsLogoUploadError" style="margin-top:4px;font-size:11px;color:#e05c5c;display:none;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="p-modal-footer">

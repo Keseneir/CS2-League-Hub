@@ -1815,22 +1815,112 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (tsName) tsName.value = _profileData.team.name    || "";
         if (tsTag)  tsTag.value  = _profileData.team.tag     || "";
         if (tsLogo) tsLogo.value = _profileData.team.logo    || "";
+        // Показываем текущий логотип в превью
+        const _preview = document.getElementById("tsLogoPreview");
+        const _fileName = document.getElementById("tsLogoFileName");
+        if (_preview) {
+            const _existingLogo = _profileData.team.logo || "";
+            if (_existingLogo) {
+                _preview.innerHTML = `<img src="${_existingLogo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='🛡️'">`;
+                if (_fileName) _fileName.textContent = "Текущий логотип загружен";
+            } else {
+                _preview.innerHTML = "🛡️";
+                if (_fileName) _fileName.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
+            }
+        }
+        // Сбрасываем file input
+        const _fi = document.getElementById("tsLogoFile");
+        const _err = document.getElementById("tsLogoUploadError");
+        if (_fi) _fi.value = "";
+        if (_err) _err.style.display = "none";
         if (tsTg)   tsTg.value   = _profileData.team.telegram|| "";
         hideModalError("tsError");
         openModal("teamSettingsModal");
     };
     window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
 
+    //облако фотки
+    const CLOUDINARY_CLOUD  = "dj3crwohk";  
+    const CLOUDINARY_PRESET = "cs2hub_logos";     
+
+    async function uploadLogoToCloudinary(file) {
+        if (file.size > 2 * 1024 * 1024)
+            throw new Error("Файл не должен превышать 2 МБ");
+        if (!file.type.startsWith("image/"))
+            throw new Error("Допустимы только изображения");
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("upload_preset", CLOUDINARY_PRESET);
+        fd.append("folder", "team-logos");
+        const res = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+            { method: "POST", body: fd }
+        );
+        if (!res.ok) throw new Error("Ошибка загрузки на Cloudinary");
+        const data = await res.json();
+        return data.secure_url;
+    }
+
+    // ── Инициализация превью при выборе файла ─────────────────────────────────
+    (function initLogoUpload() {
+        const fileInput  = document.getElementById("tsLogoFile");
+        const preview    = document.getElementById("tsLogoPreview");
+        const fileNameEl = document.getElementById("tsLogoFileName");
+        const errorEl    = document.getElementById("tsLogoUploadError");
+        const hiddenUrl  = document.getElementById("tsLogo");
+        if (!fileInput) return;
+
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            errorEl.style.display = "none";
+            if (file.size > 2 * 1024 * 1024) {
+                errorEl.textContent = "Файл слишком большой (макс. 2 МБ)";
+                errorEl.style.display = "block";
+                fileInput.value = "";
+                return;
+            }
+            if (!file.type.startsWith("image/")) {
+                errorEl.textContent = "Допустимы только изображения";
+                errorEl.style.display = "block";
+                fileInput.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+            };
+            reader.readAsDataURL(file);
+            fileNameEl.textContent = file.name;
+        });
+    })();
+
     window.saveTeamSettings = async function() {
-        const name    = document.getElementById("tsName")?.value.trim();
-        const tag     = document.getElementById("tsTag")?.value.trim();
-        const logo    = document.getElementById("tsLogo")?.value.trim();
-        const telegram= document.getElementById("tsTelegram")?.value.trim();
+        const name      = document.getElementById("tsName")?.value.trim();
+        const tag       = document.getElementById("tsTag")?.value.trim();
+        const telegram  = document.getElementById("tsTelegram")?.value.trim();
+        const hiddenUrl = document.getElementById("tsLogo");
+        const fileInput = document.getElementById("tsLogoFile");
+        const errorEl   = document.getElementById("tsLogoUploadError");
         hideModalError("tsError");
         if (!name || !tag) { showModalError("tsError", "Название и тег обязательны"); return; }
         const btn = document.getElementById("tsSaveBtn");
         if (btn) { btn.disabled = true; btn.textContent = "Сохранение..."; }
         try {
+            let logo = hiddenUrl?.value.trim() || "";
+            if (fileInput?.files.length > 0) {
+                if (errorEl) errorEl.style.display = "none";
+                if (btn) btn.textContent = "Загружаем лого...";
+                try {
+                    logo = await uploadLogoToCloudinary(fileInput.files[0]);
+                    if (hiddenUrl) hiddenUrl.value = logo;
+                } catch (uploadErr) {
+                    if (errorEl) { errorEl.textContent = uploadErr.message; errorEl.style.display = "block"; }
+                    if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; }
+                    return;
+                }
+                if (btn) btn.textContent = "Сохранение...";
+            }
             const res = await fetch("/api/team", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, tag, logo, telegram }) });
             const d   = await res.json();
             if (!res.ok) { showModalError("tsError", d.error || "Ошибка"); if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; } return; }

@@ -688,29 +688,13 @@ if (document.getElementById("joinForm")) {
     }
 
     window.openCreateTeamModal = function() {
-        const modal = document.getElementById("createTeamModal");
-        if (!modal) return;
-        modal.style.display = "flex";
-        document.body.style.overflow = "hidden";
         const errEl = document.getElementById("ctError");
-        if (errEl) errEl.style.display = "none";
+        if (errEl) { errEl.textContent = ""; errEl.style.display = "none"; }
         ["ctName","ctTag","ctLogo","ctTelegram"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+        openModal("createTeamModal");
     };
 
-    window.closeCreateTeamModal = function() {
-        const modal = document.getElementById("createTeamModal");
-        if (modal) modal.style.display = "none";
-        document.body.style.overflow = "";
-    };
-
-    const createModal = document.getElementById("createTeamModal");
-    if (createModal) {
-        createModal.addEventListener("click", function(e) { if (e.target === this) closeCreateTeamModal(); });
-    }
-    document.addEventListener("keydown", function(e) {
-        const modal = document.getElementById("createTeamModal");
-        if (e.key === "Escape" && modal && modal.style.display === "flex") closeCreateTeamModal();
-    });
+    window.closeCreateTeamModal = function() { closeModal("createTeamModal"); };
 
     window.submitCreateTeam = async function() {
         const nameEl     = document.getElementById("ctName");

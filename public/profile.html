@@ -385,15 +385,26 @@
                         display:flex;align-items:center;justify-content:center;
                         overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
                     <div style="flex:1;">
-                        <label for="tsLogoFile" id="tsLogoFileLabel" style="
-                            display:inline-block;cursor:pointer;
-                            background:#1f252c;border:1px solid #2a3340;
-                            border-radius:7px;padding:8px 16px;
-                            font-size:12px;font-family:'Montserrat',sans-serif;
-                            font-weight:700;letter-spacing:0.5px;color:#aebbc7;
-                            transition:border-color 0.2s,color 0.2s;">
-                            📁 Выбрать файл
-                        </label>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <label for="tsLogoFile" id="tsLogoFileLabel" style="
+                                display:inline-block;cursor:pointer;
+                                background:#1f252c;border:1px solid #2a3340;
+                                border-radius:7px;padding:8px 16px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#aebbc7;
+                                transition:border-color 0.2s,color 0.2s;">
+                                📁 Выбрать файл
+                            </label>
+                            <button type="button" id="tsLogoDeleteBtn" onclick="clearTeamLogo()" style="
+                                display:none;cursor:pointer;
+                                background:none;border:1px solid rgba(224,92,92,0.35);
+                                border-radius:7px;padding:8px 14px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#e05c5c;
+                                transition:border-color 0.2s,background 0.2s;">
+                                🗑 Удалить лого
+                            </button>
+                        </div>
                         <input type="file" id="tsLogoFile" accept="image/*" style="display:none;">
                         <div id="tsLogoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">
                             Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP

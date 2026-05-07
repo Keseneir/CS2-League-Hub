@@ -1823,6 +1823,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (_existingLogo) {
                 _preview.innerHTML = `<img src="${_existingLogo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='🛡️'">`;
                 if (_fileName) _fileName.textContent = "Текущий логотип загружен";
+                if (document.getElementById("tsLogoDeleteBtn"))
+                    document.getElementById("tsLogoDeleteBtn").style.display = "";
             } else {
                 _preview.innerHTML = "🛡️";
                 if (_fileName) _fileName.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
@@ -1839,21 +1841,29 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     };
     window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
 
-    //облако фотки
-    const CLOUDINARY_CLOUD  = "dj3crwohk";  
-    const CLOUDINARY_PRESET = "cs2hub_logos";     
+    // ── Cloudinary: загрузка логотипа ────────────────────────────────────────
+    let _cloudinaryConfig = null;
+    async function getCloudinaryConfig() {
+        if (_cloudinaryConfig) return _cloudinaryConfig;
+        const r = await fetch("/api/config");
+        _cloudinaryConfig = await r.json();
+        return _cloudinaryConfig;
+    }
 
     async function uploadLogoToCloudinary(file) {
         if (file.size > 2 * 1024 * 1024)
             throw new Error("Файл не должен превышать 2 МБ");
         if (!file.type.startsWith("image/"))
             throw new Error("Допустимы только изображения");
+        const cfg = await getCloudinaryConfig();
+        if (!cfg.cloudinaryCloud || !cfg.cloudinaryPreset)
+            throw new Error("Загрузка изображений не настроена");
         const fd = new FormData();
         fd.append("file", file);
-        fd.append("upload_preset", CLOUDINARY_PRESET);
+        fd.append("upload_preset", cfg.cloudinaryPreset);
         fd.append("folder", "team-logos");
         const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+            `https://api.cloudinary.com/v1_1/${cfg.cloudinaryCloud}/image/upload`,
             { method: "POST", body: fd }
         );
         if (!res.ok) throw new Error("Ошибка загрузки на Cloudinary");
@@ -1892,8 +1902,29 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             };
             reader.readAsDataURL(file);
             fileNameEl.textContent = file.name;
+            const delBtn = document.getElementById("tsLogoDeleteBtn");
+            if (delBtn) delBtn.style.display = "";
         });
     })();
+
+    window.clearTeamLogo = function() {
+        const hiddenUrl  = document.getElementById("tsLogo");
+        const fileInput  = document.getElementById("tsLogoFile");
+        const preview    = document.getElementById("tsLogoPreview");
+        const fileNameEl = document.getElementById("tsLogoFileName");
+        const errorEl    = document.getElementById("tsLogoUploadError");
+        const delBtn     = document.getElementById("tsLogoDeleteBtn");
+        if (hiddenUrl)  hiddenUrl.value = "";
+        if (fileInput)  fileInput.value = "";
+        if (preview) {
+            const _tname = (window._profileData && window._profileData.team && window._profileData.team.name) || "";
+            const _ini   = _tname.trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+            preview.innerHTML = `<span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:18px;color:#5c6b7f;">${_ini}</span>`;
+        }
+        if (fileNameEl) fileNameEl.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
+        if (errorEl)    errorEl.style.display = "none";
+        if (delBtn)     delBtn.style.display = "none";
+    };
 
     window.saveTeamSettings = async function() {
         const name      = document.getElementById("tsName")?.value.trim();

@@ -154,6 +154,15 @@ app.get("/logout", (req, res, next) => {
   });
 });
 
+// ─── API: CONFIG (публичный, только клиентские ключи) ────────────────────────
+
+app.get("/api/config", (req, res) => {
+  res.json({
+    cloudinaryCloud:  process.env.CLOUDINARY_CLOUD_NAME  || "",
+    cloudinaryPreset: process.env.CLOUDINARY_UPLOAD_PRESET || "",
+  });
+});
+
 // ─── API: USER ────────────────────────────────────────────────────────────────
 
 app.get("/api/user", async (req, res) => {

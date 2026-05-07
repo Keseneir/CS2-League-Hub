@@ -372,7 +372,6 @@ if (document.getElementById("tableContainer")) {
         const fb = avatarStyle(i);
         const tx = initials(r.team);
         if (!r.logo) return `<div class="team-avatar" style="${fb}">${tx}</div>`;
-        // self-contained wrapper: img + absolute fallback, no sibling dependency
         const errStyle = fb + "align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;";
         return `<div style="width:32px;height:32px;border-radius:6px;flex-shrink:0;position:relative;overflow:hidden;">`
              + `<div class="team-avatar" style="${errStyle};position:absolute;inset:0;display:none;" data-fb="1">${tx}</div>`
@@ -391,7 +390,6 @@ if (document.getElementById("tableContainer")) {
             return;
         }
 
-        // Загружаем составы команд из БД параллельно
         const teamIds = _tableData.map(r => r.teamId).filter(Boolean);
         if (teamIds.length) {
             fetch("/api/leaderboard/rosters?ids=" + teamIds.join(","))
@@ -510,22 +508,21 @@ if (document.getElementById("tableContainer")) {
                 : `<div style="color:#5c6b7f;font-size:13px;padding:12px;">Замен нет</div>`;
         }
 
-        // Telegram channel
         var tgWrap = document.getElementById("lbRosterTelegram");
         if (tgWrap) {
             if (r.telegram) {
                 var tgRaw = r.telegram.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
                 var tgUrl = "https://t.me/" + tgRaw;
                 tgWrap.style.display = "block";
-var tgLink = document.createElement("a");
-tgLink.href = tgUrl;
-tgLink.target = "_blank";
-tgLink.rel = "noopener noreferrer";
-tgLink.title = "Telegram";
-tgLink.style.cssText = "display:inline-flex;align-items:center;gap:5px;background:#1a2435;border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:8px;padding:0 10px;height:32px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;";
-tgLink.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>TG';
-tgWrap.innerHTML = "";
-tgWrap.appendChild(tgLink);
+                var tgLink = document.createElement("a");
+                tgLink.href = tgUrl;
+                tgLink.target = "_blank";
+                tgLink.rel = "noopener noreferrer";
+                tgLink.title = "Telegram";
+                tgLink.style.cssText = "display:inline-flex;align-items:center;gap:5px;background:#1a2435;border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:8px;padding:0 10px;height:32px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;";
+                tgLink.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>TG';
+                tgWrap.innerHTML = "";
+                tgWrap.appendChild(tgLink);
             } else {
                 tgWrap.style.display = "none";
             }
@@ -607,6 +604,7 @@ tgWrap.appendChild(tgLink);
 
     init();
 }
+
 /* ================================================
    JOIN PAGE
    ================================================ */
@@ -626,7 +624,6 @@ if (document.getElementById("joinForm")) {
         const nicknameEl = document.getElementById("nickname");
         if (nicknameEl) nicknameEl.value = user.displayName;
 
-        // Подтягиваем данные профиля один раз
         let prof = null;
         try {
             const profRes = await fetch("/api/profile");
@@ -652,7 +649,6 @@ if (document.getElementById("joinForm")) {
             return;
         }
 
-        // Определяем роль из уже загруженного профиля
         let roleLabel = "Основной состав";
         if (prof) {
             if (prof.isCaptain) {
@@ -734,7 +730,6 @@ if (document.getElementById("joinForm")) {
                     contacts:     document.getElementById("contacts").value,
                 };
 
-                // 0. Обновляем профиль актуальными данными из формы (приоритет — заявка)
                 try {
                     const faceitNum = formPayload.faceit_level === "no_account" ? 0 : Number(formPayload.faceit_level);
                     await fetch("/api/profile/stats", {
@@ -744,7 +739,6 @@ if (document.getElementById("joinForm")) {
                     });
                 } catch {}
 
-                // 1. Отправка в MongoDB (основная)
                 const res  = await fetch("/api/applications", {
                     method:  "POST",
                     headers: { "Content-Type": "application/json" },
@@ -758,7 +752,6 @@ if (document.getElementById("joinForm")) {
                 const data = await res.json();
 
                 if (res.ok && data.ok) {
-                    // 2. Параллельная отправка в Formspree
                     (function() {
                         const fd = new FormData();
                         Object.entries(formPayload).forEach(([k, v]) => fd.append(k, v));
@@ -806,9 +799,6 @@ if (document.getElementById("joinForm")) {
 /* ================================================
    PROFILE PAGE
    ================================================ */
-/* ================================================
-   PROFILE PAGE
-   ================================================ */
 if (document.getElementById("ownProfileWrap") || document.getElementById("publicProfileWrap")) {
 
     let _profileData    = null;
@@ -823,60 +813,73 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         return `<div class="${ph}">${initials}</div>`;
     }
 
+    // ─── ТОСТ (всплывающее уведомление) ──────────────────────────────────────
+    // ВАЖНО: функции openCreateTeamModal, closeCreateTeamModal, submitCreateTeam
+    // должны быть объявлены ПОСЛЕ showToast, но НЕ ВНУТРИ неё.
     function showToast(msg, type) {
         let t = document.getElementById("_toast");
-        if (!t) { t = document.createElement("div"); t.id = "_toast"; t.style.cssText = "position:fixed;bottom:28px;right:28px;z-index:9999;padding:12px 20px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;pointer-events:none;opacity:0;transition:opacity 0.3s;"; document.body.appendChild(t); }
+        if (!t) {
+            t = document.createElement("div");
+            t.id = "_toast";
+            t.style.cssText = "position:fixed;bottom:28px;right:28px;z-index:9999;padding:12px 20px;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;pointer-events:none;opacity:0;transition:opacity 0.3s;";
+            document.body.appendChild(t);
+        }
         t.textContent = msg;
         t.style.background = type === "ok" ? "rgba(76,175,130,0.95)" : "rgba(224,92,92,0.95)";
         t.style.color = "#fff";
-
-window.openCreateTeamModal = function() {
-    const errEl = document.getElementById("ctError");
-    if (errEl) { errEl.textContent = ""; errEl.style.display = "none"; }
-    ["ctName","ctTag","ctLogo","ctTelegram"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
-    openModal("createTeamModal");
-};
-
-window.closeCreateTeamModal = function() { closeModal("createTeamModal"); };
-
-window.submitCreateTeam = async function() {
-    const nameEl     = document.getElementById("ctName");
-    const tagEl      = document.getElementById("ctTag");
-    const logoEl     = document.getElementById("ctLogo");
-    const telegramEl = document.getElementById("ctTelegram");
-    const errEl      = document.getElementById("ctError");
-    const btn        = document.getElementById("ctSubmitBtn");
-    const name     = nameEl     ? nameEl.value.trim()     : "";
-    const tag      = tagEl      ? tagEl.value.trim()      : "";
-    const logo     = logoEl     ? logoEl.value.trim()     : "";
-    const telegram = telegramEl ? telegramEl.value.trim() : "";
-
-    if (errEl) errEl.style.display = "none";
-    if (!name || !tag) { if (errEl) { errEl.textContent = "Заполните название и тег команды."; errEl.style.display = "block"; } return; }
-
-    if (btn) { btn.disabled = true; btn.textContent = "Создание..."; }
-
-    try {
-        const res  = await fetch("/api/teams", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name,tag,logo,telegram}) });
-        const data = await res.json();
-        if (!res.ok) {
-            if (errEl) { errEl.textContent = data.error || "Ошибка сервера."; errEl.style.display = "block"; }
-            if (btn)   { btn.disabled = false; btn.textContent = "Создать команду"; }
-            return;
-        }
-        closeCreateTeamModal();
-        showToast("Команда создана!", "ok");
-        await refreshProfile();
-    } catch {
-        if (errEl) { errEl.textContent = "Ошибка соединения."; errEl.style.display = "block"; }
-        if (btn)   { btn.disabled = false; btn.textContent = "Создать команду"; }
-    }
-};
-
         t.style.opacity = "1";
         clearTimeout(t._timer);
         t._timer = setTimeout(() => { t.style.opacity = "0"; }, 3000);
     }
+
+    // ─── МОДАЛ: СОЗДАТЬ КОМАНДУ ───────────────────────────────────────────────
+    // Эти три функции были случайно вставлены внутрь showToast — это и была причина
+    // того, что кнопка «Создать команду» не работала при первом нажатии.
+    window.openCreateTeamModal = function() {
+        const errEl = document.getElementById("ctError");
+        if (errEl) { errEl.textContent = ""; errEl.style.display = "none"; }
+        ["ctName","ctTag","ctLogo","ctTelegram"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+        openModal("createTeamModal");
+    };
+
+    window.closeCreateTeamModal = function() { closeModal("createTeamModal"); };
+
+    window.submitCreateTeam = async function() {
+        const nameEl     = document.getElementById("ctName");
+        const tagEl      = document.getElementById("ctTag");
+        const logoEl     = document.getElementById("ctLogo");
+        const telegramEl = document.getElementById("ctTelegram");
+        const errEl      = document.getElementById("ctError");
+        const btn        = document.getElementById("ctSubmitBtn");
+        const name     = nameEl     ? nameEl.value.trim()     : "";
+        const tag      = tagEl      ? tagEl.value.trim()      : "";
+        const logo     = logoEl     ? logoEl.value.trim()     : "";
+        const telegram = telegramEl ? telegramEl.value.trim() : "";
+
+        if (errEl) errEl.style.display = "none";
+        if (!name || !tag) {
+            if (errEl) { errEl.textContent = "Заполните название и тег команды."; errEl.style.display = "block"; }
+            return;
+        }
+
+        if (btn) { btn.disabled = true; btn.textContent = "Создание..."; }
+
+        try {
+            const res  = await fetch("/api/teams", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name,tag,logo,telegram}) });
+            const data = await res.json();
+            if (!res.ok) {
+                if (errEl) { errEl.textContent = data.error || "Ошибка сервера."; errEl.style.display = "block"; }
+                if (btn)   { btn.disabled = false; btn.textContent = "Создать команду"; }
+                return;
+            }
+            closeCreateTeamModal();
+            showToast("Команда создана!", "ok");
+            await refreshProfile();
+        } catch {
+            if (errEl) { errEl.textContent = "Ошибка соединения."; errEl.style.display = "block"; }
+            if (btn)   { btn.disabled = false; btn.textContent = "Создать команду"; }
+        }
+    };
 
     function showModalError(elId, msg) {
         const el = document.getElementById(elId);
@@ -906,7 +909,6 @@ window.submitCreateTeam = async function() {
     const publicSteamId = urlParams.get("id");
 
     if (publicSteamId) {
-        // Режим просмотра чужого профиля
         const pubWrap = document.getElementById("publicProfileWrap");
         const ownWrap = document.getElementById("ownProfileWrap");
         if (pubWrap) pubWrap.style.display = "block";
@@ -917,10 +919,8 @@ window.submitCreateTeam = async function() {
 
         loadPublicProfile(publicSteamId);
     } else {
-        // Свой профиль
         loadProfile();
 
-        // ─── ПОЛЛИНГ УВЕДОМЛЕНИЙ + ЗВУК + МОЛОТОВ ────────────────────────────
         let _prevNotifCount = -1;
 
         async function pollNotifications() {
@@ -935,13 +935,11 @@ window.submitCreateTeam = async function() {
                 const anCount  = (d.adminNotices   || []).length;
                 const total    = frCount + tiCount + appCount + anCount;
 
-                // При появлении новых уведомлений — тихо обновляем страницу профиля
                 if (_prevNotifCount >= 0 && total > _prevNotifCount) {
                     await refreshProfile();
                 }
                 _prevNotifCount = total;
 
-                // Молотов и бейджи (на случай если refreshProfile не вызвался)
                 updateBadges(d);
 
             } catch {}
@@ -949,12 +947,10 @@ window.submitCreateTeam = async function() {
 
         setInterval(pollNotifications, 5000);
         setTimeout(pollNotifications, 5000);
-        // ─────────────────────────────────────────────────────────────────────
     }
 
     async function loadPublicProfile(steamId) {
         try {
-            // Загружаем профиль игрока + данные текущего юзера параллельно
             const [pubRes, meRes] = await Promise.all([
                 fetch(`/api/users/${steamId}/public`),
                 fetch("/api/profile").catch(() => null)
@@ -977,7 +973,6 @@ window.submitCreateTeam = async function() {
                 return;
             }
 
-            // Парсим текущего пользователя (если авторизован)
             let meData = null;
             if (meRes && meRes.ok) {
                 try { meData = await meRes.json(); } catch {}
@@ -990,8 +985,7 @@ window.submitCreateTeam = async function() {
         }
     }
 
-    // Хранит _id текущего пользователя для кнопки «Добавить в друзья»
-    let _pubProfileTargetId = null; // MongoDB _id просматриваемого игрока (неизвестен из public route)
+    let _pubProfileTargetId = null;
 
     function renderPublicProfile(data, me) {
         const pubContent = document.getElementById("publicContent");
@@ -1026,14 +1020,11 @@ window.submitCreateTeam = async function() {
             if (tag) { tag.textContent = `[${data.team.tag}] ${data.team.name}`; tag.style.display = "inline-flex"; }
         }
 
-        // Кнопка «Добавить в друзья» — показываем только если авторизован и это не свой профиль
         const friendBtnWrap = document.getElementById("pubFriendBtnWrap");
         const friendBtn     = document.getElementById("pubFriendBtn");
         if (friendBtnWrap && me && me.steamId && me.steamId !== data.steamId) {
             friendBtnWrap.style.display = "block";
-            // Проверяем статус дружбы
-            const isFriend     = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
-            const iRequested   = false; // точно не знаем из public route, даём просто кнопку
+            const isFriend = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
             if (isFriend) {
                 friendBtn.textContent = "✓ Уже в друзьях";
                 friendBtn.style.background = "rgba(76,175,130,0.12)";
@@ -1041,11 +1032,9 @@ window.submitCreateTeam = async function() {
                 friendBtn.style.color = "#4caf82";
                 friendBtn.disabled = true;
             }
-            // Запоминаем steamId для отправки запроса через поиск по steamId
             friendBtn.dataset.steamId = data.steamId;
         }
 
-        // FACEIT бейдж
         const faceitBadge = document.getElementById("pubFaceitBadge");
         if (faceitBadge && data.faceitLevel !== null && data.faceitLevel !== undefined) {
             const label = data.faceitLevel === 0 ? "FACEIT: нет аккаунта" : `FACEIT lv${data.faceitLevel}`;
@@ -1053,14 +1042,12 @@ window.submitCreateTeam = async function() {
             faceitBadge.style.display = "block";
         }
 
-        // Часы бейдж
         const hoursBadge = document.getElementById("pubHoursBadge");
         if (hoursBadge && data.hoursInCS2 !== null && data.hoursInCS2 !== undefined) {
             hoursBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">⏱ ${data.hoursInCS2} ч. в CS2</span>`;
             hoursBadge.style.display = "block";
         }
 
-        // Bio
         if (data.bio) {
             const bioBlock = document.getElementById("pubBioBlock");
             const bioText  = document.getElementById("pubBioText");
@@ -1068,7 +1055,6 @@ window.submitCreateTeam = async function() {
             if (bioText)  bioText.textContent    = data.bio;
         }
 
-        // Соцсети
         const socialsBlock = document.getElementById("pubSocialsBlock");
         const socialsRow   = document.getElementById("pubSocialsRow");
         if (socialsBlock && socialsRow) {
@@ -1091,7 +1077,6 @@ window.submitCreateTeam = async function() {
             }
         }
 
-        // Команда
         if (data.team) {
             const teamBlock = document.getElementById("pubTeamBlock");
             const teamCard  = document.getElementById("pubTeamCard");
@@ -1105,14 +1090,12 @@ window.submitCreateTeam = async function() {
         }
     }
 
-    // Отправка запроса в друзья с публичного профиля
     window.pubAddFriend = async function() {
         const btn = document.getElementById("pubFriendBtn");
         const steamId = btn?.dataset.steamId;
         if (!steamId) return;
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
         try {
-            // Сначала ищем пользователя по steamId чтобы получить _id
             const searchRes = await fetch("/api/users/search?q=" + encodeURIComponent(steamId));
             const results   = searchRes.ok ? await searchRes.json() : [];
             const target    = results.find(u => u.steamId === steamId);
@@ -1183,7 +1166,6 @@ window.submitCreateTeam = async function() {
             if (tag) { tag.textContent = `[${d.team.tag}] ${d.team.name}`; tag.style.display = "inline-flex"; }
         }
 
-        // Кнопка «Инструкция»
         const helpBtn = document.getElementById("profileHelpBtn");
         if (helpBtn) helpBtn.style.display = "inline-flex";
 
@@ -1202,7 +1184,6 @@ window.submitCreateTeam = async function() {
         const bio    = d.bio         || "";
         const priv   = d.isPrivate   || false;
 
-        // Строим кнопки FACEIT (0 = нет аккаунта, 1-10 = уровень)
         const group = document.getElementById("faceitBtnGroup");
         if (group) {
             const levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -1232,7 +1213,6 @@ window.submitCreateTeam = async function() {
             bioInput.value = bio;
             const counter = document.getElementById("bioCharCount");
             if (counter) counter.textContent = bio.length;
-            // Счётчик символов
             bioInput.addEventListener("input", function() {
                 const c = document.getElementById("bioCharCount");
                 if (c) c.textContent = this.value.length;
@@ -1247,7 +1227,6 @@ window.submitCreateTeam = async function() {
         const dcInput = document.getElementById("statDiscord");
         if (dcInput) dcInput.value = d.discordUsername  || "";
 
-        // Предупреждение о незаполненном профиле
         const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
                              (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
         const warning = document.getElementById("profileIncompleteWarning");
@@ -1575,7 +1554,6 @@ window.submitCreateTeam = async function() {
         const incompleteBadge = document.getElementById("profileIncompleteBadge");
         if (incompleteBadge) incompleteBadge.style.display = isIncomplete ? "inline-flex" : "none";
 
-        // Молотов: спит если уведов нет, бодрствует если есть
         const mascot = document.getElementById("profileMascot");
         if (mascot) {
             mascot.src = total > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
@@ -1794,7 +1772,6 @@ window.submitCreateTeam = async function() {
         if (tsName) tsName.value = _profileData.team.name    || "";
         if (tsTag)  tsTag.value  = _profileData.team.tag     || "";
         if (tsLogo) tsLogo.value = _profileData.team.logo    || "";
-        // Показываем текущий логотип в превью
         const _preview = document.getElementById("tsLogoPreview");
         const _fileName = document.getElementById("tsLogoFileName");
         if (_preview) {
@@ -1809,7 +1786,6 @@ window.submitCreateTeam = async function() {
                 if (_fileName) _fileName.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
             }
         }
-        // Сбрасываем file input
         const _fi = document.getElementById("tsLogoFile");
         const _err = document.getElementById("tsLogoUploadError");
         if (_fi) _fi.value = "";
@@ -1850,7 +1826,6 @@ window.submitCreateTeam = async function() {
         return data.secure_url;
     }
 
-    // ── Инициализация превью при выборе файла ─────────────────────────────────
     (function initLogoUpload() {
         const fileInput  = document.getElementById("tsLogoFile");
         const preview    = document.getElementById("tsLogoPreview");

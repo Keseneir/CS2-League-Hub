@@ -1,801 +1,3 @@
-console.log(
-`%c ██████╗ ██████╗██████╗ ██╗     ██╗  ██╗
-%c██╔════╝██╔════╝╚════██╗██║     ██║  ██║
-%c██║     ███████╗ █████╔╝██║     ███████║
-%c██║     ╚════██║██╔═══╝ ██║     ██╔══██║
-%c╚██████╗██████ ║███████╗███████╗██║  ██║
-%c ╚═════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝
-%c Developed by Keseneir | CS2 League Hub 2026
-%c 
-%cВНИМАНИЕ: Копирование кода без разрешения автора запрещено.
-%cВсе права защищены.`,
-'color:#ffcc00;font-weight:bold;','color:#ffcc00;font-weight:bold;',
-'color:#ffcc00;font-weight:bold;','color:#ffcc00;font-weight:bold;',
-'color:#ffcc00;font-weight:bold;','color:#ffcc00;font-weight:bold;',
-'color:#ffffff;font-weight:bold;font-style:italic;','color:transparent;',
-'color:#ff4444;font-size:12px;','color:#888;font-size:11px;'
-);
-
-/* ================================================
-   AUTH — подключается на всех страницах
-   ================================================ */
-async function checkAuth() {
-    try {
-        const res  = await fetch("/api/user");
-        const user = await res.json();
-
-        const btnLogin     = document.getElementById("btnSteamLogin");
-        const profile      = document.getElementById("headerUserProfile");
-        const avatar       = document.getElementById("headerAvatar");
-        const name         = document.getElementById("headerName");
-        const teamBadge    = document.getElementById("headerTeamBadge");
-        const btnApply     = document.getElementById("btnApply");
-        const heroBtnApply = document.getElementById("heroBtnApply");
-
-        if (user) {
-            if (btnLogin)  btnLogin.style.display  = "none";
-            if (profile)   profile.style.display   = "flex";
-            if (avatar)    avatar.src              = user.avatar;
-            if (name)      name.textContent        = user.displayName;
-
-            if (teamBadge && user.team) {
-                teamBadge.textContent   = `[${user.team.tag}] ${user.team.name}`;
-                teamBadge.style.display = "inline-flex";
-            }
-            // Динамически добавляем ссылку "Профиль" в хедер
-            if (profile && !document.getElementById("_dynProfileLink")) {
-                const link = document.createElement("a");
-                link.id        = "_dynProfileLink";
-                link.href      = "/profile.html";
-                link.className = "header-profile-link";
-                link.style.position = "relative";
-                link.textContent = "Профиль";
-
-                // Бейдж уведомлений в хедере
-                const badge = document.createElement("span");
-                badge.id = "_dynNotifBadge";
-                badge.style.cssText = [
-                    "display:none",
-                    "position:absolute",
-                    "top:-7px",
-                    "right:-7px",
-                    "min-width:17px",
-                    "height:17px",
-                    "padding:0 4px",
-                    "background:#e05c5c",
-                    "color:#fff",
-                    "font-family:'Montserrat',sans-serif",
-                    "font-size:10px",
-                    "font-weight:800",
-                    "border-radius:999px",
-                    "align-items:center",
-                    "justify-content:center",
-                    "line-height:1",
-                    "pointer-events:none",
-                    "box-shadow:0 0 0 2px #0b0f14",
-                ].join(";");
-                link.appendChild(badge);
-
-                const isProfilePage = window.location.pathname.includes("profile");
-                if (isProfilePage) {
-                    link.style.cssText += ";background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
-                }
-                const logoutBtn = profile.querySelector(".header-logout-btn");
-                if (logoutBtn) profile.insertBefore(link, logoutBtn);
-                else profile.appendChild(link);
-            }
-
-            if (btnApply)     { btnApply.href     = "/join.html"; btnApply.removeAttribute("target"); }
-            if (heroBtnApply) { heroBtnApply.href = "/join.html"; heroBtnApply.removeAttribute("target"); }
-        } else {
-            if (btnLogin) btnLogin.style.display = "inline-flex";
-            if (profile)  profile.style.display  = "none";
-        }
-        return user;
-    } catch {
-        return null;
-    }
-}
-
-document.addEventListener("DOMContentLoaded", checkAuth);
-
-/* ================================================
-   ГЛОБАЛЬНЫЙ ПОЛЛИНГ УВЕДОМЛЕНИЙ (все страницы)
-   — звук при новых уведомлениях
-   — бейдж с цифрой в хедере рядом с «Профиль»
-   ================================================ */
-(function() {
-    let _globalPrevCount = -1;
-    const _globalAudio   = new Audio("assets/notification.mp3");
-
-    async function globalPollNotifs() {
-        try {
-            const res = await fetch("/api/profile");
-            if (!res.ok) return;
-            const d = await res.json();
-
-            const total =
-                (d.friendRequests || []).length +
-                (d.teamInvites    || []).length +
-                (d.applications   || []).filter(a => a.status !== "pending").length +
-                (d.adminNotices   || []).length;
-
-            // Звук при появлении новых уведомлений
-            if (_globalPrevCount >= 0 && total > _globalPrevCount) {
-                _globalAudio.play().catch(() => {});
-            }
-            _globalPrevCount = total;
-
-            // Бейдж в хедере
-            const badge = document.getElementById("_dynNotifBadge");
-            if (badge) {
-                badge.textContent    = total;
-                badge.style.display  = total > 0 ? "inline-flex" : "none";
-            }
-        } catch {}
-    }
-
-    // Запускаем только если юзер залогинен (хедер появится после checkAuth)
-    // Ждём чуть дольше первого запуска, чтобы checkAuth успел создать бейдж
-    document.addEventListener("DOMContentLoaded", function() {
-        setTimeout(function() {
-            globalPollNotifs();
-            setInterval(globalPollNotifs, 5000);
-        }, 1500);
-    });
-})();
-
-/* ================================================
-   INDEX PAGE — виджет рейтинга
-   ================================================ */
-if (document.getElementById("widgetBody")) {
-    const RANK_CLASS = ["r1", "r2", "r3"];
-
-    function renderWidget(rows) {
-        const top3 = rows.slice(0, 3);
-        const html  = top3.map((r, i) => `
-            <div class="widget-row">
-                <div class="widget-rank ${RANK_CLASS[i]}">${i + 1}</div>
-                ${r.logo ? `<img src="${r.logo}" alt="${r.team}" style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">` : ""}
-                <div class="widget-team-name">${r.team}</div>
-                <div class="widget-stats">
-                    <div class="widget-pts">${r.pts} <span style="font-size:10px;font-weight:600;color:var(--text-gray)">ОЧК</span></div>
-                    <div class="widget-wl"><span class="w">${r.wins}W</span> / <span class="l">${r.losses}L</span></div>
-                </div>
-            </div>
-            ${i < 2 ? '<div class="widget-divider"></div>' : ""}
-        `).join("");
-        document.getElementById("widgetBody").innerHTML = html || '<div style="padding:20px;text-align:center;color:#5c6b7f;font-size:13px;">Сезон ещё не начат</div>';
-    }
-
-    async function loadWidget() {
-        try {
-            const res = await fetch("/api/leaderboard");
-            if (!res.ok) throw new Error();
-            const { rows } = await res.json();
-            renderWidget(rows || []);
-        } catch {
-            document.getElementById("widgetBody").innerHTML = '<div style="padding:20px;text-align:center;color:#5c6b7f;font-size:13px;">Нет данных</div>';
-        }
-    }
-
-    loadWidget();
-}
-
-/* ================================================
-   NEWS PAGE
-   ================================================ */
-if (document.getElementById("newsContainer")) {
-    const NEWS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTbdqLzy4PvMyR_9Pndokh0E0zNYg13qHTJOwRtBJz1wlwyjrfz_2NsJaskSLLlfXHRMFIT4_CkR_6K/pub?gid=0&single=true&output=csv";
-
-    const DEMO_NEWS = [
-        { date:"01 апреля 2026", tag:"Результаты", title:"Итоги 3-го тура: BAREBUH удерживает лидерство", text:"По итогам третьего игрового тура команда BAREBUH сохраняет первое место.", img:"", link:"", featured:"да" },
-        { date:"28 марта 2026",  tag:"Анонс",      title:"Расписание 4-го тура опубликовано",            text:"Матчи пройдут с 5 по 7 апреля.",                                         img:"", link:"", featured:"нет" },
-        { date:"25 марта 2026",  tag:"Лига",        title:"Две новые команды вступили в лигу",            text:"Команды GHOST и PHANTOM прошли отбор.",                                 img:"", link:"", featured:"нет" },
-        { date:"20 марта 2026",  tag:"Результаты", title:"Итоги 2-го тура",                              text:"Второй тур преподнёс сюрпризы.",                                        img:"", link:"", featured:"нет" },
-    ];
-
-    let ALL_NEWS    = [];
-    let activeTag   = "all";
-    let activeSort  = "new";
-    let activeSearch = "";
-
-    window._imgErr = function(el) {
-        el.style.display = "none";
-        const ph = document.createElement("div");
-        ph.className = "img-placeholder";
-        ph.innerHTML = '<svg width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
-        el.parentNode.appendChild(ph);
-    };
-
-    function imgHtml(url) {
-        const ph = '<div class="img-placeholder"><svg width="64" height="64" viewBox="0 0 24 24" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>';
-        if (!url) return ph;
-        return `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;opacity:0.85;" onerror="_imgErr(this)">`;
-    }
-
-    function parseNewsCSV(text) {
-        const lines   = text.trim().split("\n");
-        const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
-        return lines.slice(1).map(line => {
-            const vals = [];
-            let cur = "", inQ = false;
-            for (const ch of line) {
-                if (ch === '"') { inQ = !inQ; }
-                else if (ch === "," && !inQ) { vals.push(cur.trim()); cur = ""; }
-                else { cur += ch; }
-            }
-            vals.push(cur.trim());
-            const obj = {};
-            headers.forEach((h, i) => obj[h] = (vals[i] || "").replace(/^"|"$/g, ""));
-            return {
-                date:     obj["дата"]      || obj["date"]     || "",
-                tag:      obj["тег"]       || obj["tag"]      || "Новость",
-                title:    obj["заголовок"] || obj["title"]    || "",
-                text:     obj["текст"]     || obj["text"]     || "",
-                img:      obj["картинка"]  || obj["img"]      || "",
-                link:     obj["ссылка"]    || obj["link"]     || "",
-                featured: (obj["главная"]  || obj["featured"] || "").toLowerCase(),
-            };
-        }).filter(r => r.title);
-    }
-
-    function parseDate(str) {
-        const months = {"января":0,"февраля":1,"марта":2,"апреля":3,"мая":4,"июня":5,"июля":6,"августа":7,"сентября":8,"октября":9,"ноября":10,"декабря":11};
-        const parts = str.trim().split(/\s+/);
-        if (parts.length === 3) {
-            const d = parseInt(parts[0]), m = months[parts[1].toLowerCase()], y = parseInt(parts[2]);
-            if (!isNaN(d) && m !== undefined && !isNaN(y)) return new Date(y, m, d);
-        }
-        return new Date(0);
-    }
-
-    function applyNewsFilters() {
-        let data = [...ALL_NEWS];
-        if (activeTag !== "all") data = data.filter(n => n.tag.toLowerCase().includes(activeTag.toLowerCase()));
-        if (activeSearch.trim()) {
-            const q = activeSearch.toLowerCase();
-            data = data.filter(n => n.title.toLowerCase().includes(q) || n.text.toLowerCase().includes(q) || n.tag.toLowerCase().includes(q));
-        }
-        data.sort((a, b) => { const d = parseDate(b.date) - parseDate(a.date); return activeSort === "new" ? d : -d; });
-        renderNews(data);
-    }
-
-    function renderNews(data) {
-        const noFilter = activeTag === "all" && !activeSearch.trim();
-        const featured = noFilter ? data.find(n => n.featured === "да" || n.featured === "yes") : null;
-        const rest     = data.filter(n => n !== featured);
-        let html = "";
-        if (featured) {
-            const href = featured.link ? `href="${featured.link}" target="_blank"` : 'href="#"';
-            html += `<a ${href} class="news-featured" style="text-decoration:none;color:inherit;">
-                <div class="featured-img">${imgHtml(featured.img)}<div class="featured-badge">Главное</div></div>
-                <div class="featured-content">
-                    <div class="news-meta"><span class="news-tag">${featured.tag}</span><span class="news-date">${featured.date}</span></div>
-                    <div class="featured-title">${featured.title}</div>
-                    <div class="featured-excerpt">${featured.text}</div>
-                    <div class="news-readmore">Читать далее</div>
-                </div>
-            </a>`;
-        }
-        if (rest.length > 0) {
-            html += `<div class="news-section-title">Все новости</div><div class="news-grid">`;
-            rest.forEach(n => {
-                const href = n.link ? `href="${n.link}" target="_blank"` : 'href="#"';
-                html += `<a ${href} class="news-card" style="text-decoration:none;color:inherit;">
-                    <div class="card-img">${imgHtml(n.img)}</div>
-                    <div class="card-content">
-                        <div class="news-meta"><span class="news-tag">${n.tag}</span><span class="news-date">${n.date}</span></div>
-                        <div class="card-title">${n.title}</div>
-                        <div class="card-excerpt">${n.text}</div>
-                        <div class="card-readmore">Подробнее</div>
-                    </div>
-                </a>`;
-            });
-            html += "</div>";
-        }
-        if (!featured && rest.length === 0) {
-            html = `<div class="empty-state"><div class="icon">🔍</div><p>Ничего не найдено. Попробуй другой запрос.</p></div>`;
-        }
-        document.getElementById("newsContainer").innerHTML = html;
-    }
-
-    async function loadNews() {
-        try {
-            const res = await fetch(NEWS_CSV_URL);
-            if (!res.ok) throw new Error();
-            const text = await res.text();
-            const data = parseNewsCSV(text);
-            if (!data.length) throw new Error();
-            ALL_NEWS = data;
-        } catch {
-            ALL_NEWS = DEMO_NEWS;
-        }
-        applyNewsFilters();
-    }
-
-    const searchEl = document.getElementById("searchInput");
-    const sortEl   = document.getElementById("sortSelect");
-    if (searchEl) searchEl.addEventListener("input",  function() { activeSearch = this.value; applyNewsFilters(); });
-    if (sortEl)   sortEl.addEventListener("change",   function() { activeSort   = this.value; applyNewsFilters(); });
-    document.querySelectorAll(".filter-tag").forEach(btn => {
-        btn.addEventListener("click", function() {
-            document.querySelectorAll(".filter-tag").forEach(b => b.classList.remove("active"));
-            this.classList.add("active");
-            activeTag = this.dataset.tag;
-            applyNewsFilters();
-        });
-    });
-
-    loadNews();
-}
-
-/* ================================================
-   LEADERBOARD PAGE
-   ================================================ */
-if (document.getElementById("tableContainer")) {
-
-    let _tableData  = [];
-    let _rosterMap  = {}; // teamId -> {members, subs}
-    let _seasons    = [];
-    let _currentSid = null;
-
-    function playerSilhouetteSVG(c) {
-        c = c || "#e6b022";
-        return `<svg class="player-silhouette" viewBox="0 0 64 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <ellipse cx="32" cy="14" rx="11" ry="12" fill="${c}"/>
-            <ellipse cx="32" cy="13.5" rx="9" ry="10" fill="${c}"/>
-            <rect x="28" y="23" width="8" height="5" rx="2" fill="${c}"/>
-            <path d="M12 60 Q12 38 20 34 L26 32 Q32 30 38 32 L44 34 Q52 38 52 60 Z" fill="${c}"/>
-            <path d="M16 60 Q16 40 22 36 L28 33.5 Q32 32 36 33.5 L42 36 Q48 40 48 60 Z" fill="${c}"/>
-            <path d="M16 38 Q8 44 7 58 L13 58 Q14 47 20 42 Z" fill="${c}"/>
-            <path d="M48 38 Q56 44 57 58 L51 58 Q50 47 44 42 Z" fill="${c}"/>
-            <rect x="19" y="56" width="11" height="20" rx="4" fill="${c}"/>
-            <rect x="34" y="56" width="11" height="20" rx="4" fill="${c}"/>
-            <ellipse cx="32" cy="10" rx="9" ry="4" fill="${c}"/>
-        </svg>`;
-    }
-
-    function initials(name) { return name.split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2); }
-
-    const AVATAR_COLORS = [
-        ["#e6b022","#6b4a00"],["#4caf82","#1a4a30"],["#5b8de8","#1a2f6b"],
-        ["#e05c5c","#6b1a1a"],["#b07ae6","#3d1a6b"],["#e8a05b","#6b3a1a"],
-        ["#5be8d8","#1a4a46"],["#e85ba0","#6b1a40"],
-    ];
-    function avatarStyle(i) {
-        const [c1, c2] = AVATAR_COLORS[i % AVATAR_COLORS.length];
-        return `background:linear-gradient(135deg,${c1} 0%,${c2} 100%);color:${i === 0 ? "#000" : "#fff"};`;
-    }
-    function getAccentColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length][0]; }
-    function renderAvatar(r, i) {
-        const fb = avatarStyle(i);
-        const tx = initials(r.team);
-        if (!r.logo) return `<div class="team-avatar" style="${fb}">${tx}</div>`;
-        const errStyle = fb + "align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;";
-        return `<div style="width:32px;height:32px;border-radius:6px;flex-shrink:0;position:relative;overflow:hidden;">`
-             + `<div class="team-avatar" style="${errStyle};position:absolute;inset:0;display:none;" data-fb="1">${tx}</div>`
-             + `<img src="${r.logo}" alt="${tx}" style="width:100%;height:100%;object-fit:cover;display:block;position:relative;z-index:1;"
-                  onload="this.style.opacity='1'"
-                  onerror="this.style.display='none';var f=this.parentNode.querySelector('[data-fb]');if(f)f.style.display='flex'">`
-             + `</div>`;
-    }
-
-    function renderTable(rows) {
-        _tableData = rows || [];
-
-        if (_tableData.length === 0) {
-            document.getElementById("tableContainer").innerHTML =
-                `<div class="state-box"><div class="icon">🏆</div><p>Сезон ещё не начат — команды скоро появятся</p></div>`;
-            return;
-        }
-
-        const teamIds = _tableData.map(r => r.teamId).filter(Boolean);
-        if (teamIds.length) {
-            fetch("/api/leaderboard/rosters?ids=" + teamIds.join(","))
-                .then(r => r.ok ? r.json() : {})
-                .then(rMap => { _rosterMap = rMap; })
-                .catch(() => {});
-        }
-
-        const html = _tableData.map((r, i) => {
-            const rank      = i + 1;
-            const rankClass = rank <= 3 ? `rank-${rank}` : "rank-other";
-            const rdClass   = r.roundDiff > 0 ? "pos" : r.roundDiff < 0 ? "neg" : "zero";
-            const rdText    = r.roundDiff > 0 ? `+${r.roundDiff}` : `${r.roundDiff}`;
-            const wr        = r.wr || (r.matches > 0 ? Math.round((r.wins / r.matches) * 100) : 0);
-            const crown     = r.isKingOfHill ? ' <span title="Царь горы" style="font-size:14px;">👑</span>' : "";
-            const streak    = r.winStreak >= 3 ? ` <span style="font-size:11px;color:#e8a05b;font-weight:700;">🔥×${r.winStreak}</span>` : "";
-            return `
-            <tr class="${rankClass}" onclick="openLbTeamModal(${i})" style="cursor:pointer;" title="Состав команды">
-                <td><span class="rank-badge">${rank}</span></td>
-                <td><div class="team-name">${renderAvatar(r, i)}${r.team}${crown}${streak}</div></td>
-                <td class="num"><span class="points">${r.pts}</span></td>
-                <td class="num">${r.matches}</td>
-                <td class="num"><div class="wl"><span class="w">${r.wins}W</span><span class="sep">/</span><span class="l">${r.losses}L</span></div></td>
-                <td class="wr-cell"><div class="wr-wrap"><div class="wr-bar-bg"><div class="wr-bar-fill" style="width:${wr}%"></div></div><span class="wr-text">${wr}%</span></div></td>
-                <td class="num hide-mobile"><span class="round-diff ${rdClass}">${rdText}</span></td>
-            </tr>`;
-        }).join("");
-
-        document.getElementById("tableContainer").innerHTML = `
-            <table><thead><tr>
-                <th>#</th><th>Команда</th><th class="num">Очки</th><th class="num">Матчи</th>
-                <th class="num">В / П</th><th class="num wr-cell">Win Rate</th><th class="num hide-mobile">Round Diff</th>
-            </tr></thead><tbody>${html}</tbody></table>`;
-
-        setTimeout(() => {
-            document.querySelectorAll(".wr-bar-fill").forEach(el => { el.style.transition = "width 1s ease"; });
-        }, 50);
-
-        const now    = new Date();
-        const timeEl = document.getElementById("updateTime");
-        if (timeEl) timeEl.textContent = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit"});
-
-        applySearch();
-    }
-
-    function applySearch() {
-        const q = (document.getElementById("teamSearch")?.value || "").toLowerCase().trim();
-        const tbody = document.querySelector("#tableContainer tbody");
-        if (!tbody) return;
-        let visible = 0;
-        tbody.querySelectorAll("tr:not(.no-results-row)").forEach(tr => {
-            const nameEl = tr.querySelector(".team-name");
-            if (!nameEl) { tr.style.display = ""; return; }
-            const show = q === "" || nameEl.textContent.toLowerCase().includes(q);
-            tr.style.display = show ? "" : "none";
-            if (show) visible++;
-        });
-        let noRow = tbody.querySelector(".no-results-row");
-        if (visible === 0 && q !== "") {
-            if (!noRow) { noRow = document.createElement("tr"); noRow.className = "no-results-row"; noRow.innerHTML = `<td colspan="7" style="text-align:center;padding:30px;color:#5c6b7f;">😕 Команда «${q}» не найдена</td>`; tbody.appendChild(noRow); }
-            else { noRow.querySelector("td").textContent = `😕 Команда «${q}» не найдена`; noRow.style.display = ""; }
-        } else if (noRow) { noRow.style.display = "none"; }
-    }
-
-    // ─── Модал состава команды (лидерборд) ──────────────────────────────────
-    window.openLbTeamModal = function(idx) {
-        const r = _tableData[idx];
-        if (!r) return;
-        const modal     = document.getElementById("lbRosterModal");
-        const nameEl    = document.getElementById("lbRosterTeamName");
-        const logoEl    = document.getElementById("lbRosterAvatar");
-        const mainEl    = document.getElementById("lbRosterMain");
-        const subEl     = document.getElementById("lbRosterSubs");
-        if (!modal) return;
-
-        if (nameEl) nameEl.textContent = `[${r.tag}] ${r.team}`;
-
-        if (logoEl) {
-            const fallbackStyle = "display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:var(--accent);width:48px;height:48px;border-radius:10px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.3);flex-shrink:0;overflow:hidden;";
-            const fallbackText  = r.tag?.slice(0,2) || "?";
-            if (r.logo) {
-                logoEl.style.cssText = "width:48px;height:48px;border-radius:10px;flex-shrink:0;overflow:hidden;";
-                logoEl.innerHTML = `<img src="${r.logo}" style="width:100%;height:100%;object-fit:cover;display:block;"
-                    onerror="this.style.display='none';this.parentNode.textContent='${fallbackText}';this.parentNode.style.cssText='${fallbackStyle}'">`;
-            } else {
-                logoEl.textContent = fallbackText;
-                logoEl.style.cssText = fallbackStyle;
-            }
-        }
-
-        const roster  = _rosterMap[r.teamId] || {};
-        const members = roster.members || [];
-        const subs    = roster.subs    || [];
-
-        function silhouette(name, c) {
-            const init = (name||"?").trim().split(/\s+/).map(w=>w[0]).join("").toUpperCase().slice(0,2);
-            return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px;">
-                <svg viewBox="0 0 40 52" style="width:36px;height:46px;opacity:0.85;" fill="${c||"#aebbc7"}">
-                    <ellipse cx="20" cy="10" rx="8" ry="8"/>
-                    <path d="M6 42 Q6 24 13 22 L17 20 Q20 19 23 20 L27 22 Q34 24 34 42 Z"/>
-                    <path d="M6 28 Q1 33 1 42 L7 42 Q7 34 11 29 Z"/>
-                    <path d="M34 28 Q39 33 39 42 L33 42 Q33 34 29 29 Z"/>
-                </svg>
-                <span style="font-size:12px;font-weight:700;color:white;text-align:center;word-break:break-all;max-width:80px;">${name||"?"}</span>
-            </div>`;
-        }
-
-        if (mainEl) {
-            mainEl.innerHTML = members.length
-                ? members.map(m => silhouette(m.displayName, "#e6b022")).join("")
-                : `<div style="color:#5c6b7f;font-size:13px;padding:20px;">Нет данных</div>`;
-        }
-        if (subEl) {
-            subEl.innerHTML = subs.length
-                ? subs.map(m => silhouette(m.displayName, "#5c6b7f")).join("")
-                : `<div style="color:#5c6b7f;font-size:13px;padding:12px;">Замен нет</div>`;
-        }
-
-        var tgWrap = document.getElementById("lbRosterTelegram");
-        if (tgWrap) {
-            if (r.telegram) {
-                var tgRaw = r.telegram.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "");
-                var tgUrl = "https://t.me/" + tgRaw;
-                tgWrap.style.display = "block";
-                var tgLink = document.createElement("a");
-                tgLink.href = tgUrl;
-                tgLink.target = "_blank";
-                tgLink.rel = "noopener noreferrer";
-                tgLink.title = "Telegram";
-                tgLink.style.cssText = "display:inline-flex;align-items:center;gap:5px;background:#1a2435;border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:8px;padding:0 10px;height:32px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;";
-                tgLink.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>TG';
-                tgWrap.innerHTML = "";
-                tgWrap.appendChild(tgLink);
-            } else {
-                tgWrap.style.display = "none";
-            }
-        }
-
-        modal.classList.add("open");
-        document.body.style.overflow = "hidden";
-    };
-
-    const _lbRosterModal = document.getElementById("lbRosterModal");
-    const _lbRosterClose = document.getElementById("lbRosterClose");
-    if (_lbRosterClose) _lbRosterClose.addEventListener("click", () => { _lbRosterModal?.classList.remove("open"); document.body.style.overflow = ""; });
-    if (_lbRosterModal)  _lbRosterModal.addEventListener("click", e => { if (e.target === _lbRosterModal) { _lbRosterModal.classList.remove("open"); document.body.style.overflow = ""; } });
-    // ─────────────────────────────────────────────────────────────────────────
-
-    async function loadSeasons() {
-        try {
-            const res  = await fetch("/api/seasons");
-            if (!res.ok) return;
-            _seasons = await res.json();
-            const sel = document.getElementById("seasonSelect");
-            if (!sel) return;
-            sel.innerHTML = _seasons.map(s =>
-                `<option value="${s._id}"${s.isActive ? " selected" : ""}>${s.name}</option>`
-            ).join("") || `<option disabled>Сезонов пока нет</option>`;
-            const active = _seasons.find(s => s.isActive) || _seasons[0];
-            if (active) {
-                _currentSid = active._id;
-                const labelEl = document.querySelector(".season-label");
-                if (labelEl) labelEl.textContent = "🏆 " + active.name;
-            }
-        } catch { /* нет сезонов — ок */ }
-    }
-
-    async function loadData(seasonId) {
-        const container = document.getElementById("tableContainer");
-        if (container) container.innerHTML = `<div class="state-box"><div class="spinner"></div><p>Загрузка данных...</p></div>`;
-        try {
-            const url = seasonId ? `/api/leaderboard/${seasonId}` : "/api/leaderboard";
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            const { season, rows } = await res.json();
-            if (season) {
-                const labelEl = document.querySelector(".season-label");
-                if (labelEl) labelEl.textContent = "🏆 " + season.name;
-            }
-            renderTable(rows || []);
-        } catch (e) {
-            if (container) container.innerHTML = `<div class="state-box"><div class="icon">⚠️</div><p>Не удалось загрузить данные.<br><small style='color:#5c6b7f'>${e.message}</small></p></div>`;
-        }
-    }
-
-    const teamSearchEl  = document.getElementById("teamSearch");
-    const seasonSel     = document.getElementById("seasonSelect");
-    const ratingBtn     = document.getElementById("ratingBtn");
-    const modalCloseBtn = document.getElementById("modalClose");
-    const ratingModal   = document.getElementById("ratingModal");
-
-    if (teamSearchEl) teamSearchEl.addEventListener("input", applySearch);
-
-    if (seasonSel) {
-        seasonSel.addEventListener("change", function() {
-            _currentSid = this.value;
-            if (document.getElementById("teamSearch")) document.getElementById("teamSearch").value = "";
-            loadData(_currentSid);
-        });
-    }
-
-    if (ratingBtn)     ratingBtn.addEventListener("click",     () => { if (ratingModal) { ratingModal.classList.add("open"); document.body.style.overflow = "hidden"; } });
-    if (modalCloseBtn) modalCloseBtn.addEventListener("click", () => { if (ratingModal) { ratingModal.classList.remove("open"); document.body.style.overflow = ""; } });
-    if (ratingModal)   ratingModal.addEventListener("click",   (e) => { if (e.target === e.currentTarget) { ratingModal.classList.remove("open"); document.body.style.overflow = ""; } });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (ratingModal) { ratingModal.classList.remove("open"); document.body.style.overflow = ""; } } });
-
-    async function init() {
-        await loadSeasons();
-        await loadData(_currentSid);
-        setInterval(() => loadData(_currentSid), 10 * 60 * 1000);
-    }
-
-    init();
-}
-
-/* ================================================
-   JOIN PAGE
-   ================================================ */
-if (document.getElementById("joinForm")) {
-    let _currentUser = null;
-
-    async function initJoinPage() {
-        const user   = await checkAuth();
-        _currentUser = user;
-
-        if (!user) {
-            const gate = document.getElementById("authGate");
-            if (gate) gate.style.display = "block";
-            return;
-        }
-
-        const nicknameEl = document.getElementById("nickname");
-        if (nicknameEl) nicknameEl.value = user.displayName;
-
-        let prof = null;
-        try {
-            const profRes = await fetch("/api/profile");
-            if (profRes.ok) prof = await profRes.json();
-        } catch {}
-
-        if (prof) {
-            const hoursEl    = document.getElementById("hours");
-            const faceitEl   = document.getElementById("faceit_level");
-            const contactsEl = document.getElementById("contacts");
-            if (hoursEl  && prof.hoursInCS2  !== null && prof.hoursInCS2  !== undefined) hoursEl.value  = prof.hoursInCS2;
-            if (faceitEl && prof.faceitLevel !== null && prof.faceitLevel !== undefined) {
-                faceitEl.value = prof.faceitLevel === 0 ? "no_account" : String(prof.faceitLevel);
-            }
-            if (contactsEl && !contactsEl.value && prof.telegramUsername) {
-                contactsEl.value = "@" + prof.telegramUsername;
-            }
-        }
-
-        if (!user.team) {
-            const banner = document.getElementById("noTeamBanner");
-            if (banner) banner.style.display = "block";
-            return;
-        }
-
-        let roleLabel = "Основной состав";
-        if (prof) {
-            if (prof.isCaptain) {
-                roleLabel = "Капитан";
-            } else if (prof.team) {
-                const myId  = prof._id?.toString();
-                const inSubs = (prof.team.subs || []).some(s => (s._id || s)?.toString() === myId);
-                roleLabel = inSubs ? "Замена" : "Основной состав";
-            }
-        }
-
-        renderTeamInfoCard(user.team, roleLabel);
-        const progress = document.getElementById("progressWrap");
-        const form     = document.getElementById("joinForm");
-        if (progress) progress.style.display = "flex";
-        if (form)     form.style.display     = "block";
-    }
-
-    function renderTeamInfoCard(team, roleLabel) {
-        const card = document.getElementById("teamInfoCard");
-        if (!card) return;
-        const role = roleLabel || "Основной состав";
-        card.innerHTML = `
-            <div class="team-card">
-                ${team.logo
-                    ? `<img src="${team.logo}" class="team-card-logo" alt="${team.name}" onerror="this.style.display='none'">`
-                    : `<div class="team-card-logo-placeholder">[${team.tag}]</div>`}
-                <div class="team-card-info">
-                    <div class="team-card-name">[${team.tag}] ${team.name}</div>
-                    <div class="team-card-sub">Ваша команда · ${role}</div>
-                </div>
-            </div>`;
-    }
-
-    function updateProgress() {
-        [1,2,3,4].forEach(n => {
-            const section = document.querySelector(`.form-section[data-section="${n}"]`);
-            if (!section) return;
-            const required = section.querySelectorAll("[required]");
-            const filled   = [...required].every(el => {
-                if (el.type === "checkbox") return el.checked;
-                if (el.type === "radio")    return document.querySelector(`input[name="${el.name}"]:checked`);
-                return el.value.trim() !== "";
-            });
-            const ps = document.getElementById("ps" + n);
-            const pl = document.getElementById("pl" + n);
-            if (!ps) return;
-            if (filled) { ps.classList.remove("active"); ps.classList.add("done"); const c = ps.querySelector(".progress-step-circle"); if (c) c.textContent = "✓"; if (pl) pl.classList.add("done"); }
-            else        { ps.classList.remove("done"); const c = ps.querySelector(".progress-step-circle"); if (c) c.textContent = n; if (pl) pl.classList.remove("done"); }
-        });
-        let found = false;
-        [1,2,3,4].forEach(n => {
-            const ps = document.getElementById("ps" + n);
-            if (!ps) return;
-            if (!found && !ps.classList.contains("done")) { ps.classList.add("active"); found = true; }
-            else ps.classList.remove("active");
-        });
-    }
-
-    const joinForm = document.getElementById("joinForm");
-    if (joinForm) {
-        joinForm.addEventListener("input",  updateProgress);
-        joinForm.addEventListener("change", updateProgress);
-        joinForm.addEventListener("submit", async function(e) {
-            e.preventDefault();
-            if (!this.checkValidity()) {
-                const first = this.querySelector(":invalid");
-                if (first) { first.focus(); first.scrollIntoView({behavior:"smooth",block:"center"}); }
-                return;
-            }
-            const btn = document.getElementById("submitBtn");
-            if (btn) { btn.disabled = true; btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;stroke:#000;stroke-width:2.5;animation:spin 0.7s linear infinite"><circle cx="12" cy="12" r="9" stroke-dasharray="40" stroke-dashoffset="15"/></svg> Отправка...`; }
-            try {
-                const formPayload = {
-                    nickname:     document.getElementById("nickname").value,
-                    hours:        document.getElementById("hours").value,
-                    faceit_level: document.getElementById("faceit_level").value,
-                    experience:   document.getElementById("experience").value,
-                    contacts:     document.getElementById("contacts").value,
-                };
-
-                try {
-                    const faceitNum = formPayload.faceit_level === "no_account" ? 0 : Number(formPayload.faceit_level);
-                    await fetch("/api/profile/stats", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ faceitLevel: faceitNum, hoursInCS2: Number(formPayload.hours) })
-                    });
-                } catch {}
-
-                const res  = await fetch("/api/applications", {
-                    method:  "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body:    JSON.stringify({
-                        hoursInCS2:   formPayload.hours,
-                        faceitLevel:  formPayload.faceit_level,
-                        experience:   formPayload.experience,
-                        contacts:     formPayload.contacts,
-                    }),
-                });
-                const data = await res.json();
-
-                if (res.ok && data.ok) {
-                    (function() {
-                        const fd = new FormData();
-                        Object.entries(formPayload).forEach(([k, v]) => fd.append(k, v));
-                        fetch("https://formspree.io/f/xnjlqzbk", {
-                            method: "POST",
-                            headers: { "Accept": "application/json" },
-                            body: fd,
-                        }).catch(() => {});
-                    })();
-
-                    this.style.display = "none";
-                    const pw = document.getElementById("progressWrap"); if (pw) pw.style.display = "none";
-                    const sm = document.getElementById("successMsg");  if (sm) sm.style.display = "block";
-                    window.scrollTo({top:0, behavior:"smooth"});
-                } else {
-                    alert(data.error || "Не удалось отправить заявку.");
-                    if (btn) { btn.disabled = false; btn.innerHTML = "Отправить заявку"; }
-                }
-            } catch {
-                alert("Ошибка соединения.");
-                if (btn) { btn.disabled = false; btn.innerHTML = "Отправить заявку"; }
-            }
-        });
-    }
-
-    initJoinPage();
-}
-
-/* ================================================
-   ANTI-CLONE
-   ================================================ */
-(function() {
-    const isOriginal = window.location.hostname === "cs2-league-hub.vercel.app" || window.location.hostname === "localhost";
-    if (!isOriginal) {
-        console.error("ATTENTION: Cloned version detected.");
-        window.addEventListener("load", () => {
-            setTimeout(() => {
-                const fp = document.querySelector("footer p");
-                if (fp) { const m = document.createElement("span"); m.style.cssText = "color:#ff4444;font-weight:bold;margin-left:10px;"; m.innerHTML = "| FAKE SITE (Original by Keseneir)"; fp.appendChild(m); }
-            }, 3000);
-        });
-    }
-})();
-
 /* ================================================
    PROFILE PAGE
    ================================================ */
@@ -813,9 +15,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         return `<div class="${ph}">${initials}</div>`;
     }
 
-    // ─── ТОСТ (всплывающее уведомление) ──────────────────────────────────────
-    // ВАЖНО: функции openCreateTeamModal, closeCreateTeamModal, submitCreateTeam
-    // должны быть объявлены ПОСЛЕ showToast, но НЕ ВНУТРИ неё.
+    // ─── ТОСТ ─────────────────────────────────────────────────────────────────
+
     function showToast(msg, type) {
         let t = document.getElementById("_toast");
         if (!t) {
@@ -832,9 +33,32 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         t._timer = setTimeout(() => { t.style.opacity = "0"; }, 3000);
     }
 
+    // ─── МОДАЛКИ ──────────────────────────────────────────────────────────────
+
+    function showModalError(elId, msg) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = "block";
+    }
+    function hideModalError(elId) {
+        const el = document.getElementById(elId);
+        if (el) el.style.display = "none";
+    }
+
+    window.closeModal = function(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("p-modal-hidden");
+        document.body.style.overflow = "";
+    };
+
+    function openModal(id) {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
+    }
+
     // ─── МОДАЛ: СОЗДАТЬ КОМАНДУ ───────────────────────────────────────────────
-    // Эти три функции были случайно вставлены внутрь showToast — это и была причина
-    // того, что кнопка «Создать команду» не работала при первом нажатии.
+
     window.openCreateTeamModal = function() {
         const errEl = document.getElementById("ctError");
         if (errEl) { errEl.textContent = ""; errEl.style.display = "none"; }
@@ -881,31 +105,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-    function showModalError(elId, msg) {
-        const el = document.getElementById(elId);
-        if (!el) return;
-        el.textContent = msg;
-        el.style.display = "block";
-    }
-    function hideModalError(elId) {
-        const el = document.getElementById(elId);
-        if (el) el.style.display = "none";
-    }
-
-    window.closeModal = function(id) {
-        const el = document.getElementById(id);
-        if (el) el.classList.add("p-modal-hidden");
-        document.body.style.overflow = "";
-    };
-
-    function openModal(id) {
-        const el = document.getElementById(id);
-        if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
-    }
-
     // ─── ПУБЛИЧНЫЙ ПРОФИЛЬ ────────────────────────────────────────────────────
 
-    const urlParams    = new URLSearchParams(window.location.search);
+    const urlParams     = new URLSearchParams(window.location.search);
     const publicSteamId = urlParams.get("id");
 
     if (publicSteamId) {
@@ -939,9 +141,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                     await refreshProfile();
                 }
                 _prevNotifCount = total;
-
                 updateBadges(d);
-
             } catch {}
         }
 
@@ -985,21 +185,14 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     }
 
-    let _pubProfileTargetId = null;
-
     function renderPublicProfile(data, me) {
         const pubContent = document.getElementById("publicContent");
         if (pubContent) pubContent.style.display = "block";
 
         const avatar = document.getElementById("pubAvatar");
         if (avatar) {
-            if (data.avatar) {
-                avatar.src          = data.avatar;
-                avatar.style.display = "";
-                avatar.onerror       = function() { this.style.display = "none"; };
-            } else {
-                avatar.style.display = "none";
-            }
+            if (data.avatar) { avatar.src = data.avatar; avatar.style.display = ""; avatar.onerror = function() { this.style.display = "none"; }; }
+            else { avatar.style.display = "none"; }
         }
 
         const nameEl = document.getElementById("pubName");
@@ -1027,9 +220,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             const isFriend = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
             if (isFriend) {
                 friendBtn.textContent = "✓ Уже в друзьях";
-                friendBtn.style.background = "rgba(76,175,130,0.12)";
+                friendBtn.style.background  = "rgba(76,175,130,0.12)";
                 friendBtn.style.borderColor = "rgba(76,175,130,0.35)";
-                friendBtn.style.color = "#4caf82";
+                friendBtn.style.color       = "#4caf82";
                 friendBtn.disabled = true;
             }
             friendBtn.dataset.steamId = data.steamId;
@@ -1091,7 +284,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     window.pubAddFriend = async function() {
-        const btn = document.getElementById("pubFriendBtn");
+        const btn     = document.getElementById("pubFriendBtn");
         const steamId = btn?.dataset.steamId;
         if (!steamId) return;
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
@@ -1121,7 +314,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-    // ─── ЗАГРУЗКА СВОЕГО ПРОФИЛЯ ──────────────────────────────────────────────
+    // ─── СВОЙ ПРОФИЛЬ ─────────────────────────────────────────────────────────
 
     async function loadProfile() {
         const ownWrap = document.getElementById("ownProfileWrap");
@@ -1260,8 +453,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const successEl = document.getElementById("statsSuccess");
         const btn       = document.getElementById("statsSaveBtn");
 
-        if (errEl)     { errEl.style.display     = "none"; }
-        if (successEl) { successEl.style.display  = "none"; }
+        if (errEl)     errEl.style.display    = "none";
+        if (successEl) successEl.style.display = "none";
 
         if (faceitVal === "" || faceitVal === undefined) {
             if (errEl) { errEl.textContent = "Выберите FACEIT уровень (или «Нет» если нет аккаунта)"; errEl.style.display = "block"; }
@@ -1319,8 +512,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
                              (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
 
-        const blocker      = document.getElementById("teamTabBlocker");
-        const tabContent   = document.getElementById("teamTabContent");
+        const blocker    = document.getElementById("teamTabBlocker");
+        const tabContent = document.getElementById("teamTabContent");
 
         if (blocker && tabContent) {
             blocker.style.display    = isIncomplete ? "block" : "none";
@@ -1440,7 +633,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     function renderFriendRow(f, d) {
-        const fId = f._id?.toString();
+        const fId      = f._id?.toString();
         const canInvite = d.isCaptain && !f.teamId;
         return `<div class="friend-row">
             ${avatarEl(f.avatar, f.displayName, "friend-avatar")}
@@ -1512,7 +705,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             </div>`;
         }
 
-        if (!html) { html = `<div class="notif-empty">🔔 Уведомлений нет</div>`; }
+        if (!html) html = `<div class="notif-empty">🔔 Уведомлений нет</div>`;
         el.innerHTML = html;
     }
 
@@ -1522,7 +715,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const role = inv.role === "sub" ? "Замена" : "Основной состав";
         if (!team) return "";
         return `<div class="friend-row">
-            <div class="friend-avatar-placeholder" style="border-radius:8px;background:var(--accent-dim);color:var(--accent);">${(team.tag || "?").slice(0,2)}</div>
+            <div class="friend-avatar-placeholder" style="border-radius:8px;background:var(--accent-dim);color:var(--accent);">${(team.tag || "?").slice(0, 2)}</div>
             <div class="friend-info">
                 <div class="friend-name">[${team.tag}] ${team.name}</div>
                 <div class="friend-sub">Роль: ${role} · от ${from?.displayName || "?"}</div>
@@ -1555,9 +748,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (incompleteBadge) incompleteBadge.style.display = isIncomplete ? "inline-flex" : "none";
 
         const mascot = document.getElementById("profileMascot");
-        if (mascot) {
-            mascot.src = total > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
-        }
+        if (mascot) mascot.src = total > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
     }
 
     // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────
@@ -1712,14 +903,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     window.closeMemberModal = function() { closeModal("memberModal"); };
 
-    window.memberModalKick = function() {
-        closeModal("memberModal");
-        if (_memberModalId) kickMember(_memberModalId, _memberModalName);
-    };
-    window.memberModalCaptain = function() {
-        closeModal("memberModal");
-        if (_memberModalId) transferCaptain(_memberModalId, _memberModalName);
-    };
+    window.memberModalKick    = function() { closeModal("memberModal"); if (_memberModalId) kickMember(_memberModalId, _memberModalName); };
+    window.memberModalCaptain = function() { closeModal("memberModal"); if (_memberModalId) transferCaptain(_memberModalId, _memberModalName); };
+
     window.memberModalRole = async function() {
         closeModal("memberModal");
         if (!_memberModalId || !_profileData?.team) return;
@@ -1772,31 +958,31 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (tsName) tsName.value = _profileData.team.name    || "";
         if (tsTag)  tsTag.value  = _profileData.team.tag     || "";
         if (tsLogo) tsLogo.value = _profileData.team.logo    || "";
-        const _preview = document.getElementById("tsLogoPreview");
+        const _preview  = document.getElementById("tsLogoPreview");
         const _fileName = document.getElementById("tsLogoFileName");
         if (_preview) {
             const _existingLogo = _profileData.team.logo || "";
             if (_existingLogo) {
                 _preview.innerHTML = `<img src="${_existingLogo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='🛡️'">`;
                 if (_fileName) _fileName.textContent = "Текущий логотип загружен";
-                if (document.getElementById("tsLogoDeleteBtn"))
-                    document.getElementById("tsLogoDeleteBtn").style.display = "";
+                if (document.getElementById("tsLogoDeleteBtn")) document.getElementById("tsLogoDeleteBtn").style.display = "";
             } else {
                 _preview.innerHTML = "🛡️";
                 if (_fileName) _fileName.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
             }
         }
-        const _fi = document.getElementById("tsLogoFile");
+        const _fi  = document.getElementById("tsLogoFile");
         const _err = document.getElementById("tsLogoUploadError");
         if (_fi) _fi.value = "";
         if (_err) _err.style.display = "none";
-        if (tsTg)   tsTg.value   = _profileData.team.telegram|| "";
+        if (tsTg) tsTg.value = _profileData.team.telegram || "";
         hideModalError("tsError");
         openModal("teamSettingsModal");
     };
     window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
 
-    // ── Cloudinary: загрузка логотипа ────────────────────────────────────────
+    // ─── Cloudinary: загрузка логотипа ────────────────────────────────────────
+
     let _cloudinaryConfig = null;
     async function getCloudinaryConfig() {
         if (_cloudinaryConfig) return _cloudinaryConfig;
@@ -1806,21 +992,15 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     async function uploadLogoToCloudinary(file) {
-        if (file.size > 2 * 1024 * 1024)
-            throw new Error("Файл не должен превышать 2 МБ");
-        if (!file.type.startsWith("image/"))
-            throw new Error("Допустимы только изображения");
+        if (file.size > 2 * 1024 * 1024)   throw new Error("Файл не должен превышать 2 МБ");
+        if (!file.type.startsWith("image/")) throw new Error("Допустимы только изображения");
         const cfg = await getCloudinaryConfig();
-        if (!cfg.cloudinaryCloud || !cfg.cloudinaryPreset)
-            throw new Error("Загрузка изображений не настроена");
+        if (!cfg.cloudinaryCloud || !cfg.cloudinaryPreset) throw new Error("Загрузка изображений не настроена");
         const fd = new FormData();
         fd.append("file", file);
         fd.append("upload_preset", cfg.cloudinaryPreset);
         fd.append("folder", "team-logos");
-        const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${cfg.cloudinaryCloud}/image/upload`,
-            { method: "POST", body: fd }
-        );
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cfg.cloudinaryCloud}/image/upload`, { method: "POST", body: fd });
         if (!res.ok) throw new Error("Ошибка загрузки на Cloudinary");
         const data = await res.json();
         return data.secure_url;
@@ -1831,7 +1011,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const preview    = document.getElementById("tsLogoPreview");
         const fileNameEl = document.getElementById("tsLogoFileName");
         const errorEl    = document.getElementById("tsLogoUploadError");
-        const hiddenUrl  = document.getElementById("tsLogo");
         if (!fileInput) return;
 
         fileInput.addEventListener("change", () => {
@@ -1851,9 +1030,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 return;
             }
             const reader = new FileReader();
-            reader.onload = e => {
-                preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
-            };
+            reader.onload = e => { preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`; };
             reader.readAsDataURL(file);
             fileNameEl.textContent = file.name;
             const delBtn = document.getElementById("tsLogoDeleteBtn");
@@ -1868,8 +1045,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const fileNameEl = document.getElementById("tsLogoFileName");
         const errorEl    = document.getElementById("tsLogoUploadError");
         const delBtn     = document.getElementById("tsLogoDeleteBtn");
-        if (hiddenUrl)  hiddenUrl.value = "";
-        if (fileInput)  fileInput.value = "";
+        if (hiddenUrl) hiddenUrl.value = "";
+        if (fileInput) fileInput.value = "";
         if (preview) {
             const _tname = (window._profileData && window._profileData.team && window._profileData.team.name) || "";
             const _ini   = _tname.trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
@@ -1965,7 +1142,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         });
     });
 
-    // Закрытие модалок по клику вне / Escape
     document.querySelectorAll(".p-modal-overlay").forEach(overlay => {
         overlay.addEventListener("click", function(e) {
             if (e.target === this) closeModal(this.id);

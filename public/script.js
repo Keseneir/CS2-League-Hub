@@ -471,8 +471,8 @@ if (document.getElementById("tableContainer")) {
             const fallbackStyle = "display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:var(--accent);width:48px;height:48px;border-radius:10px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.3);flex-shrink:0;overflow:hidden;";
             const fallbackText  = r.tag?.slice(0,2) || "?";
             if (r.logo) {
-                logoEl.style.cssText = "";
-                logoEl.innerHTML = `<img src="${r.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;"
+                logoEl.style.cssText = "width:48px;height:48px;border-radius:10px;flex-shrink:0;overflow:hidden;";
+                logoEl.innerHTML = `<img src="${r.logo}" style="width:100%;height:100%;object-fit:cover;display:block;"
                     onerror="this.style.display='none';this.parentNode.textContent='${fallbackText}';this.parentNode.style.cssText='${fallbackStyle}'">`;
             } else {
                 logoEl.textContent = fallbackText;

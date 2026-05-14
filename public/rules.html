@@ -1,234 +1,407 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Правила — CS2 League Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <style>
-        /* ─── Страница правил ─────────────────────────────────────────────── */
-        .rules-hero {
-            text-align: center;
-            padding: 60px 20px 40px;
-            background: linear-gradient(180deg, rgba(230,176,34,0.06) 0%, transparent 100%);
-            border-bottom: 1px solid var(--border);
-        }
-        .rules-hero h1 {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: clamp(28px, 5vw, 48px);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 0 0 12px;
-        }
-        .rules-hero h1 span { color: var(--accent); }
-        .rules-hero p { color: var(--text-gray); font-size: 15px; margin: 0; }
+<link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Правила — CS2 League Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  :root {
+    --bg:          #0b0f12;
+    --bg2:         #0e1318;
+    --bg3:         #12171d;
+    --border:      #1f252c;
+    --accent:      #e6b022;
+    --accent2:   #e05a00;
+    --red:         #e05c5c;
+    --green:       #4caf82;
+    --blue:        #58a6ff;
+    --text:        #ffffff;
+    --text-dim:    #aebbc7;
+    --nav-w:     260px;
+  }
 
-        .rules-wrap {
-            max-width: 860px;
-            margin: 0 auto;
-            padding: 40px 20px 80px;
-        }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* ─── Навигация по разделам ──────────────────────────────────────── */
-        .rules-nav {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 40px;
-        }
-        .rules-nav a {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 7px 14px;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-gray);
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .rules-nav a:hover {
-            border-color: var(--accent-glow);
-            color: var(--accent);
-            background: var(--accent-dim);
-        }
+  html { scroll-behavior: smooth; }
 
-        /* ─── Секция правил ──────────────────────────────────────────────── */
-        .rules-section {
-            margin-bottom: 36px;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            overflow: hidden;
-        }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
 
-        .rules-section-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 18px 24px;
-            background: rgba(230,176,34,0.05);
-            border-bottom: 1px solid var(--border);
-        }
-        .rules-section-icon {
-            font-size: 22px;
-            flex-shrink: 0;
-        }
-        .rules-section-title {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: var(--accent);
-        }
-        .rules-section-num {
-            margin-left: auto;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 11px;
-            color: #2a3340;
-        }
+  /* ── LAYOUT ─────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    gap: 2.5rem;
+    align-items: flex-start;
+  }
 
-        /* ─── Пункт правила ──────────────────────────────────────────────── */
-        .rule-item {
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border);
-        }
-        .rule-item:last-child { border-bottom: none; }
+  /* ── FLOATING NAV ───────────────────────────────────── */
+  .side-nav {
+    width: var(--nav-w);
+    flex-shrink: 0;
+    position: sticky;
+    top: 88px;
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .side-nav::-webkit-scrollbar { width: 4px; }
+  .side-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-        .rule-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 8px;
-        }
-        .rule-num {
-            background: var(--accent-dim);
-            border: 1px solid var(--accent-glow);
-            color: var(--accent);
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-        .rule-text {
-            color: var(--text-gray);
-            font-size: 14px;
-            line-height: 1.7;
-        }
-        .rule-text strong { color: white; }
+  .nav-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: .7rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 0 .75rem .5rem;
+    margin-bottom: .25rem;
+  }
 
-        /* ─── Блок наказания ─────────────────────────────────────────────── */
-        .rule-penalty {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            margin-top: 12px;
-            padding: 10px 14px;
-            background: rgba(224,92,92,0.07);
-            border: 1px solid rgba(224,92,92,0.2);
-            border-radius: 8px;
-        }
-        .rule-penalty-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-        .rule-penalty-text {
-            font-size: 13px;
-            color: #e05c5c;
-            font-weight: 600;
-            line-height: 1.5;
-        }
-        .rule-penalty-text span { color: #e07a7a; font-weight: 400; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .55rem .75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: .875rem;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active {
+    background: rgba(240,165,0,.1);
+    color: var(--accent);
+    border-color: rgba(240,165,0,.25);
+  }
+  .nav-item .num {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: .75rem;
+    width: 20px;
+    text-align: center;
+    opacity: .7;
+  }
 
-        /* ─── Тяжёлые наказания (бан) ────────────────────────────────────── */
-        .rule-penalty.severe {
-            background: rgba(224,92,92,0.12);
-            border-color: rgba(224,92,92,0.35);
-        }
-        .rule-penalty.severe .rule-penalty-text { color: #ff6b6b; }
+  /* ── MAIN CONTENT ───────────────────────────────────── */
+  .content { flex: 1; min-width: 0; }
 
-        /* ─── Система предупреждений ─────────────────────────────────────── */
-        .warn-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 10px;
-            margin-top: 14px;
-        }
-        .warn-card {
-            background: #0e1318;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 14px;
-            text-align: center;
-        }
-        .warn-count {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 800;
-            font-size: 22px;
-            color: var(--accent);
-            margin-bottom: 4px;
-        }
-        .warn-label {
-            font-size: 12px;
-            color: var(--text-gray);
-            line-height: 1.4;
-        }
+  /* Hero banner */
+  .rules-hero {
+    background: linear-gradient(135deg, #0f1217 0%, #161b22 50%, #0f1217 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .rules-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 40px,
+      rgba(240,165,0,.015) 40px,
+      rgba(240,165,0,.015) 41px
+    );
+  }
+  .rules-hero::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .rules-hero h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 2.2rem;
+    letter-spacing: .06em;
+    color: #fff;
+    margin-bottom: .5rem;
+    position: relative;
+  }
+  .rules-hero h1 span { color: var(--accent); }
+  .rules-hero p {
+    color: var(--text-dim);
+    font-size: .95rem;
+    max-width: 600px;
+    position: relative;
+  }
+  .warning-banner {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: rgba(224,82,82,.08);
+    border: 1px solid rgba(224,82,82,.3);
+    border-radius: 8px;
+    padding: .9rem 1.2rem;
+    margin-top: 1.25rem;
+    font-size: .875rem;
+    color: #f48;
+    position: relative;
+  }
+  .warning-banner::before { content: '⚠'; font-size: 1rem; }
 
-        /* ─── Информационный блок ────────────────────────────────────────── */
-        .info-block {
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border);
-        }
-        .info-block:last-child { border-bottom: none; }
-        .info-block p {
-            color: var(--text-gray);
-            font-size: 14px;
-            line-height: 1.7;
-            margin: 0;
-        }
-        .info-block p strong { color: white; }
+  /* Section blocks */
+  .rule-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    scroll-margin-top: 80px;
+  }
 
-        /* ─── Шапка-предупреждение ───────────────────────────────────────── */
-        .rules-notice {
-            background: rgba(230,176,34,0.07);
-            border: 1px solid rgba(230,176,34,0.25);
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-bottom: 32px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .rules-notice-icon { font-size: 22px; flex-shrink: 0; }
-        .rules-notice-text {
-            font-size: 14px;
-            color: var(--accent);
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            line-height: 1.5;
-        }
-        .rules-notice-sub {
-            font-size: 13px;
-            color: var(--text-gray);
-            font-family: 'Inter', sans-serif;
-            font-weight: 400;
-            margin-top: 3px;
-        }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.5rem;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { background: #1a2030; }
 
-        @media (max-width: 600px) {
-            .rules-section-header { padding: 14px 16px; }
-            .rule-item, .info-block { padding: 14px 16px; }
-            .warn-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
+  .section-num {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 2rem;
+  }
+  .section-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #fff;
+    flex: 1;
+  }
+  .section-count {
+    font-size: .75rem;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: .15rem .6rem;
+  }
+  .chevron {
+    color: var(--text-dim);
+    transition: transform .25s;
+    font-size: .8rem;
+  }
+  .rule-section.open .chevron { transform: rotate(180deg); }
+
+  .section-body {
+    display: none;
+    padding: 1rem 1.5rem 1.5rem;
+  }
+  .rule-section.open .section-body { display: block; }
+
+  /* Individual rule cards */
+  .rule-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin-bottom: .75rem;
+    position: relative;
+  }
+  .rule-card:last-child { margin-bottom: 0; }
+  .rule-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+    background: var(--border);
+  }
+  .rule-card.sev-low::before  { background: var(--blue); }
+  .rule-card.sev-med::before  { background: var(--accent); }
+  .rule-card.sev-high::before { background: var(--red); }
+
+  .rule-id {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: .8rem;
+    color: var(--text-dim);
+    letter-spacing: .06em;
+    margin-bottom: .35rem;
+  }
+  .rule-text {
+    font-size: .9rem;
+    color: var(--text);
+    margin-bottom: .75rem;
+    line-height: 1.65;
+  }
+  .rule-punishment {
+    display: flex;
+    align-items: flex-start;
+    gap: .6rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .6rem .9rem;
+    font-size: .83rem;
+  }
+  .punish-label {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: .75rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding-top: .05rem;
+  }
+  .sev-low  .punish-label { color: var(--blue); }
+  .sev-med  .punish-label { color: var(--accent); }
+  .sev-high .punish-label { color: var(--red); }
+
+  /* Info cards (for section 4,5) */
+  .info-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin-bottom: .75rem;
+    font-size: .9rem;
+    line-height: 1.65;
+    position: relative;
+    padding-left: 1.4rem;
+  }
+  .info-card::before {
+    content: '—';
+    position: absolute;
+    left: .75rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .info-card strong { color: #fff; }
+
+  /* Warn progression */
+  .warn-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+    margin-top: .5rem;
+  }
+  .warn-table th {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-align: left;
+    padding: .5rem .75rem;
+    background: var(--bg3);
+    color: var(--text-dim);
+    font-size: .75rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .warn-table td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .warn-table tr:last-child td { border-bottom: none; }
+  .warn-table .badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 4px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: .8rem;
+  }
+  .badge-warn  { background: rgba(240,165,0,.15); color: var(--accent); }
+  .badge-mute  { background: rgba(88,166,255,.12); color: var(--blue); }
+  .badge-ban   { background: rgba(224,82,82,.12); color: var(--red); }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    font-size: .7rem;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .1rem .45rem;
+    border-radius: 4px;
+    margin-left: .4rem;
+    vertical-align: middle;
+  }
+  .tag-new      { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+  .tag-changed  { background: rgba(240,165,0,.12); color: var(--accent); border: 1px solid rgba(240,165,0,.25); }
+
+  /* Mobile */
+  .mobile-nav-toggle {
+    display: none;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 300;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(240,165,0,.4);
+  }
+  .mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 250;
+  }
+  .mobile-nav-panel {
+    position: fixed;
+    top: 0; right: 0;
+    height: 100vh;
+    width: 280px;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    z-index: 260;
+    padding: 1.5rem 1rem;
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform .3s ease;
+  }
+  .mobile-nav-panel.open { transform: translateX(0); }
+  .mobile-nav-panel .nav-title { font-size: .65rem; }
+
+  @media (max-width: 900px) {
+    .side-nav { display: none; }
+    .mobile-nav-toggle { display: flex; align-items: center; justify-content: center; }
+    .layout { padding: 1.5rem 1rem; }
+  }
+</style>
 </head>
 <body>
 
@@ -238,6 +411,7 @@
         <div class="social-links">
             <a href="news.html">Новости</a>
             <a href="leaderboard.html">Рейтинг</a>
+            <a href="rules.html" style="color: var(--accent);">Правила</a>
             <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-mobile-link">Telegram</a>
             <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-mobile-link">Discord</a>
         </div>
@@ -257,361 +431,338 @@
     </div>
 </header>
 
-<div class="rules-hero">
-    <h1>ПРАВИЛА <span>СООБЩЕСТВА</span></h1>
-    <p>Незнание правил не освобождает от ответственности</p>
+<div class="layout">
+
+  <!-- FLOATING SIDEBAR NAV -->
+  <nav class="side-nav" id="sideNav">
+    <div class="nav-title">Навигация по правилам</div>
+    <a class="nav-item active" href="#sec1" onclick="setActive(this)">
+      <span class="num">1</span> Общение
+    </a>
+    <a class="nav-item" href="#sec2" onclick="setActive(this)">
+      <span class="num">2</span> Поведение
+    </a>
+    <a class="nav-item" href="#sec3" onclick="setActive(this)">
+      <span class="num">3</span> Турниры
+    </a>
+    <a class="nav-item" href="#sec4" onclick="setActive(this)">
+      <span class="num">4</span> Дополнительно
+    </a>
+    <a class="nav-item" href="#sec5" onclick="setActive(this)">
+      <span class="num">5</span> Информация
+    </a>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="content">
+
+    <!-- HERO -->
+    <div class="rules-hero">
+      <h1>Правила <span>CS2 League Hub</span></h1>
+      <p>Настоящие правила регулируют поведение всех участников платформы. Незнание правил не освобождает от ответственности.</p>
+      <div class="warning-banner">
+        В случае нарушения — подавайте жалобу через раздел <strong>Поддержка</strong>. Прямые обращения к членам стаффа минуя поддержку запрещены (п.&nbsp;1.1).
+      </div>
+    </div>
+
+    <!-- SECTION 1 -->
+    <div class="rule-section open" id="sec1">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-num">1</span>
+        <span class="section-title">Правила общения</span>
+        <span class="section-count">4 пункта</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+
+        <div class="rule-card sev-low">
+          <div class="rule-id">► 1.1</div>
+          <div class="rule-text">Запрещается: флудить, спамить, оффтопить, злоупотреблять реакциями, капсом, упоминать роли и участников без весомой причины, нарушать локальные правила каналов.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 15 минут</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 1.2</div>
+          <div class="rule-text">Запрещено оскорблять либо дискриминировать по любому признаку, вести себя агрессивно и неадекватно, игнорировать предупреждения, провоцировать конфликты или препятствовать общению других участников.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 30 минут</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 1.3</div>
+          <div class="rule-text">Запрещены открытые обсуждения религиозных и политических тем, а также публикация материалов, содержащих упоминания наркотиков, террористических или экстремистских организаций.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 60 минут</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 1.4</div>
+          <div class="rule-text">Строго запрещены материалы эротического и порнографического характера, шокирующий и вредоносный контент, любые упоминания суицида или нанесения вреда здоровью.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 60 минут. При систематическом нарушении — бан.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 2 -->
+    <div class="rule-section open" id="sec2">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-num">2</span>
+        <span class="section-title">Общие правила поведения</span>
+        <span class="section-count">6 пунктов</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+
+        <div class="rule-card sev-low">
+          <div class="rule-id">► 2.1</div>
+          <div class="rule-text">Запрещены ники, статусы, местоимения, аватарки и теги, нарушающие раздел 1 настоящих правил.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + принудительная смена. Отказ от выполнения требования — наказание по соответствующему пункту раздела 1.</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-low">
+          <div class="rule-id">► 2.2</div>
+          <div class="rule-text">Запрещено давать голосовым каналам оскорбительные или унизительные названия и описания.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + удаление голосового канала</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-low">
+          <div class="rule-id">► 2.3</div>
+          <div class="rule-text">Запрещено копировать никнеймы других игроков или администраторов, а также использовать цвет ника, сливающийся с тёмной или светлой темой интерфейса.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + смена ника / удаление цвета</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 2.4</div>
+          <div class="rule-text">В голосовых каналах запрещается препятствовать общению, использовать сторонние программы изменения голоса и звуковых эффектов (кроме встроенных средств платформы).</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 60 минут</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 2.5</div>
+          <div class="rule-text">Запрещено выдавать себя за представителя команды сервера или администрации платформы.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Бан на 30 дней</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 2.6</div>
+          <div class="rule-text">Запрещается разглашение персональных данных других участников (деанонимизация): реального имени, адреса, телефона, фотографий и прочей приватной информации без согласия владельца.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 21 день. При наличии умысла или повторном нарушении — перманентный бан.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 3 -->
+    <div class="rule-section open" id="sec3">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-num">3</span>
+        <span class="section-title">Правила турниров и честной игры</span>
+        <span class="section-count">7 пунктов</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 3.1 — Явка и опоздание</div>
+          <div class="rule-text">Команды обязаны подтвердить готовность и явиться в лобби не позднее 10 минут после назначенного времени старта матча.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>1-е нарушение — варн. Повторное или опоздание более 15 минут — техническое поражение и варн команде.</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 3.2 — Читерство</div>
+          <div class="rule-text">Строго запрещено использование читов, скриптов, стороннего ПО, а также эксплойтов карт и игровых багов, дающих нечестное преимущество.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Немедленный перманентный бан, дисквалификация команды с турнира и лишение призового фонда (при наличии).</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 3.3 — Смурфинг и подмена игрока</div>
+          <div class="rule-text">Запрещено участие в турнире с чужих аккаунтов или аккаунтов с искусственно заниженным рейтингом (смурфинг). Каждый участник обязан играть исключительно на своём основном аккаунте.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Перманентный бан</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 3.4 — Оспаривание результатов</div>
+          <div class="rule-text">Все спорные ситуации по результату матча или работе сервера направляются капитаном команды в раздел Поддержка. Публичное оспаривание решений администрации в общих чатах запрещено.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 60 минут</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 3.5 — Записи матчей</div>
+          <div class="rule-text">По требованию администрации игроки обязаны предоставить демо-запись или запись экрана матча для разрешения спора или проверки на читы.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Отказ от предоставления записи приравнивается к нечестной игре (см. п.&nbsp;3.2).</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-med">
+          <div class="rule-id">► 3.6 — Поведение в игре</div>
+          <div class="rule-text">Запрещено целенаправленное саботирование матча, намеренный тимкилл, использование оскорбительных или расистских никнеймов и тегов во время турнира.</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Варн + мьют на 30 минут. Администрация вправе потребовать смену никнейма.</span>
+          </div>
+        </div>
+
+        <div class="rule-card sev-high">
+          <div class="rule-id">► 3.7 — Стримснайпинг <span class="tag tag-new">новое</span></div>
+          <div class="rule-text">Запрещено намеренное использование прямой трансляции или стрима соперника для получения игровых преимуществ (информация о позициях, стратегиях и т.д.).</div>
+          <div class="rule-punishment">
+            <span class="punish-label">Наказание</span>
+            <span>Техническое поражение в матче. При повторном нарушении — дисквалификация с турнира.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 4 -->
+    <div class="rule-section open" id="sec4">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-num">4</span>
+        <span class="section-title">Дополнительно</span>
+        <span class="section-count">6 пунктов</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+
+        <div class="info-card">
+          <strong>► 4.1 — Апелляция.</strong> Если участник не согласен с наказанием, он вправе направить апелляцию через раздел Поддержка или в личное сообщение модератора/администратора. Апелляция рассматривается в течение 72 часов.
+        </div>
+
+        <div class="info-card">
+          <strong>► 4.2 — Система предупреждений.</strong> За каждое нарушение начисляется 1 варн. Срок давности варна — 90 дней с момента выдачи.
+          <table class="warn-table" style="margin-top:.75rem">
+            <tr>
+              <th>Количество варнов</th>
+              <th>Наказание</th>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warn">3 варна</span></td>
+              <td>Мьют 7 дней</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warn">5 варнов</span></td>
+              <td>Мьют 21 день</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warn">7 варнов</span></td>
+              <td>Бан 7 дней</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-ban">10 варнов</span></td>
+              <td>Перманентный бан (с правом апелляции)</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="info-card">
+          <strong>► 4.3</strong> Неконструктивное публичное обсуждение действий администрации, а также открытые споры и конфликты на эту тему — запрещены.
+        </div>
+
+        <div class="info-card">
+          <strong>► 4.4</strong> Запрещено использовать изъяны правил или пытаться их обходить в целях личной выгоды.
+        </div>
+
+        <div class="info-card">
+          <strong>► 4.5</strong> Запрещён повторный вход на платформу с целью снятия мьюта или избежания наказания.
+          <br><em style="color:var(--text-dim);font-size:.83rem">Наказание: предупреждение + возврат исходного наказания.</em>
+        </div>
+
+        <div class="info-card">
+          <strong>► 4.6 — Аккаунт-шеринг <span class="tag tag-new">новое</span></strong> Передача доступа к аккаунту третьим лицам запрещена. Владелец аккаунта несёт полную ответственность за все действия, совершённые с его учётной записи.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 5 -->
+    <div class="rule-section open" id="sec5">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-num">5</span>
+        <span class="section-title">Информация</span>
+        <span class="section-count">5 пунктов</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+
+        <div class="info-card">
+          <strong>► 5.1</strong> Администрация вправе блокировать пользователей, деструктивно влияющих на платформу: неконструктивная критика, призывы покинуть сервер и иные действия, наносящие вред сообществу.
+        </div>
+
+        <div class="info-card">
+          <strong>► 5.2</strong> Администрация вправе самостоятельно определять, что является нарушением настоящих правил.
+        </div>
+
+        <div class="info-card">
+          <strong>► 5.3</strong> Команда платформы вправе изменять меру наказания как в сторону уменьшения, так и увеличения, с учётом всех обстоятельств нарушения.
+        </div>
+
+        <div class="info-card">
+          <strong>► 5.4</strong> Нарушение остаётся таковым, даже если оно скрыто под сарказмом, шуткой, мемом или облечено в любую иную форму.
+        </div>
+
+        <div class="info-card">
+          <strong>► 5.5</strong> Участники обязаны соблюдать применимое законодательство своей страны. Администрация вправе передавать информацию о нарушениях в правоохранительные органы в случаях, предусмотренных законом (распространение запрещённого контента, угрозы, мошенничество и др.).
+        </div>
+
+      </div>
+    </div>
+
+  </main>
 </div>
 
-<div class="rules-wrap">
-
-    <!-- Предупреждение -->
-    <div class="rules-notice">
-        <div class="rules-notice-icon">⚠️</div>
-        <div>
-            <div class="rules-notice-text">При нарушении правил в чатах или войс-чатах — обращайтесь в поддержку</div>
-            <div class="rules-notice-sub">Пинговать отдельных членов стаффа строго запрещено и карается</div>
-        </div>
-    </div>
-
-    <!-- Навигация -->
-    <div class="rules-nav">
-        <a href="#section-chat">💬 Общение</a>
-        <a href="#section-behavior">🛡️ Поведение</a>
-        <a href="#section-tournaments">⚔️ Турниры</a>
-        <a href="#section-additional">📋 Дополнительно</a>
-        <a href="#section-info">ℹ️ Информация</a>
-    </div>
-
-    <!-- Раздел 1: Правила общения -->
-    <div class="rules-section" id="section-chat">
-        <div class="rules-section-header">
-            <div class="rules-section-icon">💬</div>
-            <div class="rules-section-title">Правила общения</div>
-            <div class="rules-section-num">РАЗДЕЛ 1</div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">1.1</div>
-                <div class="rule-text">
-                    Запрещается <strong>флудить, спамить, оффтопить</strong>, злоупотреблять реакциями на множество сообщений, злоупотреблять капсом, упоминать роли и участников без весомой причины, нарушать локальные правила в текстовых каналах.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 15 минут</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">1.2</div>
-                <div class="rule-text">
-                    Запрещено <strong>оскорблять или дискриминировать</strong> по любому признаку, вызывающее, агрессивное, неадекватное поведение, игнорирование предупреждений, создание препятствий для общения, провокация пользователей и поддержка конфликтных ситуаций.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 30 минут</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">1.3</div>
-                <div class="rule-text">
-                    Запрещены <strong>открытые обсуждения религиозных и политических тем</strong>. Также запрещена публикация информации или изображений с упоминанием наркотиков, террористических или экстремистских организаций и военных преступников.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">1.4</div>
-                <div class="rule-text">
-                    Запрещены любые <strong>вложения эротического или порнографического характера</strong>, шокирующий контент, контент, вредящий здоровью. Строго запрещены любые упоминания суицида, нанесения увечий самому себе, а также любых психологических отклонений.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Раздел 2: Общие правила поведения -->
-    <div class="rules-section" id="section-behavior">
-        <div class="rules-section-header">
-            <div class="rules-section-icon">🛡️</div>
-            <div class="rules-section-title">Общие правила поведения</div>
-            <div class="rules-section-num">РАЗДЕЛ 2</div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.1</div>
-                <div class="rule-text">
-                    Запрещены <strong>ники, статусы, аватарки и теги</strong>, нарушающие правила раздела 1.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн + изменение ника. <span>Отказ выполнить требование администрации приводит к дополнительному наказанию.</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.2</div>
-                <div class="rule-text">
-                    Запрещено именовать голосовые каналы <strong>оскорбительно или унизительно</strong>. То же касается описаний голосовых каналов. Действуют правила раздела 1.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ удаление голосового канала</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.3</div>
-                <div class="rule-text">
-                    Запрещено <strong>копирование ников</strong> игроков и администраторов, а также установка цвета ника, сливающегося со светлой или тёмной темой Discord.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ изменение ника / удаление цвета</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.4</div>
-                <div class="rule-text">
-                    В голосовых каналах запрещается <strong>мешать общению участников</strong>, использовать программы для изменения голоса и создания звуковых эффектов (исключение — встроенная звуковая панель Discord). Действуют правила раздела 1.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.5</div>
-                <div class="rule-text">
-                    Запрещено <strong>выдавать себя за представителя команды сервера</strong>.
-                </div>
-            </div>
-            <div class="rule-penalty severe">
-                <div class="rule-penalty-icon">🚫</div>
-                <div class="rule-penalty-text">Бан <span>на 30 дней</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">2.6</div>
-                <div class="rule-text">
-                    Запрещается <strong>разглашение персональной информации</strong> кого-либо из участников.
-                </div>
-            </div>
-            <div class="rule-penalty severe">
-                <div class="rule-penalty-icon">🚫</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 21 день</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Раздел 3: Турниры -->
-    <div class="rules-section" id="section-tournaments">
-        <div class="rules-section-header">
-            <div class="rules-section-icon">⚔️</div>
-            <div class="rules-section-title">Правила турниров и честной игры</div>
-            <div class="rules-section-num">РАЗДЕЛ 3</div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.1</div>
-                <div class="rule-text">
-                    <strong>Явка и опоздание.</strong> Команды обязаны подтвердить готовность и явиться в лобби не позднее чем через <strong>10 минут</strong> после назначенного времени старта матча.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Первое нарушение — варн и предупреждение. <span>Повторное или опоздание более 15 минут — техническое поражение (Defeat) и варн команде.</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.2</div>
-                <div class="rule-text">
-                    <strong>Нечестная игра (читы).</strong> Строго запрещено использование любых читов, скриптов, стороннего ПО, а также багов карт или игры, дающих нечестное преимущество.
-                </div>
-            </div>
-            <div class="rule-penalty severe">
-                <div class="rule-penalty-icon">💀</div>
-                <div class="rule-penalty-text">Немедленный и пожизненный бан, дисквалификация команды с турнира, <span>лишение призового фонда (если применимо)</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.3</div>
-                <div class="rule-text">
-                    <strong>Смурфинг и подмена.</strong> Запрещено участие с чужих аккаунтов или аккаунтов, не принадлежащих игроку.
-                </div>
-            </div>
-            <div class="rule-penalty severe">
-                <div class="rule-penalty-icon">💀</div>
-                <div class="rule-penalty-text">Перманентный бан</div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.4</div>
-                <div class="rule-text">
-                    <strong>Оспаривание и споры.</strong> Все спорные моменты направляются капитаном команды в тех-поддержку. <strong>Публичное оспаривание</strong> решений администрации в общих чатах запрещено.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.5</div>
-                <div class="rule-text">
-                    <strong>Записи матчей.</strong> Игроки обязаны быть готовы предоставить демо-запись или запись экрана по требованию администрации.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Отказ может быть приравнен к нечестной игре <span>(см. п. 3.2)</span></div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">3.6</div>
-                <div class="rule-text">
-                    <strong>Поведение в игре.</strong> Запрещено целенаправленное саботирование, намеренный тим-килл, оскорбительные или расистские никнеймы и теги.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Варн + мьют на 30 минут. <span>Администрация вправе запросить смену никнейма.</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Раздел 4: Дополнительно -->
-    <div class="rules-section" id="section-additional">
-        <div class="rules-section-header">
-            <div class="rules-section-icon">📋</div>
-            <div class="rules-section-title">Дополнительно</div>
-            <div class="rules-section-num">РАЗДЕЛ 4</div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">4.1</div>
-                <div class="rule-text">
-                    Если участник не согласен с наказанием, он вправе <strong>отправить апелляцию</strong> в личные сообщения модератора или администратора.
-                </div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">4.2</div>
-                <div class="rule-text"><strong>Система предупреждений (варнов):</strong></div>
-            </div>
-            <div class="warn-grid">
-                <div class="warn-card">
-                    <div class="warn-count">3</div>
-                    <div class="warn-label">варна<br>мьют 7 дней</div>
-                </div>
-                <div class="warn-card">
-                    <div class="warn-count">5</div>
-                    <div class="warn-label">варнов<br>мьют 21 день</div>
-                </div>
-                <div class="warn-card" style="border-color:rgba(224,92,92,0.3);">
-                    <div class="warn-count" style="color:#e05c5c;">7</div>
-                    <div class="warn-label">варнов<br>бан 7 дней</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">4.3</div>
-                <div class="rule-text">
-                    Запрещено <strong>неконструктивное обсуждение действий администрации</strong> в открытых чатах, а также споры и конфликты на эту тему.
-                </div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">4.4</div>
-                <div class="rule-text">
-                    Запрещено использование <strong>изъянов и попытки обхода правил</strong> в целях получения выгоды.
-                </div>
-            </div>
-        </div>
-
-        <div class="rule-item">
-            <div class="rule-header">
-                <div class="rule-num">4.5</div>
-                <div class="rule-text">
-                    Запрещён <strong>перезаход на сервер</strong> с целью снятия мьюта или избежания наказания.
-                </div>
-            </div>
-            <div class="rule-penalty">
-                <div class="rule-penalty-icon">⚡</div>
-                <div class="rule-penalty-text">Предупреждение <span>+ возвращение наказания</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Раздел 5: Информация -->
-    <div class="rules-section" id="section-info">
-        <div class="rules-section-header">
-            <div class="rules-section-icon">ℹ️</div>
-            <div class="rules-section-title">Информация</div>
-            <div class="rules-section-num">РАЗДЕЛ 5</div>
-        </div>
-
-        <div class="info-block">
-            <p><strong>5.1</strong>&nbsp;&nbsp;Администрация вправе блокировать проблемных пользователей, деструктивно влияющих на сервер и его участников, включая неконструктивную критику и призывы покинуть сервер.</p>
-        </div>
-        <div class="info-block">
-            <p><strong>5.2</strong>&nbsp;&nbsp;Администрация вправе <strong>на своё усмотрение</strong> определять, что именно является нарушением правил.</p>
-        </div>
-        <div class="info-block">
-            <p><strong>5.3</strong>&nbsp;&nbsp;Команда сервера вправе изменять меру наказания на своё усмотрение — как в сторону уменьшения, так и увеличения, с учётом всех обстоятельств.</p>
-        </div>
-        <div class="info-block">
-            <p><strong>5.4</strong>&nbsp;&nbsp;Нарушение остаётся таковым, <strong>даже если оно скрыто под сарказмом, шуткой, мемом</strong> или облачено в любую иную форму.</p>
-        </div>
-        <div class="info-block">
-            <p><strong>5.5</strong>&nbsp;&nbsp;Администрация вправе выдавать наказания (от варна до перманентного бана) в случае нарушения правил сообщества Discord и условий использования Discord.</p>
-        </div>
-    </div>
-
+<!-- MOBILE NAV TOGGLE -->
+<button class="mobile-nav-toggle" id="mobileNavBtn" title="Навигация">☰</button>
+<div class="mobile-nav-overlay" id="mobileOverlay" onclick="closeMobileNav()"></div>
+<div class="mobile-nav-panel" id="mobileNavPanel">
+  <div class="nav-title">Правила</div>
+  <a class="nav-item" href="#sec1" onclick="closeMobileNav()"><span class="num">1</span> Общение</a>
+  <a class="nav-item" href="#sec2" onclick="closeMobileNav()"><span class="num">2</span> Поведение</a>
+  <a class="nav-item" href="#sec3" onclick="closeMobileNav()"><span class="num">3</span> Турниры</a>
+  <a class="nav-item" href="#sec4" onclick="closeMobileNav()"><span class="num">4</span> Дополнительно</a>
+  <a class="nav-item" href="#sec5" onclick="closeMobileNav()"><span class="num">5</span> Информация</a>
 </div>
 
 <footer>
@@ -624,13 +775,7 @@
                 <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
             </a>
             <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
-                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
-            </a>
-            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
-                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
-            </a>
-            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
-                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9-.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
             </a>
         </div>
         <div class="footer-links">
@@ -647,5 +792,47 @@
 </footer>
 
 <script src="js/common.js" defer></script>
+<script>
+  // Toggle section open/close
+  function toggleSection(header) {
+    header.parentElement.classList.toggle('open');
+  }
+
+  // Sidebar active state
+  function setActive(el) {
+    document.querySelectorAll('.side-nav .nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Mobile nav
+  document.getElementById('mobileNavBtn').addEventListener('click', () => {
+    document.getElementById('mobileNavPanel').classList.add('open');
+    document.getElementById('mobileOverlay').style.display = 'block';
+  });
+  function closeMobileNav() {
+    document.getElementById('mobileNavPanel').classList.remove('open');
+    document.getElementById('mobileOverlay').style.display = 'none';
+  }
+
+  // Auto-highlight nav on scroll
+  const sections = ['sec1','sec2','sec3','sec4','sec5'];
+  const navLinks = document.querySelectorAll('.side-nav .nav-item');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+</script>
 </body>
 </html>

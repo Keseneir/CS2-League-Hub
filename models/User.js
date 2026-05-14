@@ -21,25 +21,55 @@ const userSchema = new mongoose.Schema(
       enum:    ["user", "admin"],
       default: "user",
     },
-    // Команда, в которой состоит игрок
-    team: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref:  "Team",
+
+    // ─── Команда ─────────────────────────────────────────────────────────────
+    teamId: {
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     "Team",
       default: null,
     },
-    // Список друзей (steamId)
+
+    // ─── Друзья ──────────────────────────────────────────────────────────────
     friends: [
       {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref:  "User",
       },
     ],
-    // Входящие заявки в друзья (steamId)
+
+    // ─── Входящие заявки в друзья ─────────────────────────────────────────────
     friendRequests: [
       {
-        type: String,
+        from: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref:  "User",
+        },
+        createdAt: {
+          type:    Date,
+          default: Date.now,
+        },
       },
     ],
-    // Статистика игрока
+
+    // ─── Приглашения в команду ────────────────────────────────────────────────
+    teamInvites: [
+      {
+        teamId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref:  "Team",
+        },
+        from: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref:  "User",
+        },
+        createdAt: {
+          type:    Date,
+          default: Date.now,
+        },
+      },
+    ],
+
+    // ─── Статистика ───────────────────────────────────────────────────────────
     stats: {
       kills:   { type: Number, default: 0 },
       deaths:  { type: Number, default: 0 },
@@ -48,17 +78,66 @@ const userSchema = new mongoose.Schema(
       losses:  { type: Number, default: 0 },
       rating:  { type: Number, default: 0 },
     },
+
     rank: {
       type:    String,
       default: "Unranked",
     },
+
+    // ─── Профиль игрока ───────────────────────────────────────────────────────
+    faceitLevel: {
+      type:    Number,
+      default: null,
+      min:     0,
+      max:     10,
+    },
+    hoursInCS2: {
+      type:    Number,
+      default: null,
+      min:     0,
+    },
+    bio: {
+      type:      String,
+      default:   "",
+      maxlength: 300,
+    },
+    isPrivate: {
+      type:    Boolean,
+      default: false,
+    },
+    telegramUsername: {
+      type:    String,
+      default: "",
+    },
+    discordUsername: {
+      type:    String,
+      default: "",
+    },
+
+    // ─── Уведомления от админа ────────────────────────────────────────────────
+    adminNotices: [
+      {
+        message: {
+          type: String,
+        },
+        read: {
+          type:    Boolean,
+          default: false,
+        },
+        createdAt: {
+          type:    Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     banned: {
       type:    Boolean,
       default: false,
     },
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 

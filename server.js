@@ -52,7 +52,9 @@ passport.use(
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findById(id);
+    await connectDB();
+    const UserModel = mongoose.model("User");
+    const user = await UserModel.findById(id);
     done(null, user);
   } catch (err) {
     done(err, null);

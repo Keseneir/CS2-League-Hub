@@ -1266,6 +1266,14 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     color: var(--text-gray);
 }
 
+/* Текст сообщений в уведомлениях — не обрезаем, разрешаем перенос */
+.notif-block .friend-name {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    word-break: break-word;
+}
+
 /* ─── МОДАЛЬНЫЕ ОКНА (профиль) ─── */
 .p-modal-overlay {
     position: fixed;

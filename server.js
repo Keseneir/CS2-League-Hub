@@ -99,15 +99,16 @@ app.use(async (req, res, next) => {
 
 const Season = require("./models/Season");
 
-app.use("/auth",            require("./routes/auth"));
-app.get("/logout",          require("./routes/auth"));   // logout живёт в auth.js
-app.use("/api",             require("./routes/users"));
-app.use("/api/friends",     require("./routes/friends"));
-app.use("/api",             require("./routes/teams"));
-app.use("/api/applications",require("./routes/applications"));
-app.use("/api/leaderboard", require("./routes/leaderboard"));
-app.use("/api/admin",       require("./routes/admin"));
-app.use("/api/tournaments", require("./routes/tournaments"));
+app.use("/auth",             require("./routes/auth"));
+// /logout — редирект на /auth/logout для совместимости со старыми ссылками
+app.get("/logout",           (req, res) => res.redirect("/auth/logout"));
+app.use("/api",              require("./routes/users"));
+app.use("/api/friends",      require("./routes/friends"));
+app.use("/api",              require("./routes/teams"));
+app.use("/api/applications", require("./routes/applications"));
+app.use("/api/leaderboard",  require("./routes/leaderboard"));
+app.use("/api/admin",        require("./routes/admin"));
+app.use("/api/tournaments",  require("./routes/tournaments"));
 
 // GET /api/seasons (публичный)
 app.get("/api/seasons", async (req, res) => {

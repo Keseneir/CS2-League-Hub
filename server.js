@@ -155,7 +155,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ─── Запуск ───────────────────────────────────────────────────────────────────
+// ─── Запуск ──────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 module.exports = app;

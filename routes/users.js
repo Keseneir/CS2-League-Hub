@@ -1,9 +1,9 @@
 const express             = require("express");
 const router              = express.Router();
-const User                = require("../../models/User");
-const Team                = require("../../models/Team");
-const Application         = require("../../models/Application");
-const Rank                = require("../../models/Rank");
+const User                = require("../models/User");
+const Team                = require("../models/Team");
+const Application         = require("../models/Application");
+const Rank                = require("../models/Rank");
 const { requireAuth }     = require("../middleware/auth");
 const { ADMIN_STEAM_ID }  = require("../config/constants");
 

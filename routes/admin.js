@@ -1,12 +1,12 @@
 const express              = require("express");
 const router               = express.Router();
-const User                 = require("../../models/User");
-const Team                 = require("../../models/Team");
-const Application          = require("../../models/Application");
-const Season               = require("../../models/Season");
-const TeamStat             = require("../../models/TeamStat");
-const Rank                 = require("../../models/Rank");
-const Tournament           = require("../../models/Tournament");
+const User                 = require("../models/User");
+const Team                 = require("../models/Team");
+const Application          = require("../models/Application");
+const Season               = require("../models/Season");
+const TeamStat             = require("../models/TeamStat");
+const Rank                 = require("../models/Rank");
+const Tournament           = require("../models/Tournament");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
 

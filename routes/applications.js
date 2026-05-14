@@ -1,7 +1,7 @@
 const express         = require("express");
 const router          = express.Router();
-const Team            = require("../../models/Team");
-const Application     = require("../../models/Application");
+const Team            = require("../models/Team");
+const Application     = require("../models/Application");
 const { requireAuth } = require("../middleware/auth");
 
 // POST /api/applications

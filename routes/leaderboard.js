@@ -1,8 +1,8 @@
 const express    = require("express");
 const router     = express.Router();
-const Team       = require("../../models/Team");
-const Season     = require("../../models/Season");
-const TeamStat   = require("../../models/TeamStat");
+const Team       = require("../models/Team");
+const Season     = require("../models/Season");
+const TeamStat   = require("../models/TeamStat");
 
 function buildRows(stats) {
   return stats.map(s => ({

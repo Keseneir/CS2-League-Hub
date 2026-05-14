@@ -1,9 +1,9 @@
 const express         = require("express");
 const router          = express.Router();
 const mongoose        = require("mongoose");
-const User            = require("../../models/User");
-const Team            = require("../../models/Team");
-const Application     = require("../../models/Application");
+const User            = require("../models/User");
+const Team            = require("../models/Team");
+const Application     = require("../models/Application");
 const { requireAuth } = require("../middleware/auth");
 
 // ─── Вспомогательная: расформировать команду ──────────────────────────────────

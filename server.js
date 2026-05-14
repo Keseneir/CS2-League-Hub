@@ -30,12 +30,13 @@ passport.use(
     },
     async (identifier, profile, done) => {
       try {
+        const UserModel = require("./models/User");
         const steamId     = profile.id;
         const displayName = profile.displayName;
         const avatar      = profile.photos?.[2]?.value || profile.photos?.[0]?.value || "";
-        let user = await User.findOne({ steamId });
+        let user = await UserModel.findOne({ steamId });
         if (!user) {
-          user = await User.create({ steamId, displayName, avatar });
+          user = await UserModel.create({ steamId, displayName, avatar });
         } else {
           user.displayName = displayName;
           user.avatar      = avatar;
@@ -53,7 +54,9 @@ passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
   try {
     await connectDB();
-    const user = await User.findById(id);
+    // Require внутри функции гарантирует что схема уже зарегистрирована
+    const UserModel = require("./models/User");
+    const user = await UserModel.findById(id);
     done(null, user);
   } catch (err) {
     done(err, null);
@@ -81,10 +84,9 @@ app.use(
   })
 );
 
-app.use(passport.initialize());
-app.use(passport.session());
-
-// ─── Гарантия соединения с БД перед каждым запросом ─────────────────────────
+// ─── Гарантия соединения с БД — ДО passport.session ─────────────────────────
+// deserializeUser вызывается внутри passport.session, значит БД должна
+// быть подключена до него — иначе User.findById не работает.
 
 app.use(async (req, res, next) => {
   try {
@@ -95,6 +97,9 @@ app.use(async (req, res, next) => {
     res.status(500).json({ error: "Database unavailable" });
   }
 });
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // ─── Роуты ───────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Правила — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ─── Страница правил ─────────────────────────────────────────────── */
+        .rules-hero {
+            text-align: center;
+            padding: 60px 20px 40px;
+            background: linear-gradient(180deg, rgba(230,176,34,0.06) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+        }
+        .rules-hero h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: clamp(28px, 5vw, 48px);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0 0 12px;
+        }
+        .rules-hero h1 span { color: var(--accent); }
+        .rules-hero p { color: var(--text-gray); font-size: 15px; margin: 0; }
+
+        .rules-wrap {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* ─── Навигация по разделам ──────────────────────────────────────── */
+        .rules-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 40px;
+        }
+        .rules-nav a {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 14px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .rules-nav a:hover {
+            border-color: var(--accent-glow);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* ─── Секция правил ──────────────────────────────────────────────── */
+        .rules-section {
+            margin-bottom: 36px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .rules-section-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 24px;
+            background: rgba(230,176,34,0.05);
+            border-bottom: 1px solid var(--border);
+        }
+        .rules-section-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .rules-section-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+        }
+        .rules-section-num {
+            margin-left: auto;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 11px;
+            color: #2a3340;
+        }
+
+        /* ─── Пункт правила ──────────────────────────────────────────────── */
+        .rule-item {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .rule-item:last-child { border-bottom: none; }
+
+        .rule-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .rule-num {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-glow);
+            color: var(--accent);
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .rule-text {
+            color: var(--text-gray);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .rule-text strong { color: white; }
+
+        /* ─── Блок наказания ─────────────────────────────────────────────── */
+        .rule-penalty {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: rgba(224,92,92,0.07);
+            border: 1px solid rgba(224,92,92,0.2);
+            border-radius: 8px;
+        }
+        .rule-penalty-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+        .rule-penalty-text {
+            font-size: 13px;
+            color: #e05c5c;
+            font-weight: 600;
+            line-height: 1.5;
+        }
+        .rule-penalty-text span { color: #e07a7a; font-weight: 400; }
+
+        /* ─── Тяжёлые наказания (бан) ────────────────────────────────────── */
+        .rule-penalty.severe {
+            background: rgba(224,92,92,0.12);
+            border-color: rgba(224,92,92,0.35);
+        }
+        .rule-penalty.severe .rule-penalty-text { color: #ff6b6b; }
+
+        /* ─── Система предупреждений ─────────────────────────────────────── */
+        .warn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .warn-card {
+            background: #0e1318;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+        }
+        .warn-count {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 22px;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        .warn-label {
+            font-size: 12px;
+            color: var(--text-gray);
+            line-height: 1.4;
+        }
+
+        /* ─── Информационный блок ────────────────────────────────────────── */
+        .info-block {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .info-block:last-child { border-bottom: none; }
+        .info-block p {
+            color: var(--text-gray);
+            font-size: 14px;
+            line-height: 1.7;
+            margin: 0;
+        }
+        .info-block p strong { color: white; }
+
+        /* ─── Шапка-предупреждение ───────────────────────────────────────── */
+        .rules-notice {
+            background: rgba(230,176,34,0.07);
+            border: 1px solid rgba(230,176,34,0.25);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .rules-notice-icon { font-size: 22px; flex-shrink: 0; }
+        .rules-notice-text {
+            font-size: 14px;
+            color: var(--accent);
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+        .rules-notice-sub {
+            font-size: 13px;
+            color: var(--text-gray);
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            margin-top: 3px;
+        }
+
+        @media (max-width: 600px) {
+            .rules-section-header { padding: 14px 16px; }
+            .rule-item, .info-block { padding: 14px 16px; }
+            .warn-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-mobile-link">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-mobile-link">Discord</a>
+        </div>
+        <a href="/auth/steam?redirect=/rules.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+            </div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+        <a href="join.html" id="btnApply" class="btn-apply">ПОДАТЬ ЗАЯВКУ</a>
+    </div>
+</header>
+
+<div class="rules-hero">
+    <h1>ПРАВИЛА <span>СООБЩЕСТВА</span></h1>
+    <p>Незнание правил не освобождает от ответственности</p>
+</div>
+
+<div class="rules-wrap">
+
+    <!-- Предупреждение -->
+    <div class="rules-notice">
+        <div class="rules-notice-icon">⚠️</div>
+        <div>
+            <div class="rules-notice-text">При нарушении правил в чатах или войс-чатах — обращайтесь в поддержку</div>
+            <div class="rules-notice-sub">Пинговать отдельных членов стаффа строго запрещено и карается</div>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="rules-nav">
+        <a href="#section-chat">💬 Общение</a>
+        <a href="#section-behavior">🛡️ Поведение</a>
+        <a href="#section-tournaments">⚔️ Турниры</a>
+        <a href="#section-additional">📋 Дополнительно</a>
+        <a href="#section-info">ℹ️ Информация</a>
+    </div>
+
+    <!-- Раздел 1: Правила общения -->
+    <div class="rules-section" id="section-chat">
+        <div class="rules-section-header">
+            <div class="rules-section-icon">💬</div>
+            <div class="rules-section-title">Правила общения</div>
+            <div class="rules-section-num">РАЗДЕЛ 1</div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">1.1</div>
+                <div class="rule-text">
+                    Запрещается <strong>флудить, спамить, оффтопить</strong>, злоупотреблять реакциями на множество сообщений, злоупотреблять капсом, упоминать роли и участников без весомой причины, нарушать локальные правила в текстовых каналах.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 15 минут</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">1.2</div>
+                <div class="rule-text">
+                    Запрещено <strong>оскорблять или дискриминировать</strong> по любому признаку, вызывающее, агрессивное, неадекватное поведение, игнорирование предупреждений, создание препятствий для общения, провокация пользователей и поддержка конфликтных ситуаций.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 30 минут</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">1.3</div>
+                <div class="rule-text">
+                    Запрещены <strong>открытые обсуждения религиозных и политических тем</strong>. Также запрещена публикация информации или изображений с упоминанием наркотиков, террористических или экстремистских организаций и военных преступников.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">1.4</div>
+                <div class="rule-text">
+                    Запрещены любые <strong>вложения эротического или порнографического характера</strong>, шокирующий контент, контент, вредящий здоровью. Строго запрещены любые упоминания суицида, нанесения увечий самому себе, а также любых психологических отклонений.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Раздел 2: Общие правила поведения -->
+    <div class="rules-section" id="section-behavior">
+        <div class="rules-section-header">
+            <div class="rules-section-icon">🛡️</div>
+            <div class="rules-section-title">Общие правила поведения</div>
+            <div class="rules-section-num">РАЗДЕЛ 2</div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.1</div>
+                <div class="rule-text">
+                    Запрещены <strong>ники, статусы, аватарки и теги</strong>, нарушающие правила раздела 1.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн + изменение ника. <span>Отказ выполнить требование администрации приводит к дополнительному наказанию.</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.2</div>
+                <div class="rule-text">
+                    Запрещено именовать голосовые каналы <strong>оскорбительно или унизительно</strong>. То же касается описаний голосовых каналов. Действуют правила раздела 1.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ удаление голосового канала</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.3</div>
+                <div class="rule-text">
+                    Запрещено <strong>копирование ников</strong> игроков и администраторов, а также установка цвета ника, сливающегося со светлой или тёмной темой Discord.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ изменение ника / удаление цвета</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.4</div>
+                <div class="rule-text">
+                    В голосовых каналах запрещается <strong>мешать общению участников</strong>, использовать программы для изменения голоса и создания звуковых эффектов (исключение — встроенная звуковая панель Discord). Действуют правила раздела 1.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.5</div>
+                <div class="rule-text">
+                    Запрещено <strong>выдавать себя за представителя команды сервера</strong>.
+                </div>
+            </div>
+            <div class="rule-penalty severe">
+                <div class="rule-penalty-icon">🚫</div>
+                <div class="rule-penalty-text">Бан <span>на 30 дней</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">2.6</div>
+                <div class="rule-text">
+                    Запрещается <strong>разглашение персональной информации</strong> кого-либо из участников.
+                </div>
+            </div>
+            <div class="rule-penalty severe">
+                <div class="rule-penalty-icon">🚫</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 21 день</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Раздел 3: Турниры -->
+    <div class="rules-section" id="section-tournaments">
+        <div class="rules-section-header">
+            <div class="rules-section-icon">⚔️</div>
+            <div class="rules-section-title">Правила турниров и честной игры</div>
+            <div class="rules-section-num">РАЗДЕЛ 3</div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.1</div>
+                <div class="rule-text">
+                    <strong>Явка и опоздание.</strong> Команды обязаны подтвердить готовность и явиться в лобби не позднее чем через <strong>10 минут</strong> после назначенного времени старта матча.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Первое нарушение — варн и предупреждение. <span>Повторное или опоздание более 15 минут — техническое поражение (Defeat) и варн команде.</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.2</div>
+                <div class="rule-text">
+                    <strong>Нечестная игра (читы).</strong> Строго запрещено использование любых читов, скриптов, стороннего ПО, а также багов карт или игры, дающих нечестное преимущество.
+                </div>
+            </div>
+            <div class="rule-penalty severe">
+                <div class="rule-penalty-icon">💀</div>
+                <div class="rule-penalty-text">Немедленный и пожизненный бан, дисквалификация команды с турнира, <span>лишение призового фонда (если применимо)</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.3</div>
+                <div class="rule-text">
+                    <strong>Смурфинг и подмена.</strong> Запрещено участие с чужих аккаунтов или аккаунтов, не принадлежащих игроку.
+                </div>
+            </div>
+            <div class="rule-penalty severe">
+                <div class="rule-penalty-icon">💀</div>
+                <div class="rule-penalty-text">Перманентный бан</div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.4</div>
+                <div class="rule-text">
+                    <strong>Оспаривание и споры.</strong> Все спорные моменты направляются капитаном команды в тех-поддержку. <strong>Публичное оспаривание</strong> решений администрации в общих чатах запрещено.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн <span>+ мьют на 60 минут</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.5</div>
+                <div class="rule-text">
+                    <strong>Записи матчей.</strong> Игроки обязаны быть готовы предоставить демо-запись или запись экрана по требованию администрации.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Отказ может быть приравнен к нечестной игре <span>(см. п. 3.2)</span></div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">3.6</div>
+                <div class="rule-text">
+                    <strong>Поведение в игре.</strong> Запрещено целенаправленное саботирование, намеренный тим-килл, оскорбительные или расистские никнеймы и теги.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Варн + мьют на 30 минут. <span>Администрация вправе запросить смену никнейма.</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Раздел 4: Дополнительно -->
+    <div class="rules-section" id="section-additional">
+        <div class="rules-section-header">
+            <div class="rules-section-icon">📋</div>
+            <div class="rules-section-title">Дополнительно</div>
+            <div class="rules-section-num">РАЗДЕЛ 4</div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">4.1</div>
+                <div class="rule-text">
+                    Если участник не согласен с наказанием, он вправе <strong>отправить апелляцию</strong> в личные сообщения модератора или администратора.
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">4.2</div>
+                <div class="rule-text"><strong>Система предупреждений (варнов):</strong></div>
+            </div>
+            <div class="warn-grid">
+                <div class="warn-card">
+                    <div class="warn-count">3</div>
+                    <div class="warn-label">варна<br>мьют 7 дней</div>
+                </div>
+                <div class="warn-card">
+                    <div class="warn-count">5</div>
+                    <div class="warn-label">варнов<br>мьют 21 день</div>
+                </div>
+                <div class="warn-card" style="border-color:rgba(224,92,92,0.3);">
+                    <div class="warn-count" style="color:#e05c5c;">7</div>
+                    <div class="warn-label">варнов<br>бан 7 дней</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">4.3</div>
+                <div class="rule-text">
+                    Запрещено <strong>неконструктивное обсуждение действий администрации</strong> в открытых чатах, а также споры и конфликты на эту тему.
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">4.4</div>
+                <div class="rule-text">
+                    Запрещено использование <strong>изъянов и попытки обхода правил</strong> в целях получения выгоды.
+                </div>
+            </div>
+        </div>
+
+        <div class="rule-item">
+            <div class="rule-header">
+                <div class="rule-num">4.5</div>
+                <div class="rule-text">
+                    Запрещён <strong>перезаход на сервер</strong> с целью снятия мьюта или избежания наказания.
+                </div>
+            </div>
+            <div class="rule-penalty">
+                <div class="rule-penalty-icon">⚡</div>
+                <div class="rule-penalty-text">Предупреждение <span>+ возвращение наказания</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Раздел 5: Информация -->
+    <div class="rules-section" id="section-info">
+        <div class="rules-section-header">
+            <div class="rules-section-icon">ℹ️</div>
+            <div class="rules-section-title">Информация</div>
+            <div class="rules-section-num">РАЗДЕЛ 5</div>
+        </div>
+
+        <div class="info-block">
+            <p><strong>5.1</strong>&nbsp;&nbsp;Администрация вправе блокировать проблемных пользователей, деструктивно влияющих на сервер и его участников, включая неконструктивную критику и призывы покинуть сервер.</p>
+        </div>
+        <div class="info-block">
+            <p><strong>5.2</strong>&nbsp;&nbsp;Администрация вправе <strong>на своё усмотрение</strong> определять, что именно является нарушением правил.</p>
+        </div>
+        <div class="info-block">
+            <p><strong>5.3</strong>&nbsp;&nbsp;Команда сервера вправе изменять меру наказания на своё усмотрение — как в сторону уменьшения, так и увеличения, с учётом всех обстоятельств.</p>
+        </div>
+        <div class="info-block">
+            <p><strong>5.4</strong>&nbsp;&nbsp;Нарушение остаётся таковым, <strong>даже если оно скрыто под сарказмом, шуткой, мемом</strong> или облачено в любую иную форму.</p>
+        </div>
+        <div class="info-block">
+            <p><strong>5.5</strong>&nbsp;&nbsp;Администрация вправе выдавать наказания (от варна до перманентного бана) в случае нарушения правил сообщества Discord и условий использования Discord.</p>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<script src="js/common.js" defer></script>
+</body>
+</html>

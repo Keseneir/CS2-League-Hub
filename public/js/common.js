@@ -15,7 +15,7 @@ console.log(
 'color:#ffffff;font-weight:bold;font-style:italic;','color:transparent;',
 'color:#ff4444;font-size:12px;','color:#888;font-size:11px;'
 );
- 
+
 /* ================================================
    AUTH — подключается на всех страницах
    ================================================ */
@@ -23,7 +23,7 @@ async function checkAuth() {
     try {
         const res  = await fetch("/api/user");
         const user = await res.json();
- 
+
         const btnLogin     = document.getElementById("btnSteamLogin");
         const profile      = document.getElementById("headerUserProfile");
         const avatar       = document.getElementById("headerAvatar");
@@ -31,18 +31,18 @@ async function checkAuth() {
         const teamBadge    = document.getElementById("headerTeamBadge");
         const btnApply     = document.getElementById("btnApply");
         const heroBtnApply = document.getElementById("heroBtnApply");
- 
+
         if (user) {
             if (btnLogin)  btnLogin.style.display  = "none";
             if (profile)   profile.style.display   = "flex";
             if (avatar)    avatar.src              = user.avatar;
             if (name)      name.textContent        = user.displayName;
- 
+
             if (teamBadge && user.team) {
                 teamBadge.textContent   = `[${user.team.tag}] ${user.team.name}`;
                 teamBadge.style.display = "inline-flex";
             }
- 
+
             if (profile && !document.getElementById("_dynProfileLink")) {
                 const link = document.createElement("a");
                 link.id        = "_dynProfileLink";
@@ -50,7 +50,7 @@ async function checkAuth() {
                 link.className = "header-profile-link";
                 link.style.position = "relative";
                 link.textContent = "Профиль";
- 
+
                 const badge = document.createElement("span");
                 badge.id = "_dynNotifBadge";
                 badge.style.cssText = [
@@ -74,7 +74,7 @@ async function checkAuth() {
                     "box-shadow:0 0 0 2px #0b0f14",
                 ].join(";");
                 link.appendChild(badge);
- 
+
                 const isProfilePage = window.location.pathname.includes("profile");
                 if (isProfilePage) {
                     link.style.cssText += ";background:rgba(230,176,34,0.12);color:var(--accent);border-color:rgba(230,176,34,0.3);";
@@ -83,7 +83,7 @@ async function checkAuth() {
                 if (logoutBtn) profile.insertBefore(link, logoutBtn);
                 else profile.appendChild(link);
             }
- 
+
             if (btnApply)     { btnApply.href     = "/join.html"; btnApply.removeAttribute("target"); }
             if (heroBtnApply) { heroBtnApply.href = "/join.html"; heroBtnApply.removeAttribute("target"); }
         } else {
@@ -95,33 +95,71 @@ async function checkAuth() {
         return null;
     }
 }
- 
+
 document.addEventListener("DOMContentLoaded", checkAuth);
- 
+
+/* ================================================
+   ЕДИНЫЕ ССЫЛКИ — добавляются на всех страницах
+   автоматически, HTML файлы менять не нужно
+   ================================================ */
+document.addEventListener("DOMContentLoaded", function () {
+    const currentPage = window.location.pathname.split("/").pop() || "index.html";
+
+    // ─── Ссылка «Правила» в хедере ───────────────────────────────────────────
+    // Ищем оба варианта классов (.social-links и .nav-links)
+    const navContainer = document.querySelector(".social-links") || document.querySelector(".nav-links");
+    if (navContainer && !navContainer.querySelector('a[href="rules.html"]')) {
+        const rulesLink = document.createElement("a");
+        rulesLink.href        = "rules.html";
+        rulesLink.textContent = "Правила";
+        if (currentPage === "rules.html") rulesLink.style.color = "var(--accent)";
+
+        // Вставляем после «Рейтинг», или в конец если не найден
+        const ratingLink = [...navContainer.querySelectorAll("a")]
+            .find(a => a.href.includes("leaderboard"));
+        if (ratingLink) ratingLink.after(rulesLink);
+        else navContainer.appendChild(rulesLink);
+    }
+
+    // ─── Ссылка «Правила» в футере ───────────────────────────────────────────
+    const footerLinks = document.querySelector(".footer-links");
+    if (footerLinks && !footerLinks.querySelector('a[href="rules.html"]')) {
+        const rulesFooterLink = document.createElement("a");
+        rulesFooterLink.href        = "rules.html";
+        rulesFooterLink.textContent = "Правила";
+
+        // Вставляем после «Политика конфиденциальности»
+        const privacyLink = [...footerLinks.querySelectorAll("a")]
+            .find(a => a.href.includes("privacy"));
+        if (privacyLink) privacyLink.after(rulesFooterLink);
+        else footerLinks.appendChild(rulesFooterLink);
+    }
+});
+
 /* ================================================
    ГЛОБАЛЬНЫЙ ПОЛЛИНГ УВЕДОМЛЕНИЙ (все страницы)
    ================================================ */
 (function() {
     let _globalPrevCount = -1;
     const _globalAudio   = new Audio("assets/notification.mp3");
- 
+
     async function globalPollNotifs() {
         try {
             const res = await fetch("/api/profile");
             if (!res.ok) return;
             const d = await res.json();
- 
+
             const total =
                 (d.friendRequests || []).length +
                 (d.teamInvites    || []).length +
                 (d.applications   || []).filter(a => a.status !== "pending").length +
                 (d.adminNotices   || []).length;
- 
+
             if (_globalPrevCount >= 0 && total > _globalPrevCount) {
                 _globalAudio.play().catch(() => {});
             }
             _globalPrevCount = total;
- 
+
             const badge = document.getElementById("_dynNotifBadge");
             if (badge) {
                 badge.textContent   = total;
@@ -129,7 +167,7 @@ document.addEventListener("DOMContentLoaded", checkAuth);
             }
         } catch {}
     }
- 
+
     document.addEventListener("DOMContentLoaded", function() {
         setTimeout(function() {
             globalPollNotifs();
@@ -137,7 +175,7 @@ document.addEventListener("DOMContentLoaded", checkAuth);
         }, 1500);
     });
 })();
- 
+
 /* ================================================
    ANTI-CLONE
    ================================================ */

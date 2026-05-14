@@ -5,61 +5,360 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Пользовательское соглашение — CS2 League Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <style>
-        body { background: #0b0f12; color: #ccc; font-family: 'Inter', sans-serif; padding: 40px; line-height: 1.6; }
-        h1 { color: white; }
-        h2 { color: #e6b022; margin-top: 30px; }
-        .container { max-width: 800px; margin: 0 auto; background: #1b1f24; padding: 40px; border-radius: 8px; border: 1px solid #333; }
-        a { color: #e6b022; }
-        .meta { font-size: 13px; color: #5c6b7f; margin-bottom: 24px; }
-        ul { padding-left: 20px; margin: 8px 0; }
-        ul li { margin-bottom: 4px; }
-        strong { color: white; }
+      html { scroll-behavior: smooth; }
+      .doc-layout {
+        display: flex; max-width: 1280px; margin: 0 auto;
+        padding: 2rem 1.5rem; gap: 2.5rem; align-items: flex-start;
+      }
+      .side-nav {
+        width: 260px; flex-shrink: 0; position: sticky; top: 88px;
+        max-height: calc(100vh - 100px); overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: #1f252c transparent;
+      }
+      .side-nav::-webkit-scrollbar { width: 4px; }
+      .side-nav::-webkit-scrollbar-thumb { background: #1f252c; border-radius: 2px; }
+      .nav-section-label {
+        font-family: 'Montserrat', sans-serif; font-weight: 700;
+        font-size: .65rem; letter-spacing: .14em; text-transform: uppercase;
+        color: #aebbc7; padding: 0 .75rem .5rem; margin-bottom: .2rem; opacity: .7;
+      }
+      .nav-item {
+        display: flex; align-items: flex-start; gap: .6rem;
+        padding: .5rem .75rem; border-radius: 6px; cursor: pointer;
+        transition: background .15s, color .15s; text-decoration: none;
+        color: #aebbc7; font-size: .82rem; border: 1px solid transparent;
+        margin-bottom: 2px; line-height: 1.35;
+      }
+      .nav-item:hover { background: #12171d; color: #fff; }
+      .nav-item.active { background: rgba(230,176,34,.1); color: #e6b022; border-color: rgba(230,176,34,.25); }
+      .nav-item .num {
+        font-family: 'Montserrat', sans-serif; font-weight: 800;
+        font-size: .7rem; min-width: 18px; text-align: center; opacity: .6; flex-shrink: 0; padding-top: 1px;
+      }
+      .doc-content { flex: 1; min-width: 0; }
+      .doc-hero {
+        background: linear-gradient(135deg, #0f1217 0%, #161b22 50%, #0f1217 100%);
+        border: 1px solid #1f252c; border-radius: 12px;
+        padding: 2.5rem 2rem; margin-bottom: 2rem; position: relative; overflow: hidden;
+      }
+      .doc-hero::before {
+        content: ''; position: absolute; inset: 0;
+        background: repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(230,176,34,.015) 40px,rgba(230,176,34,.015) 41px);
+      }
+      .doc-hero::after {
+        content: ''; position: absolute; top: 0; left: 0; right: 0;
+        height: 2px; background: linear-gradient(90deg,transparent,#e6b022,transparent);
+      }
+      .doc-hero h1 {
+        font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.9rem;
+        letter-spacing: .04em; text-transform: uppercase; color: #fff;
+        margin-bottom: .4rem; position: relative;
+      }
+      .doc-hero h1 span { color: #e6b022; }
+      .doc-hero .meta { font-size: .8rem; color: #aebbc7; position: relative; }
+      .doc-section {
+        background: #0e1318; border: 1px solid #1f252c; border-radius: 10px;
+        margin-bottom: 1.25rem; overflow: hidden; scroll-margin-top: 90px;
+      }
+      .doc-section-header {
+        display: flex; align-items: center; gap: 1rem; padding: 1rem 1.4rem;
+        background: #12171d; border-bottom: 1px solid #1f252c;
+        cursor: pointer; user-select: none;
+      }
+      .doc-section-header:hover { background: #1a2030; }
+      .doc-sec-num {
+        font-family: 'Montserrat', sans-serif; font-weight: 800;
+        font-size: 1.25rem; color: #e6b022; min-width: 1.8rem; line-height: 1;
+      }
+      .doc-sec-title {
+        font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: .92rem;
+        letter-spacing: .04em; text-transform: uppercase; color: #fff; flex: 1;
+      }
+      .chevron { color: #aebbc7; transition: transform .25s; font-size: .75rem; }
+      .doc-section.open .chevron { transform: rotate(180deg); }
+      .doc-section-body { display: none; padding: 1.25rem 1.4rem 1.5rem; }
+      .doc-section.open .doc-section-body { display: block; }
+      .doc-p {
+        background: #0b0f12; border: 1px solid #1f252c; border-radius: 8px;
+        padding: .85rem 1.1rem .85rem 1.5rem; margin-bottom: .55rem;
+        font-size: .875rem; line-height: 1.72; color: #aebbc7; position: relative;
+      }
+      .doc-p:last-child { margin-bottom: 0; }
+      .doc-p::before {
+        content: '►'; position: absolute; left: .6rem; top: 1rem;
+        color: #e6b022; font-size: .52rem; opacity: .6;
+      }
+      .doc-p strong { color: #fff; }
+      .doc-p a { color: #e6b022; text-decoration: none; }
+      .doc-p a:hover { text-decoration: underline; }
+      .doc-p.alert { border-color: rgba(224,92,92,.35); background: rgba(224,92,92,.04); }
+      .doc-p.alert::before { color: #e05c5c; opacity: 1; }
+      .doc-p.note { border-color: rgba(230,176,34,.25); background: rgba(230,176,34,.04); }
+      .doc-list {
+        margin: .5rem 0 0 .25rem; padding-left: 1rem;
+        font-size: .875rem; color: #aebbc7; line-height: 1.85;
+      }
+      .doc-list li { margin-bottom: .1rem; }
+      .doc-list li strong { color: #fff; }
+      .warn-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: .6rem; }
+      .warn-table th {
+        font-family: 'Montserrat', sans-serif; font-weight: 700; text-align: left;
+        padding: .5rem .75rem; background: #12171d; color: #aebbc7;
+        font-size: .72rem; letter-spacing: .07em; text-transform: uppercase;
+        border-bottom: 1px solid #1f252c;
+      }
+      .warn-table td { padding: .55rem .75rem; border-bottom: 1px solid #1f252c; color: #fff; }
+      .warn-table tr:last-child td { border-bottom: none; }
+      .badge {
+        display: inline-block; padding: .12rem .5rem; border-radius: 4px;
+        font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: .75rem;
+      }
+      .badge-warn { background: rgba(230,176,34,.15); color: #e6b022; }
+      .badge-ban  { background: rgba(224,92,92,.12);  color: #e05c5c; }
+      .tag {
+        display: inline-block; font-size: .63rem; font-family: 'Montserrat', sans-serif;
+        font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+        padding: .1rem .4rem; border-radius: 4px; margin-left: .35rem; vertical-align: middle;
+      }
+      .tag-fixed { background: rgba(76,175,130,.15); color: #4caf82; border: 1px solid rgba(76,175,130,.3); }
+      .tag-new   { background: rgba(88,166,255,.12);  color: #58a6ff; border: 1px solid rgba(88,166,255,.3); }
+      .mobile-nav-toggle {
+        display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 300;
+        background: #e6b022; color: #000; border: none; border-radius: 50%;
+        width: 52px; height: 52px; font-size: 1.3rem; cursor: pointer;
+        box-shadow: 0 4px 20px rgba(230,176,34,.4); align-items: center; justify-content: center;
+      }
+      .mobile-nav-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 250; }
+      .mobile-nav-panel {
+        position: fixed; top: 0; right: 0; height: 100vh; width: 280px;
+        background: #0e1318; border-left: 1px solid #1f252c; z-index: 260;
+        padding: 1.5rem 1rem; overflow-y: auto;
+        transform: translateX(100%); transition: transform .3s ease;
+      }
+      .mobile-nav-panel.open { transform: translateX(0); }
+      @media (max-width: 900px) {
+        .side-nav { display: none; }
+        .mobile-nav-toggle { display: flex; }
+        .doc-layout { padding: 1.5rem 1rem; }
+      }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Пользовательское соглашение</h1>
-        <p class="meta">Последнее обновление: 14 апреля 2026 г.</p>
+<body class="page-terms">
 
-        <h2>1. Общие положения</h2>
-        <p>1.1. Настоящее Соглашение определяет правила использования сайта и участия в мероприятиях проекта CS2 League Hub.</p>
-        <p>1.2. CS2 League Hub является независимым сообществом и организатором любительских турниров. Проект не связан с Valve Corporation, Steam или платформой FACEIT. Все торговые марки принадлежат их законным владельцам.</p>
-        <p>1.3. Используя ресурсы проекта или подавая заявку на турнир, пользователь подтверждает полное согласие с данным документом.</p>
-
-        <h2>2. Статус турниров и взносов</h2>
-        <p>2.1. Участие в турнирах является добровольным. Взносы за участие (Entry Fees) направляются на формирование призового фонда и техническое обеспечение проекта.</p>
-        <p>2.2. <strong>Политика возврата:</strong> Возврат взноса возможен исключительно в случае полной отмены турнира по вине Организатора. В случае дисквалификации команды за нарушение правил (читы, неявка, деструктивное поведение) взнос <strong>не возвращается</strong>.</p>
-        <p>2.3. <strong>Выплаты призовых:</strong> Выплата производится в течение 24 часов после окончания финала.</p>
-        <p>При использовании внутриигровых предметов (скинов) для оплаты или формирования фонда срок выплаты может быть увеличен до 8 (восьми) суток в связи с техническими ограничениями платформы Steam (Trade Ban).</p>
-
-        <h2>3. Правила честной игры (Fair Play)</h2>
-        <p>3.1. <strong>Античит:</strong> Использование любого ПО, дающего преимущество (читы, скрипты, макросы), запрещено. Наказание — пожизненный бан и аннулирование всех результатов.</p>
-        <p>3.2. <strong>Верификация:</strong> Администрация вправе в любой момент потребовать запись матча (демо) или фрагменты видео игрового процесса. Отказ приравнивается к признанию в нечестной игре.</p>
-        <p>3.3. <strong>Смурфинг:</strong> Участие с неосновных аккаунтов или подмена игрока (Multi-accounting) запрещены.</p>
-
-        <h2>4. Регламент поведения и дисциплина</h2>
-        <p>4.1. В сообществе запрещены оскорбления, дискриминация, обсуждение политики и религии, а также публикация контента 18+ и шок-контента.</p>
-        <p>4.2. <strong>Система взысканий</strong> — в проекте действует система «Варнов» (предупреждений):</p>
-        <ul>
-            <li>3 варна — ограничение общения (мьют) на 7 дней</li>
-            <li>5 варнов — мьют на 21 день</li>
-            <li>7 варнов — полная блокировка (бан) на 7 дней и более</li>
-        </ul>
-        <p>4.3. Запрещено выдавать себя за представителя администрации или разглашать личные данные участников.</p>
-
-        <h2>5. Ответственность сторон</h2>
-        <p>5.1. Услуги предоставляются по принципу «как есть» (as is). Организатор не несёт ответственности за сбои на серверах Valve, Steam, FACEIT или провайдеров интернета.</p>
-        <p>5.2. Администрация оставляет за собой право блокировать пользователей, чьи действия носят деструктивный характер для имиджа или функционирования проекта.</p>
-        <p>5.3. Организатор вправе изменять условия настоящего Соглашения. Продолжение использования ресурсов проекта после внесения изменений означает их автоматическое принятие.</p>
-
-        <h2>6. Апелляции и споры</h2>
-        <p>6.1. Все споры по результатам матчей решаются капитанами команд через официальный канал тех-поддержки.</p>
-        <p>6.2. Публичное обсуждение или саботаж решений администрации в общих чатах является нарушением дисциплины и влечёт за собой санкции (мьют/варн).</p>
-
-        <br>
-        <a href="index.html">← Вернуться на главную</a>
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="rules.html">Правила</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-mobile-link">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-mobile-link">Discord</a>
+        </div>
+        <a href="/auth/steam?redirect=/terms.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info"><span id="headerName" class="header-username"></span></div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+        <a href="join.html" id="btnApply" class="btn-apply">ПОДАТЬ ЗАЯВКУ</a>
     </div>
+</header>
+
+<div class="doc-layout">
+
+  <!-- SIDEBAR NAV -->
+  <nav class="side-nav" id="sideNav">
+    <div class="nav-section-label">Содержание</div>
+    <a class="nav-item active" href="#s1" onclick="setActive(this)"><span class="num">1</span> Общие положения</a>
+    <a class="nav-item" href="#s2" onclick="setActive(this)"><span class="num">2</span> Взносы и выплаты</a>
+    <a class="nav-item" href="#s3" onclick="setActive(this)"><span class="num">3</span> Честная игра</a>
+    <a class="nav-item" href="#s4" onclick="setActive(this)"><span class="num">4</span> Дисциплина</a>
+    <a class="nav-item" href="#s5" onclick="setActive(this)"><span class="num">5</span> Ответственность</a>
+    <a class="nav-item" href="#s6" onclick="setActive(this)"><span class="num">6</span> Апелляции</a>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="doc-content">
+
+    <div class="doc-hero">
+      <h1>Пользовательское <span>соглашение</span></h1>
+      <p class="meta">Последнее обновление: 14 мая 2026 г. &nbsp;·&nbsp; Вступает в силу с момента публикации</p>
+    </div>
+
+    <!-- 1 -->
+    <div class="doc-section open" id="s1">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">1</span>
+        <span class="doc-sec-title">Общие положения</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p">Настоящее Соглашение определяет правила использования сайта и участия в мероприятиях проекта <strong>CS2 League Hub</strong>.</div>
+        <div class="doc-p">CS2 League Hub является независимым сообществом и организатором любительских турниров. Проект не связан с <strong>Valve Corporation</strong>, Steam или платформой <strong>FACEIT</strong>. Все торговые марки принадлежат их законным владельцам.</div>
+        <div class="doc-p">Используя ресурсы проекта или подавая заявку на участие в турнире, пользователь подтверждает <strong>полное согласие</strong> с настоящим документом.</div>
+        <div class="doc-p">Администрация вправе изменять условия Соглашения. Продолжение использования сайта после внесения изменений означает их автоматическое принятие. О существенных изменениях пользователи уведомляются через официальные каналы проекта.</div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="doc-section open" id="s2">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">2</span>
+        <span class="doc-sec-title">Взносы и выплата призовых</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p">Участие в турнирах является добровольным. Взносы за участие (Entry Fees) направляются на формирование призового фонда и техническое обеспечение проекта.</div>
+        <div class="doc-p alert"><strong>Политика возврата.</strong> Возврат взноса возможен исключительно при полной отмене турнира по вине Организатора. При дисквалификации команды за нарушение правил (читы, неявка, деструктивное поведение) взнос <strong>не возвращается</strong>.</div>
+        <div class="doc-p"><strong>Выплаты призовых</strong> производятся в течение <strong>24 часов</strong> после окончания финального матча. При использовании внутриигровых предметов (скинов) срок может быть увеличен до <strong>8 суток</strong> в связи с ограничениями платформы Steam (Trade Ban).</div>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="doc-section open" id="s3">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">3</span>
+        <span class="doc-sec-title">Честная игра (Fair Play)</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p alert"><strong>Античит.</strong> Использование любого ПО, дающего нечестное преимущество (читы, скрипты, макросы, эксплойты карт), запрещено. Наказание — <strong>пожизненный бан</strong> и аннулирование всех результатов.</div>
+        <div class="doc-p"><strong>Верификация.</strong> Администрация вправе в любой момент потребовать демо-запись или видео игрового процесса. Отказ от предоставления записи приравнивается к признанию в нечестной игре.</div>
+        <div class="doc-p alert"><strong>Смурфинг и подмена игрока.</strong> Участие с неосновных аккаунтов или аккаунтов с искусственно заниженным рейтингом запрещено. Каждый участник обязан играть только на своём основном аккаунте. Наказание — <strong>перманентный бан</strong>.</div>
+        <div class="doc-p alert"><strong>Стримснайпинг.</strong> Намеренное использование прямой трансляции соперника для получения игровых преимуществ запрещено. Наказание — техническое поражение в матче; при повторном нарушении — дисквалификация с турнира.</div>
+        <div class="doc-p alert"><strong>Аккаунт-шеринг.</strong> Передача доступа к аккаунту третьим лицам запрещена. Владелец несёт полную ответственность за все действия, совершённые с его учётной записи.</div>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="doc-section open" id="s4">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">4</span>
+        <span class="doc-sec-title">Дисциплина и система взысканий</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p">В сообществе запрещены оскорбления, дискриминация по любому признаку, обсуждение политических и религиозных тем, публикация материалов 18+ и шок-контента.</div>
+        <div class="doc-p">Запрещено выдавать себя за представителя администрации, а также разглашать личные данные других участников (деанонимизация). При умысле или повторном нарушении — перманентный бан.</div>
+        <div class="doc-p note">
+          <strong>Система варнов.</strong> За каждое нарушение начисляется 1 варн. Срок давности варна — <strong>90 дней</strong>.
+          <table class="warn-table">
+            <tr><th>Количество варнов</th><th>Наказание</th></tr>
+            <tr><td><span class="badge badge-warn">3 варна</span></td><td>Мьют 7 дней</td></tr>
+            <tr><td><span class="badge badge-warn">5 варнов</span></td><td>Мьют 21 день</td></tr>
+            <tr><td><span class="badge badge-warn">7 варнов</span></td><td>Бан 7 дней</td></tr>
+            <tr><td><span class="badge badge-ban">10 варнов</span></td><td>Перманентный бан (с правом апелляции)</td></tr>
+          </table>
+        </div>
+        <div class="doc-p">Администрация вправе изменять меру наказания как в сторону уменьшения, так и увеличения с учётом всех обстоятельств (п. 5.3 Правил).</div>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="doc-section open" id="s5">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">5</span>
+        <span class="doc-sec-title">Ответственность сторон</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p">Услуги предоставляются по принципу «<strong>как есть</strong>» (as is). Организатор не несёт ответственности за сбои на серверах Valve, Steam, FACEIT или у интернет-провайдеров.</div>
+        <div class="doc-p">Администрация оставляет за собой право блокировать пользователей, чьи действия носят деструктивный характер для имиджа или функционирования проекта.</div>
+        <div class="doc-p">Участники обязаны соблюдать применимое законодательство своей страны. Администрация вправе передавать информацию о нарушениях в правоохранительные органы в случаях, предусмотренных законом.</div>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="doc-section open" id="s6">
+      <div class="doc-section-header" onclick="toggleSection(this)">
+        <span class="doc-sec-num">6</span>
+        <span class="doc-sec-title">Апелляции и споры</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="doc-section-body">
+        <div class="doc-p">Все споры по результатам матчей решаются капитанами команд через официальный канал <a href="https://discord.gg/95mhGEQRTt" target="_blank">тех-поддержки</a>. Апелляция рассматривается в течение <strong>72 часов</strong>.</div>
+        <div class="doc-p">Публичное обсуждение или оспаривание решений администрации в общих чатах является нарушением и влечёт санкции (варн / мьют).</div>
+        <div class="doc-p">Если участник не согласен с наказанием, он вправе направить апелляцию через раздел Поддержка или в личное сообщение модератора/администратора.</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9-.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html" style="color: var(--accent);">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<button class="mobile-nav-toggle" id="mobileNavBtn">☰</button>
+<div class="mobile-nav-overlay" id="mobileOverlay" onclick="closeMobileNav()"></div>
+<div class="mobile-nav-panel" id="mobileNavPanel">
+    <div class="nav-section-label">Содержание</div>
+    <a class="nav-item" href="#s1" onclick="closeMobileNav()"><span class="num">1</span> Общие положения</a>
+    <a class="nav-item" href="#s2" onclick="closeMobileNav()"><span class="num">2</span> Взносы и выплаты</a>
+    <a class="nav-item" href="#s3" onclick="closeMobileNav()"><span class="num">3</span> Честная игра</a>
+    <a class="nav-item" href="#s4" onclick="closeMobileNav()"><span class="num">4</span> Дисциплина</a>
+    <a class="nav-item" href="#s5" onclick="closeMobileNav()"><span class="num">5</span> Ответственность</a>
+    <a class="nav-item" href="#s6" onclick="closeMobileNav()"><span class="num">6</span> Апелляции</a>
+</div>
+
+<script src="js/common.js" defer></script>
+<script>
+  function toggleSection(h) { h.parentElement.classList.toggle('open'); }
+  function setActive(el) {
+    document.querySelectorAll('.side-nav .nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.getElementById('mobileNavBtn').addEventListener('click', () => {
+    document.getElementById('mobileNavPanel').classList.add('open');
+    document.getElementById('mobileOverlay').style.display = 'block';
+  });
+  function closeMobileNav() {
+    document.getElementById('mobileNavPanel').classList.remove('open');
+    document.getElementById('mobileOverlay').style.display = 'none';
+  }
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        document.querySelectorAll('.side-nav .nav-item').forEach(l => {
+          l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  ['s1','s2','s3','s4','s5','s6'].forEach(id => {
+    const el = document.getElementById(id); if (el) observer.observe(el);
+  });
+</script>
 </body>
 </html>

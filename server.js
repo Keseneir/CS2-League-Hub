@@ -53,8 +53,7 @@ passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
   try {
     await connectDB();
-    const UserModel = mongoose.model("User");
-    const user = await UserModel.findById(id);
+    const user = await User.findById(id);
     done(null, user);
   } catch (err) {
     done(err, null);
@@ -155,7 +154,7 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ─── Запуск ──────────────────────────────────────────────────────────────
+// ─── Запуск ───────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 module.exports = app;

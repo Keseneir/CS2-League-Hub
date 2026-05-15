@@ -241,8 +241,7 @@ router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
     const apiKey   = process.env.STEAM_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Steam API key не настроен" });
 
-    const params = encodeURIComponent(JSON.stringify({ steamid: steamId, include_appinfo: false, appids_filter: [730] }));
-    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&input_json=${params}`;
+    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_appinfo=false&include_played_free_games=true`;
     const response = await fetch(url);
     if (!response.ok) return res.status(502).json({ error: "Ошибка Steam API" });
 

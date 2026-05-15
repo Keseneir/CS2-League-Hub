@@ -224,7 +224,7 @@
 
 <main class="main">
 
-    //лидерборд
+    
     <div class="tab-panel active" id="panel-leaderboard">
 
         <div class="section-title">Сезоны</div>
@@ -314,7 +314,7 @@
         </div>
     </div>
 
-//команды
+
     <div class="tab-panel" id="panel-teams">
         <div class="section-title">
             Зарегистрированные команды
@@ -328,7 +328,7 @@
         </div>
     </div>
 
-    //заявки
+    
     <div class="tab-panel" id="panel-applications">
         <div class="section-title">
             Заявки на участие
@@ -342,7 +342,7 @@
         </div>
     </div>
 
-    //игркои
+    
     <div class="tab-panel" id="panel-players">
         <div class="section-title">
             Все игроки
@@ -356,7 +356,7 @@
         </div>
     </div>
 
-    //ранги
+    
     <div class="tab-panel" id="panel-ranks">
         <div class="section-title">
             Управление рангами
@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    //ТУРНИРЫ
+    
     <div class="tab-panel" id="panel-tournaments">
 
         <div class="cards-grid" style="max-width:620px;">
@@ -460,7 +460,7 @@
             <div class="empty-state"><div class="empty-state-icon">🎮</div><p>Загрузка...</p></div>
         </div>
 
-        //список регистраций на тур 
+        
         <div id="tournamentRegistrationsSection" style="display:none;margin-top:24px;">
             <div class="section-title">
                 Заявки турнира: <span id="tnRegTitle" style="color:var(--accent);"></span>
@@ -476,7 +476,7 @@
 </main>
 
 
-//увед игроку, модаальное окно
+
 <div class="modal-overlay" id="playerNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -498,7 +498,7 @@
     </div>
 </div>
 
-//модал, соо тиме
+
 <div class="modal-overlay" id="customNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -520,7 +520,7 @@
     </div>
 </div>
 
-//редакт статы модальное окно
+
 <div class="modal-overlay" id="editStatModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -554,7 +554,7 @@
     </div>
 </div>
 
-//модалка назначить ранг
+
 <div class="modal-overlay" id="assignRankModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -570,7 +570,7 @@
                     <option value="Unranked">— Unranked (без ранга) —</option>
                 </select>
             </div>
-            //превью ранга
+            
             <div id="assignRankPreview" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;"></div>
         </div>
         <div class="modal-foot">
@@ -580,7 +580,7 @@
     </div>
 </div>
 
-//модал редакт ранга
+
 <div class="modal-overlay" id="editRankModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -615,7 +615,7 @@
     </div>
 </div>
 
-//модал подтверждения
+
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -636,7 +636,7 @@
 
 <script>
 
-//утилки
+
 function toast(msg, type = "ok") {
     const t = document.getElementById("toast");
     t.textContent = msg;

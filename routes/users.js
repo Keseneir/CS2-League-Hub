@@ -7,7 +7,7 @@ const Rank                = require("../models/Rank");
 const { requireAuth }     = require("../middleware/auth");
 const { ADMIN_STEAM_ID }  = require("../config/constants");
 
-
+// GET /api/config — публичные клиентские ключи
 router.get("/config", (req, res) => {
   res.json({
     cloudinaryCloud:  process.env.CLOUDINARY_CLOUD_NAME   || "",
@@ -15,7 +15,7 @@ router.get("/config", (req, res) => {
   });
 });
 
-
+// GET /api/user
 router.get("/user", async (req, res) => {
   if (!req.isAuthenticated()) return res.json(null);
   const { steamId, displayName, avatar, rank, teamId } = req.user;
@@ -27,7 +27,7 @@ router.get("/user", async (req, res) => {
   res.json({ steamId, displayName, avatar, rank, team, isAdmin });
 });
 
-
+// GET /api/profile
 router.get("/profile", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -80,7 +80,7 @@ router.get("/profile", requireAuth, async (req, res) => {
   }
 });
 
-
+// PATCH /api/profile/stats
 router.patch("/profile/stats", requireAuth, async (req, res) => {
   try {
     const { faceitLevel, hoursInCS2, bio, isPrivate, telegramUsername, discordUsername } = req.body;
@@ -128,7 +128,7 @@ router.patch("/profile/stats", requireAuth, async (req, res) => {
   }
 });
 
-
+// POST /api/profile/dismiss-notice
 router.post("/profile/dismiss-notice", requireAuth, async (req, res) => {
   try {
     const { idx } = req.body;
@@ -146,7 +146,7 @@ router.post("/profile/dismiss-notice", requireAuth, async (req, res) => {
   }
 });
 
-
+// GET /api/notifications/count
 router.get("/notifications/count", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -160,7 +160,7 @@ router.get("/notifications/count", requireAuth, async (req, res) => {
   }
 });
 
-
+// GET /api/users/search  ← ВАЖНО: должен быть ВЫШЕ /users/:steamId/public
 router.get("/users/search", requireAuth, async (req, res) => {
   const q = (req.query.q || "").trim();
   if (q.length < 2) return res.json([]);
@@ -189,7 +189,7 @@ router.get("/users/search", requireAuth, async (req, res) => {
   }
 });
 
-
+// GET /api/users/:steamId/public  ← ВАЖНО: должен быть НИЖЕ /users/search
 router.get("/users/:steamId/public", async (req, res) => {
   try {
     const user = await User.findOne({ steamId: req.params.steamId })
@@ -234,14 +234,15 @@ router.get("/users/:steamId/public", async (req, res) => {
 });
 
 
-
+// POST /api/profile/sync-steam-hours — получить часы из Steam API
 router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
   try {
     const steamId  = req.user.steamId;
     const apiKey   = process.env.STEAM_API_KEY;
     if (!apiKey) return res.status(500).json({ error: "Steam API key не настроен" });
 
-    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_appinfo=false&appids_filter[0]=730`;
+    const params = encodeURIComponent(JSON.stringify({ steamid: steamId, include_appinfo: false, appids_filter: [730] }));
+    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&input_json=${params}`;
     const response = await fetch(url);
     if (!response.ok) return res.status(502).json({ error: "Ошибка Steam API" });
 
@@ -250,7 +251,7 @@ router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
     const cs2   = games.find(g => g.appid === 730);
 
     if (!cs2) {
-      return res.status(404).json({ error: "CS2 не найден в Steam библиотеке. Убедитесь что профиль Steam публичный." });
+      return res.status(404).json({ error: "CS2 не найден. Проверьте: Профиль Steam → Изменить профиль → Настройки конфиденциальности → 'Подробности об играх' = Открытый" });
     }
 
     const hours = Math.round((cs2.playtime_forever || 0) / 60);

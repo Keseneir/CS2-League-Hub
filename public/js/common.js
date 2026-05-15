@@ -16,9 +16,6 @@ console.log(
 'color:#ff4444;font-size:12px;','color:#888;font-size:11px;'
 );
 
-/* ================================================
-   AUTH — подключается на всех страницах
-   ================================================ */
 async function checkAuth() {
     try {
         const res  = await fetch("/api/user");
@@ -98,15 +95,11 @@ async function checkAuth() {
 
 document.addEventListener("DOMContentLoaded", checkAuth);
 
-/* ================================================
-   ЕДИНЫЕ ССЫЛКИ — добавляются на всех страницах
-   автоматически, HTML файлы менять не нужно
-   ================================================ */
+//единые ссылки на всех страницах
 document.addEventListener("DOMContentLoaded", function () {
     const currentPage = window.location.pathname.split("/").pop() || "index.html";
 
-    // ─── Ссылка «Правила» в хедере ───────────────────────────────────────────
-    // Ищем оба варианта классов (.social-links и .nav-links)
+    
     const navContainer = document.querySelector(".social-links") || document.querySelector(".nav-links");
     if (navContainer && !navContainer.querySelector('a[href="rules.html"]')) {
         const rulesLink = document.createElement("a");
@@ -114,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
         rulesLink.textContent = "Правила";
         if (currentPage === "rules.html") rulesLink.style.color = "var(--accent)";
 
-        // Вставляем после «Рейтинг», или в конец если не найден
+        
         const ratingLink = [...navContainer.querySelectorAll("a")]
             .find(a => a.href.includes("leaderboard"));
         if (ratingLink) ratingLink.after(rulesLink);
@@ -122,7 +115,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-    // ─── Контакты в футере ───────────────────────────────────────────────────
+    //контактты футер
     const footerInner = document.querySelector(".footer-inner");
     if (footerInner && !document.getElementById("_dynFooterContacts")) {
         const contacts = document.createElement("div");
@@ -143,13 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
             </a>
         `;
 
-        // Вставляем перед .footer-divider или перед .footer-copy
+        //перед ращлелителеи
         const divider = footerInner.querySelector(".footer-divider");
         if (divider) footerInner.insertBefore(contacts, divider);
         else footerInner.appendChild(contacts);
     }
 
-    // ─── Ссылка «Правила» в футере ───────────────────────────────────────────
+    //правила футер
     const footerLinks = document.querySelector(".footer-links");
     if (footerLinks && !footerLinks.querySelector('a[href="rules.html"]')) {
         const rulesFooterLink = document.createElement("a");
@@ -164,9 +157,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-/* ================================================
-   ГЛОБАЛЬНЫЙ ПОЛЛИНГ УВЕДОМЛЕНИЙ (все страницы)
-   ================================================ */
+//уведомления на всех стрницах
 (function() {
     let _globalPrevCount = -1;
     const _globalAudio   = new Audio("assets/notification.mp3");
@@ -204,9 +195,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 })();
 
-/* ================================================
-   ANTI-CLONE
-   ================================================ */
+
 (function() {
     const isOriginal = window.location.hostname === "cs2-league-hub.vercel.app" || window.location.hostname === "localhost";
     if (!isOriginal) {

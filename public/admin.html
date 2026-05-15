@@ -224,7 +224,7 @@
 
 <main class="main">
 
-    <!-- ══ ЛИДЕРБОРД ══ -->
+    //лидерборд
     <div class="tab-panel active" id="panel-leaderboard">
 
         <div class="section-title">Сезоны</div>
@@ -314,7 +314,7 @@
         </div>
     </div>
 
-    <!-- ══ КОМАНДЫ ══ -->
+//команды
     <div class="tab-panel" id="panel-teams">
         <div class="section-title">
             Зарегистрированные команды
@@ -328,7 +328,7 @@
         </div>
     </div>
 
-    <!-- ══ ЗАЯВКИ ══ -->
+    //заявки
     <div class="tab-panel" id="panel-applications">
         <div class="section-title">
             Заявки на участие
@@ -342,7 +342,7 @@
         </div>
     </div>
 
-    <!-- ══ ИГРОКИ ══ -->
+    //игркои
     <div class="tab-panel" id="panel-players">
         <div class="section-title">
             Все игроки
@@ -356,7 +356,7 @@
         </div>
     </div>
 
-    <!-- ══ РАНГИ ══ -->
+    //ранги
     <div class="tab-panel" id="panel-ranks">
         <div class="section-title">
             Управление рангами
@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    <!-- ══ ТУРНИРЫ ══ -->
+    //ТУРНИРЫ
     <div class="tab-panel" id="panel-tournaments">
 
         <div class="cards-grid" style="max-width:620px;">
@@ -460,7 +460,7 @@
             <div class="empty-state"><div class="empty-state-icon">🎮</div><p>Загрузка...</p></div>
         </div>
 
-        <!-- Список регистраций выбранного турнира -->
+        //список регистраций на тур 
         <div id="tournamentRegistrationsSection" style="display:none;margin-top:24px;">
             <div class="section-title">
                 Заявки турнира: <span id="tnRegTitle" style="color:var(--accent);"></span>
@@ -476,7 +476,7 @@
 </main>
 
 
-<!-- ── Модалка: уведомление игроку ── -->
+//увед игроку, модаальное окно
 <div class="modal-overlay" id="playerNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -498,7 +498,7 @@
     </div>
 </div>
 
-<!-- ── Модалка: сообщение команде ── -->
+//модал, соо тиме
 <div class="modal-overlay" id="customNoticeModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -520,7 +520,7 @@
     </div>
 </div>
 
-<!-- ── Модалка: редактировать статистику ── -->
+//редакт статы модальное окно
 <div class="modal-overlay" id="editStatModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -554,7 +554,7 @@
     </div>
 </div>
 
-<!-- ── Модалка: назначить ранг игроку ── -->
+//модалка назначить ранг
 <div class="modal-overlay" id="assignRankModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -570,7 +570,7 @@
                     <option value="Unranked">— Unranked (без ранга) —</option>
                 </select>
             </div>
-            <!-- превью выбранного ранга -->
+            //превью ранга
             <div id="assignRankPreview" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;"></div>
         </div>
         <div class="modal-foot">
@@ -580,7 +580,7 @@
     </div>
 </div>
 
-<!-- ── Модалка: редактировать ранг ── -->
+//модал редакт ранга
 <div class="modal-overlay" id="editRankModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -615,7 +615,7 @@
     </div>
 </div>
 
-<!-- ── Модалка: подтверждение ── -->
+//модал подтверждения
 <div class="modal-overlay" id="confirmModal">
     <div class="modal-panel">
         <div class="modal-head">
@@ -636,9 +636,7 @@
 
 <script>
 
-/* ══════════════════════════════════════════
-   УТИЛИТЫ
-══════════════════════════════════════════ */
+//утилки
 function toast(msg, type = "ok") {
     const t = document.getElementById("toast");
     t.textContent = msg;
@@ -682,9 +680,7 @@ function rankSwatchHtml(rankName, color) {
     </span>`;
 }
 
-/* ══════════════════════════════════════════
-   СОСТОЯНИЕ
-══════════════════════════════════════════ */
+//статус
 let _seasons    = [];
 let _activeSid  = null;
 let _lbStats    = [];
@@ -699,9 +695,7 @@ let _assignRankUserId = null;
 let _tournaments = [];
 let _editTournamentId = null;
 
-/* ══════════════════════════════════════════
-   INIT
-══════════════════════════════════════════ */
+//инит
 async function init() {
     try {
         const res  = await fetch("/api/user");
@@ -718,9 +712,7 @@ async function init() {
     loadApplications();
 }
 
-/* ══════════════════════════════════════════
-   ТАБЫ
-══════════════════════════════════════════ */
+//табы
 document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", function() {
         document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -742,9 +734,7 @@ document.addEventListener("keydown", e => {
     if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id));
 });
 
-/* ══════════════════════════════════════════
-   СЕЗОНЫ
-══════════════════════════════════════════ */
+//сезоны и лидерборд
 async function loadSeasons() {
     try {
         const res = await fetch("/api/admin/seasons");
@@ -826,9 +816,7 @@ async function deleteSeason(sid, name) {
     });
 }
 
-/* ══════════════════════════════════════════
-   ЛИДЕРБОРД
-══════════════════════════════════════════ */
+//лидерборд
 async function loadLbStats() {
     if (!_activeSid) return;
     try {
@@ -976,9 +964,7 @@ async function recordMatch() {
     finally { if (btn) { btn.disabled = false; btn.textContent = "✔ Записать матч"; } }
 }
 
-/* ══════════════════════════════════════════
-   КОМАНДЫ
-══════════════════════════════════════════ */
+//команды
 async function loadAllTeams() {
     try {
         const res = await fetch("/api/admin/teams");
@@ -1083,9 +1069,7 @@ async function disbandTeam(teamId, name) {
     });
 }
 
-/* ══════════════════════════════════════════
-   ЗАЯВКИ
-══════════════════════════════════════════ */
+//заявки (!!потом убрать)
 async function loadApplications() {
     try {
         const res  = await fetch("/api/admin/applications");
@@ -1185,9 +1169,7 @@ async function updateApp(id, status) {
     } catch { toast("Ошибка соединения", "err"); }
 }
 
-/* ══════════════════════════════════════════
-   ИГРОКИ
-══════════════════════════════════════════ */
+//игроки
 async function loadAllPlayers() {
     const wrap = document.getElementById("playersTableWrap");
     if (!wrap) return;
@@ -1226,7 +1208,7 @@ function renderPlayersTable(players) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Игроки не найдены</p></div>`;
         return;
     }
-    // Строим карту цветов рангов
+    //карта цветов ранги
     const rankColorMap = {};
     _allRanks.forEach(r => { rankColorMap[r.name] = r.color; });
 
@@ -1281,7 +1263,7 @@ function renderPlayersTable(players) {
     </table>`;
 }
 
-/* ── Написать игроку ── */
+//написать игроку
 function openPlayerNotice(userId, name) {
     _playerNoticeId = userId;
     document.getElementById("playerNoticeName").textContent = name;
@@ -1308,7 +1290,7 @@ async function submitPlayerNotice() {
     _playerNoticeId = null;
 }
 
-/* ── Назначить ранг ── */
+//назначить ранг
 function openAssignRank(userId, name, currentRank) {
     _assignRankUserId = userId;
     document.getElementById("assignRankPlayerName").textContent = name;
@@ -1359,7 +1341,7 @@ async function submitAssignRank() {
     finally { btn.disabled = false; btn.textContent = "Назначить"; }
 }
 
-/* ── Удалить игрока ── */
+//делит игрока
 function deletePlayer(userId, name) {
     _confirmAction(
         `Удалить игрока «${name}» из базы данных?\n\nЭто действие необратимо. Игрок будет исключён из команды, удалён из списков друзей и все его данные будут уничтожены.`,
@@ -1375,9 +1357,7 @@ function deletePlayer(userId, name) {
     );
 }
 
-/* ══════════════════════════════════════════
-   РАНГИ
-══════════════════════════════════════════ */
+//ранги
 async function loadRanks() {
     try {
         const res = await fetch("/api/admin/ranks");
@@ -1419,7 +1399,7 @@ function renderRanksTable() {
     </table>`;
 }
 
-/* ── Создать ранг ── */
+//создать ранг
 function updateColorPreview() {
     const c = document.getElementById("rkColor").value;
     document.getElementById("rkColorSwatch").style.background = c;
@@ -1451,7 +1431,7 @@ async function createRank() {
     finally { btn.disabled = false; btn.textContent = "Создать ранг"; }
 }
 
-/* ── Редактировать ранг ── */
+// редактировать ранг
 function updateEditColorPreview() {
     const c = document.getElementById("erColor").value;
     document.getElementById("erColorSwatch").style.background = c;
@@ -1490,7 +1470,7 @@ async function submitEditRank() {
     finally { btn.disabled = false; btn.textContent = "Сохранить"; }
 }
 
-/* ── Удалить ранг ── */
+// удалить ранг
 async function deleteRank(id, name) {
     _confirmAction(`Удалить ранг «${name}»?\n\nУ всех игроков с этим рангом он сбросится в Unranked.`, async () => {
         try {
@@ -1502,9 +1482,7 @@ async function deleteRank(id, name) {
     });
 }
 
-/* ══════════════════════════════════════════
-   ПОДТВЕРЖДЕНИЕ
-══════════════════════════════════════════ */
+//конфирм
 let _confirmCb = null;
 function _confirmAction(msg, cb) {
     _confirmCb = cb;
@@ -1516,9 +1494,7 @@ document.getElementById("confirmOkBtn").addEventListener("click", async function
     if (_confirmCb) { await _confirmCb(); _confirmCb = null; }
 });
 
-/* ══════════════════════════════════════════
-   ТУРНИРЫ
-══════════════════════════════════════════ */
+//турниры
 async function loadTournaments() {
     try {
         const res = await fetch("/api/admin/tournaments");
@@ -1706,7 +1682,6 @@ function escAdmin(str) {
 
 init();
 </script>
-<!-- ── Модалка: редактировать турнир ── -->
 <div class="modal-overlay" id="editTournamentModal">
     <div class="modal-panel">
         <div class="modal-head">

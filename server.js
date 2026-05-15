@@ -8,7 +8,6 @@ const mongoose      = require("mongoose");
 const MongoStore    = require("connect-mongo");
 const path          = require("path");
 
-// ─── Грузим ВСЕ модели сразу — регистрирует схемы в mongoose ─────────────────
 const User        = require("./models/User");
 const Team        = require("./models/Team");
 const Application = require("./models/Application");
@@ -21,7 +20,7 @@ const app    = express();
 const PORT   = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === "production";
 
-// ─── MongoDB — одно соединение, хранится в global для serverless ──────────────
+
 if (!global.__mongoConn) {
   global.__mongoConn = mongoose.connect(process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 30000,
@@ -37,7 +36,7 @@ if (!global.__mongoConn) {
   });
 }
 
-// ─── Passport: Steam ──────────────────────────────────────────────────────────
+
 passport.use(new SteamStrategy(
   {
     returnURL: `${process.env.DOMAIN}/auth/steam/return`,
@@ -74,12 +73,12 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ждём соединения с БД перед ЛЮБЫМ другим middleware (включая сессии и passport)
+
 app.use(async (req, res, next) => {
   try {
     if (global.__mongoConn) await global.__mongoConn;
@@ -110,7 +109,7 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ─── Роуты ───────────────────────────────────────────────────────────────────
+//роуты
 app.use("/auth",             require("./routes/auth"));
 app.get("/logout",           (req, res) => res.redirect("/auth/logout"));
 app.use("/api",              require("./routes/users"));
@@ -152,12 +151,12 @@ app.patch("/admin/applications/:id/status", require("./middleware/auth").require
   }
 });
 
-// ─── Статика ──────────────────────────────────────────────────────────────────
+//статика
 app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ─── Запуск ───────────────────────────────────────────────────────────────────
+//запуск
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 module.exports = app;

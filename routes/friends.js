@@ -4,7 +4,7 @@ const mongoose        = require("mongoose");
 const User            = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
 
-// GET /api/friends
+
 router.get("/", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
@@ -17,7 +17,7 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/friends/request/:userId
+
 router.post("/request/:userId", requireAuth, async (req, res) => {
   const targetId = req.params.userId;
   if (targetId === req.user._id.toString())
@@ -52,7 +52,7 @@ router.post("/request/:userId", requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/friends/accept/:userId
+
 router.patch("/accept/:userId", requireAuth, async (req, res) => {
   const fromId = req.params.userId;
   try {
@@ -71,7 +71,7 @@ router.patch("/accept/:userId", requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/friends/reject/:userId
+
 router.patch("/reject/:userId", requireAuth, async (req, res) => {
   try {
     await User.findByIdAndUpdate(req.user._id, {
@@ -83,7 +83,7 @@ router.patch("/reject/:userId", requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/friends/:userId
+
 router.delete("/:userId", requireAuth, async (req, res) => {
   const targetId = req.params.userId;
   try {

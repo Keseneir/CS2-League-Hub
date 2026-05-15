@@ -22,14 +22,14 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
 
-    // ─── Команда ─────────────────────────────────────────────────────────────
+    //команда
     teamId: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     "Team",
       default: null,
     },
 
-    // ─── Друзья ──────────────────────────────────────────────────────────────
+    //др
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ─── Входящие заявки в друзья ─────────────────────────────────────────────
+    //ВХОДЯЩИЕ заявки в др 
     friendRequests: [
       {
         from: {
@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ─── Приглашения в команду ────────────────────────────────────────────────
+    //инвайты в тим
     teamInvites: [
       {
         teamId: {
@@ -69,7 +69,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    // ─── Статистика ───────────────────────────────────────────────────────────
+    //стата
     stats: {
       kills:   { type: Number, default: 0 },
       deaths:  { type: Number, default: 0 },
@@ -84,7 +84,7 @@ const userSchema = new mongoose.Schema(
       default: "Unranked",
     },
 
-    // ─── Профиль игрока ───────────────────────────────────────────────────────
+    //профиль игрока
     faceitLevel: {
       type:    Number,
       default: null,
@@ -114,7 +114,7 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-    // ─── Уведомления от админа ────────────────────────────────────────────────
+    //уведы от адм
     adminNotices: [
       {
         message: {
@@ -141,6 +141,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Не пересоздавать модель при hot-reload (serverless)
+
 module.exports =
   mongoose.models.User || mongoose.model("User", userSchema);

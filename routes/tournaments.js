@@ -4,7 +4,7 @@ const Team            = require("../models/Team");
 const Tournament      = require("../models/Tournament");
 const { requireAuth } = require("../middleware/auth");
 
-// GET /api/tournaments
+
 router.get("/", async (req, res) => {
   try {
     const tournaments = await Tournament.find({ status: { $in: ["upcoming", "active"] } })
@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/tournaments/my
+
 router.get("/my", requireAuth, async (req, res) => {
   try {
     const tournaments = await Tournament.find({ status: { $in: ["upcoming", "active"] } })
@@ -59,7 +59,7 @@ router.get("/my", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/tournaments/:id/register
+
 router.post("/:id/register", requireAuth, async (req, res) => {
   try {
     if (!req.user.teamId) return res.status(400).json({ error: "Вы не состоите в команде" });
@@ -102,7 +102,7 @@ router.post("/:id/register", requireAuth, async (req, res) => {
   }
 });
 
-// DELETE /api/tournaments/:id/register
+
 router.delete("/:id/register", requireAuth, async (req, res) => {
   try {
     if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });

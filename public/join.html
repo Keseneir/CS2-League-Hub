@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* ── Дополнительные стили для страницы турниров ── */
+        
         .tournaments-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -198,7 +198,6 @@
             display: none;
         }
 
-        /* ── Информационные баннеры ── */
         .info-banner {
             background: #12171d;
             border: 1px solid #1f252c;
@@ -345,13 +344,13 @@
 
 <div class="container" id="pageContainer" style="max-width:960px;">
 
-    <!-- Загрузка -->
+    
     <div id="loadingState" style="text-align:center;padding:60px 20px;color:#5c6b7f;">
         <div class="mini-spinner" style="margin:0 auto 16px;"></div>
         Загрузка...
     </div>
 
-    <!-- Не авторизован -->
+    
     <div id="authGate" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon">🔒</div>
@@ -365,7 +364,7 @@
         </div>
     </div>
 
-    <!-- Авторизован, но не капитан -->
+    //авторизован но не капитан
     <div id="notCaptainState" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon">🛡️</div>
@@ -377,7 +376,7 @@
         </div>
     </div>
 
-    <!-- Нет команды -->
+    //Нет команды
     <div id="noTeamState" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon">👥</div>
@@ -389,10 +388,10 @@
         </div>
     </div>
 
-    <!-- Капитан, команда есть — основной блок -->
+    //Капитан, команда есть основной блок
     <div id="captainState" style="display:none;">
 
-        <!-- Карточка команды капитана -->
+        //Карточка команды капитана
         <div id="teamSummary" class="team-summary-card">
             <div class="team-summary-logo-placeholder">🛡️</div>
             <div class="team-summary-info">
@@ -402,7 +401,7 @@
             </div>
         </div>
 
-        <!-- Плашка: команда неполная -->
+        //пред о составе
         <div id="teamIncompleteWarning" class="warning-banner" style="display:none;">
             <span class="warning-banner-icon">⚠️</span>
             <span>
@@ -411,10 +410,8 @@
             </span>
         </div>
 
-        <!-- Список турниров -->
+        //список турниров
         <div id="tournamentsGrid" class="tournaments-grid"></div>
-
-        <!-- Нет турниров -->
         <div id="noTournamentsState" class="empty-tournaments" style="display:none;">
             <div class="empty-tournaments-icon">🏆</div>
             <p>Пока нет открытых турниров. Следите за обновлениями!</p>
@@ -466,7 +463,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     hide("loadingState");
 
-    // 1. Проверяем пользователя
+    //чек пользователя
     let user = null;
     try {
         const r = await fetch("/api/profile");
@@ -488,13 +485,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // 2. Капитан с командой
+    //капитан с командой
     show("captainState");
 
     const team = user.team;
     const memberCount = (team.members || []).length;
 
-    // Заполняем карточку команды
     if (team) {
         $("teamSummaryName").textContent = team.name;
         $("teamSummaryTag").textContent  = `[${team.tag}]`;
@@ -513,7 +509,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         show("teamIncompleteWarning");
     }
 
-    // 3. Загружаем турниры
+    //грузим турики
     let tournaments = [];
     try {
         const r = await fetch("/api/tournaments/my");
@@ -525,7 +521,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    // 4. Рендерим карточки
+    //рендер карточек
     const grid = $("tournamentsGrid");
 
     tournaments.forEach(t => {
@@ -632,7 +628,7 @@ async function register(tournamentId, btn) {
             btn.textContent      = "Зарегистрировать команду";
             return;
         }
-        // Успех — перезагружаем страницу чтобы обновить состояние
+        //успех - рефреш
         location.reload();
     } catch {
         errDiv.textContent   = "Ошибка соединения. Попробуйте ещё раз.";

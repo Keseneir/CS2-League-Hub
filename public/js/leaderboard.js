@@ -1,6 +1,4 @@
-/* ================================================
-   LEADERBOARD PAGE
-   ================================================ */
+//лидерборд
 if (document.getElementById("tableContainer")) {
 
     let _tableData  = [];
@@ -122,7 +120,7 @@ if (document.getElementById("tableContainer")) {
         } else if (noRow) { noRow.style.display = "none"; }
     }
 
-    // ─── Модал состава команды ───────────────────────────────────────────────
+    //окно состав
     window.openLbTeamModal = function(idx) {
         const r = _tableData[idx];
         if (!r) return;
@@ -206,7 +204,7 @@ if (document.getElementById("tableContainer")) {
     if (_lbRosterClose) _lbRosterClose.addEventListener("click", () => { _lbRosterModal?.classList.remove("open"); document.body.style.overflow = ""; });
     if (_lbRosterModal) _lbRosterModal.addEventListener("click", e => { if (e.target === _lbRosterModal) { _lbRosterModal.classList.remove("open"); document.body.style.overflow = ""; } });
 
-    // ─── Сезоны и загрузка данных ────────────────────────────────────────────
+    //загрущзка сезонов
     async function loadSeasons() {
         try {
             const res  = await fetch("/api/seasons");
@@ -244,7 +242,7 @@ if (document.getElementById("tableContainer")) {
         }
     }
 
-    // ─── Слушатели событий ───────────────────────────────────────────────────
+
     const teamSearchEl  = document.getElementById("teamSearch");
     const seasonSel     = document.getElementById("seasonSelect");
     const ratingBtn     = document.getElementById("ratingBtn");

@@ -36,7 +36,7 @@
     min-height: 100vh;
   }
 
-  /* ── LAYOUT ─────────────────────────────────────────── */
+  
   .layout {
     display: flex;
     max-width: 1280px;
@@ -46,7 +46,7 @@
     align-items: flex-start;
   }
 
-  /* ── FLOATING NAV ───────────────────────────────────── */
+  
   .side-nav {
     width: var(--nav-w);
     flex-shrink: 0;
@@ -100,10 +100,10 @@
     opacity: .7;
   }
 
-  /* ── MAIN CONTENT ───────────────────────────────────── */
+  
   .content { flex: 1; min-width: 0; }
 
-  /* Hero banner */
+  
   .rules-hero {
     background: linear-gradient(135deg, #0f1217 0%, #161b22 50%, #0f1217 100%);
     border: 1px solid var(--border);
@@ -163,7 +163,7 @@
   }
   .warning-banner::before { content: '⚠'; font-size: 1rem; }
 
-  /* Section blocks */
+ 
   .rule-section {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -223,7 +223,7 @@
   }
   .rule-section.open .section-body { display: block; }
 
-  /* Individual rule cards */
+  
   .rule-card {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -282,7 +282,7 @@
   .sev-med  .punish-label { color: var(--accent); }
   .sev-high .punish-label { color: var(--red); }
 
-  /* Info cards (for section 4,5) */
+  
   .info-card {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -303,7 +303,7 @@
   }
   .info-card strong { color: #fff; }
 
-  /* Warn progression */
+  
   .warn-table {
     width: 100%;
     border-collapse: collapse;
@@ -340,7 +340,7 @@
   .badge-mute  { background: rgba(88,166,255,.12); color: var(--blue); }
   .badge-ban   { background: rgba(224,82,82,.12); color: var(--red); }
 
-  /* Tags */
+  
   .tag {
     display: inline-block;
     font-size: .7rem;
@@ -356,7 +356,7 @@
   .tag-new      { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
   .tag-changed  { background: rgba(240,165,0,.12); color: var(--accent); border: 1px solid rgba(240,165,0,.25); }
 
-  /* Mobile */
+ 
   .mobile-nav-toggle {
     display: none;
     position: fixed;
@@ -433,7 +433,7 @@
 
 <div class="layout">
 
-  <!-- FLOATING SIDEBAR NAV -->
+  
   <nav class="side-nav" id="sideNav">
     <div class="nav-title">Навигация по правилам</div>
     <a class="nav-item active" href="#sec1" onclick="setActive(this)">
@@ -453,10 +453,10 @@
     </a>
   </nav>
 
-  <!-- MAIN -->
+  
   <main class="content">
 
-    <!-- HERO -->
+    
     <div class="rules-hero">
       <h1>Правила <span>CS2 League Hub</span></h1>
       <p>Настоящие правила регулируют поведение всех участников платформы. Незнание правил не освобождает от ответственности.</p>
@@ -465,7 +465,7 @@
       </div>
     </div>
 
-    <!-- SECTION 1 -->
+    
     <div class="rule-section open" id="sec1">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-num">1</span>
@@ -514,7 +514,7 @@
       </div>
     </div>
 
-    <!-- SECTION 2 -->
+    
     <div class="rule-section open" id="sec2">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-num">2</span>
@@ -581,7 +581,7 @@
       </div>
     </div>
 
-    <!-- SECTION 3 -->
+    
     <div class="rule-section open" id="sec3">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-num">3</span>
@@ -657,7 +657,7 @@
       </div>
     </div>
 
-    <!-- SECTION 4 -->
+    
     <div class="rule-section open" id="sec4">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-num">4</span>
@@ -717,7 +717,7 @@
       </div>
     </div>
 
-    <!-- SECTION 5 -->
+    
     <div class="rule-section open" id="sec5">
       <div class="section-header" onclick="toggleSection(this)">
         <span class="section-num">5</span>
@@ -753,7 +753,7 @@
   </main>
 </div>
 
-<!-- MOBILE NAV TOGGLE -->
+
 <button class="mobile-nav-toggle" id="mobileNavBtn" title="Навигация">☰</button>
 <div class="mobile-nav-overlay" id="mobileOverlay" onclick="closeMobileNav()"></div>
 <div class="mobile-nav-panel" id="mobileNavPanel">
@@ -799,18 +799,18 @@
 
 <script src="js/common.js" defer></script>
 <script>
-  // Toggle section open/close
+  
   function toggleSection(header) {
     header.parentElement.classList.toggle('open');
   }
 
-  // Sidebar active state
+  
   function setActive(el) {
     document.querySelectorAll('.side-nav .nav-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
   }
 
-  // Mobile nav
+ 
   document.getElementById('mobileNavBtn').addEventListener('click', () => {
     document.getElementById('mobileNavPanel').classList.add('open');
     document.getElementById('mobileOverlay').style.display = 'block';
@@ -820,7 +820,7 @@
     document.getElementById('mobileOverlay').style.display = 'none';
   }
 
-  // Auto-highlight nav on scroll
+  
   const sections = ['sec1','sec2','sec3','sec4','sec5'];
   const navLinks = document.querySelectorAll('.side-nav .nav-item');
 

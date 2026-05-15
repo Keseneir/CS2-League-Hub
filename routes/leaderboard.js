@@ -28,7 +28,7 @@ function sortStats(stats) {
   return stats.sort((a, b) => b.pts - a.pts || b.roundDiff - a.roundDiff || b.wins - a.wins);
 }
 
-// GET /api/leaderboard
+
 router.get("/", async (req, res) => {
   try {
     let season = await Season.findOne({ isActive: true }).lean();
@@ -46,7 +46,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/leaderboard/rosters
+
 router.get("/rosters", async (req, res) => {
   try {
     const ids = (req.query.ids || "").split(",").filter(Boolean).slice(0, 30);
@@ -68,7 +68,7 @@ router.get("/rosters", async (req, res) => {
   }
 });
 
-// GET /api/leaderboard/:seasonId
+
 router.get("/:seasonId", async (req, res) => {
   try {
     const season = await Season.findById(req.params.seasonId).lean();

@@ -1,12 +1,10 @@
-/* ================================================
-   PROFILE PAGE
-   ================================================ */
+//профиль+команда
 if (document.getElementById("ownProfileWrap") || document.getElementById("publicProfileWrap")) {
 
     let _profileData    = null;
     let _inviteTargetId = null;
 
-    // ─── УТИЛИТЫ ──────────────────────────────────────────────────────────────
+    
 
     function avatarEl(src, name, cls) {
         if (src) return `<img src="${src}" alt="${name}" class="${cls}" onerror="this.style.display='none'">`;
@@ -15,7 +13,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         return `<div class="${ph}">${initials}</div>`;
     }
 
-    // ─── ТОСТ ─────────────────────────────────────────────────────────────────
+    
 
     function showToast(msg, type) {
         let t = document.getElementById("_toast");
@@ -33,7 +31,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         t._timer = setTimeout(() => { t.style.opacity = "0"; }, 3000);
     }
 
-    // ─── МОДАЛКИ ──────────────────────────────────────────────────────────────
+    //модальные окна
 
     function showModalError(elId, msg) {
         const el = document.getElementById(elId);
@@ -57,7 +55,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (el) { el.classList.remove("p-modal-hidden"); document.body.style.overflow = "hidden"; }
     }
 
-    // ─── МОДАЛ: СОЗДАТЬ КОМАНДУ ───────────────────────────────────────────────
+    //м: создать тим
 
     window.openCreateTeamModal = function() {
         const errEl = document.getElementById("ctError");
@@ -89,7 +87,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         if (btn) { btn.disabled = true; btn.textContent = "Создание..."; }
 
-        // Загружаем логотип если выбран файл
+        //лоад лого
         if (fileInput && fileInput.files.length > 0) {
             try {
                 if (btn) btn.textContent = "Загружаем лого...";
@@ -121,7 +119,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-    // ─── ПУБЛИЧНЫЙ ПРОФИЛЬ ────────────────────────────────────────────────────
+    //публичный профиль
 
     const urlParams     = new URLSearchParams(window.location.search);
     const publicSteamId = urlParams.get("id");
@@ -330,7 +328,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-    // ─── СВОЙ ПРОФИЛЬ ─────────────────────────────────────────────────────────
+    //свой профиль
 
     async function loadProfile() {
         const ownWrap = document.getElementById("ownProfileWrap");
@@ -385,7 +383,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         updateBadges(d);
     }
 
-    // ─── ТАБ: МОЙ ПРОФИЛЬ ────────────────────────────────────────────────────
+    //таб мой профиль
 
     function renderMyProfileTab(d) {
         const faceit = d.faceitLevel ?? null;
@@ -559,7 +557,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (tab) tab.classList.add("active");
     };
 
-    // ─── ТАБ: КОМАНДА ─────────────────────────────────────────────────────────
+    //там команда
 
     function renderTeamTab(d) {
         const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
@@ -645,7 +643,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         </div>`;
     }
 
-    // ─── ТАБ: ДРУЗЬЯ ──────────────────────────────────────────────────────────
+    //таб др
 
     function renderFriendsTab(d) {
         const friends  = d.friends        || [];
@@ -702,7 +700,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         </div>`;
     }
 
-    // ─── ТАБ: УВЕДОМЛЕНИЯ ─────────────────────────────────────────────────────
+    //таб уведы
 
     function appStatusIcon(status)  { return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳"; }
     function appStatusLabel(status) { return status === "accepted" ? "Принята" : status === "rejected" ? "Отклонена" : "На рассмотрении"; }
@@ -780,7 +778,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         </div>`;
     }
 
-    // ─── ЗНАЧКИ ───────────────────────────────────────────────────────────────
+    //значки
 
     function updateBadges(d) {
         const frCount  = (d.friendRequests || []).length;
@@ -804,7 +802,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (mascot) mascot.src = total > 0 ? "assets/molotov.png" : "assets/molotov-sleep.png";
     }
 
-    // ─── ПОИСК ИГРОКОВ ────────────────────────────────────────────────────────
+    //поиск др
 
     window.searchFriendsHandler = async function() {
         const q = (document.getElementById("friendSearchInput")?.value || "").trim();
@@ -841,7 +839,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         </div>`;
     }
 
-    // ─── ДЕЙСТВИЯ: ДРУЗЬЯ ─────────────────────────────────────────────────────
+    //действия с др
 
     window.addFriend = async function(userId, btn) {
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
@@ -881,7 +879,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ДЕЙСТВИЯ: УВЕДОМЛЕНИЯ АДМИНИСТРАЦИИ ─────────────────────────────────
+    //уведы адм
 
     window.dismissNotice = async function(idx) {
         try {
@@ -894,7 +892,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         } catch { showToast("Ошибка", "err"); }
     };
 
-    // ─── ДЕЙСТВИЯ: ПРИГЛАШЕНИЯ В КОМАНДУ ─────────────────────────────────────
+    //инвайт в тиму
 
     window.openInviteModal = function(userId, name) {
         _inviteTargetId = userId;
@@ -939,7 +937,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ДЕЙСТВИЯ: УПРАВЛЕНИЕ КОМАНДОЙ ───────────────────────────────────────
+    //управление тимой
 
     let _memberModalId   = null;
     let _memberModalName = null;
@@ -1034,7 +1032,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     };
     window.closeTeamSettingsModal = function() { closeModal("teamSettingsModal"); };
 
-    // ─── Cloudinary: загрузка логотипа ────────────────────────────────────────
+    //лого клаудинари
 
     let _cloudinaryConfig = null;
     async function getCloudinaryConfig() {
@@ -1092,7 +1090,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     })();
 
 
-    // ─── Cloudinary: загрузка логотипа при СОЗДАНИИ команды ──────────────────
+    //клауд лого
 
     (function initCreateTeamLogoUpload() {
         const fileInput  = document.getElementById("ctLogoFile");
@@ -1224,7 +1222,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         } catch { showToast("Ошибка соединения", "err"); }
     };
 
-    // ─── ОБНОВЛЕНИЕ БЕЗ ПЕРЕЗАГРУЗКИ ─────────────────────────────────────────
+    //рефреш
 
     async function refreshProfile() {
         try {
@@ -1234,7 +1232,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         } catch {}
     }
 
-    // ─── ТАБЫ ─────────────────────────────────────────────────────────────────
+    //табы
 
     document.querySelectorAll(".profile-tab-btn").forEach(btn => {
         btn.addEventListener("click", function() {

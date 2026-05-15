@@ -77,8 +77,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const btn        = document.getElementById("ctSubmitBtn");
         const name     = nameEl     ? nameEl.value.trim()     : "";
         const tag      = tagEl      ? tagEl.value.trim()      : "";
-        const logo     = logoEl     ? logoEl.value.trim()     : "";
+        let   logo     = logoEl     ? logoEl.value.trim()     : "";
         const telegram = telegramEl ? telegramEl.value.trim() : "";
+        const fileInput = document.getElementById("ctLogoFile");
 
         if (errEl) errEl.style.display = "none";
         if (!name || !tag) {
@@ -87,6 +88,21 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
 
         if (btn) { btn.disabled = true; btn.textContent = "Создание..."; }
+
+        // Загружаем логотип если выбран файл
+        if (fileInput && fileInput.files.length > 0) {
+            try {
+                if (btn) btn.textContent = "Загружаем лого...";
+                logo = await uploadLogoToCloudinary(fileInput.files[0]);
+                if (logoEl) logoEl.value = logo;
+            } catch (uploadErr) {
+                const ctErr = document.getElementById("ctLogoUploadError");
+                if (ctErr) { ctErr.textContent = uploadErr.message; ctErr.style.display = "block"; }
+                if (btn) { btn.disabled = false; btn.textContent = "Создать команду"; }
+                return;
+            }
+            if (btn) btn.textContent = "Создание...";
+        }
 
         try {
             const res  = await fetch("/api/teams", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name,tag,logo,telegram}) });
@@ -494,6 +510,43 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (errEl) { errEl.textContent = "Ошибка соединения"; errEl.style.display = "block"; }
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; }
+        }
+    };
+
+
+    window.syncSteamHours = async function() {
+        const btn      = document.getElementById("syncSteamBtn");
+        const statusEl = document.getElementById("syncSteamStatus");
+        const hoursEl  = document.getElementById("statHours");
+        if (btn) { btn.disabled = true; btn.textContent = "⏳ Загружаем..."; }
+        if (statusEl) { statusEl.style.display = "none"; }
+        try {
+            const res  = await fetch("/api/profile/sync-steam-hours", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) {
+                if (statusEl) {
+                    statusEl.textContent   = data.error || "Ошибка";
+                    statusEl.style.color   = "#e05c5c";
+                    statusEl.style.display = "block";
+                }
+            } else {
+                if (hoursEl) hoursEl.value = data.hoursInCS2;
+                if (statusEl) {
+                    statusEl.textContent   = `✓ Получено ${data.hoursInCS2} ч. из Steam`;
+                    statusEl.style.color   = "#4caf82";
+                    statusEl.style.display = "block";
+                }
+                // auto-update hidden faceit if already set, refresh badges
+                await refreshProfile();
+            }
+        } catch {
+            if (statusEl) {
+                statusEl.textContent   = "Ошибка соединения";
+                statusEl.style.color   = "#e05c5c";
+                statusEl.style.display = "block";
+            }
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = "🔄 Синхронизировать со Steam"; }
         }
     };
 
@@ -1038,6 +1091,41 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         });
     })();
 
+
+    // ─── Cloudinary: загрузка логотипа при СОЗДАНИИ команды ──────────────────
+
+    (function initCreateTeamLogoUpload() {
+        const fileInput  = document.getElementById("ctLogoFile");
+        const preview    = document.getElementById("ctLogoPreview");
+        const fileNameEl = document.getElementById("ctLogoFileName");
+        const errorEl    = document.getElementById("ctLogoUploadError");
+        const delBtn     = document.getElementById("ctLogoDeleteBtn");
+        if (!fileInput) return;
+
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            if (errorEl) errorEl.style.display = "none";
+            if (file.size > 2 * 1024 * 1024) {
+                if (errorEl) { errorEl.textContent = "Файл слишком большой (макс. 2 МБ)"; errorEl.style.display = "block"; }
+                fileInput.value = "";
+                return;
+            }
+            if (!file.type.startsWith("image/")) {
+                if (errorEl) { errorEl.textContent = "Допустимы только изображения"; errorEl.style.display = "block"; }
+                fileInput.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = e => {
+                if (preview) preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+            };
+            reader.readAsDataURL(file);
+            if (fileNameEl) fileNameEl.textContent = file.name;
+            if (delBtn) delBtn.style.display = "";
+        });
+    })();
+
     window.clearTeamLogo = function() {
         const hiddenUrl  = document.getElementById("tsLogo");
         const fileInput  = document.getElementById("tsLogoFile");
@@ -1055,6 +1143,22 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (fileNameEl) fileNameEl.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
         if (errorEl)    errorEl.style.display = "none";
         if (delBtn)     delBtn.style.display = "none";
+    };
+
+
+    window.clearCreateTeamLogo = function() {
+        const hiddenUrl  = document.getElementById("ctLogo");
+        const fileInput  = document.getElementById("ctLogoFile");
+        const preview    = document.getElementById("ctLogoPreview");
+        const fileNameEl = document.getElementById("ctLogoFileName");
+        const errorEl    = document.getElementById("ctLogoUploadError");
+        const delBtn     = document.getElementById("ctLogoDeleteBtn");
+        if (hiddenUrl) hiddenUrl.value  = "";
+        if (fileInput) fileInput.value  = "";
+        if (preview)   preview.innerHTML = "🛡️";
+        if (fileNameEl) fileNameEl.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
+        if (errorEl)   errorEl.style.display   = "none";
+        if (delBtn)    delBtn.style.display     = "none";
     };
 
     window.saveTeamSettings = async function() {

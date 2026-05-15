@@ -188,14 +188,28 @@
                             Часов в CS2
                             <span style="color:#e05c5c;margin-left:2px;">*</span>
                         </label>
-                        <input
-                            type="number"
-                            id="statHours"
-                            class="p-field-input"
-                            placeholder="Например: 3500"
-                            min="0" max="99999"
-                            style="max-width:260px;"
-                        >
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <input
+                                type="number"
+                                id="statHours"
+                                class="p-field-input"
+                                placeholder="Например: 3500"
+                                min="0" max="99999"
+                                style="max-width:220px;"
+                            >
+                            <button type="button" id="syncSteamBtn" onclick="syncSteamHours()" style="
+                                display:inline-flex;align-items:center;gap:6px;
+                                padding:8px 14px;border-radius:8px;cursor:pointer;
+                                background:rgba(91,141,232,0.1);
+                                border:1px solid rgba(91,141,232,0.3);
+                                color:#5b8de8;font-family:'Montserrat',sans-serif;
+                                font-weight:700;font-size:12px;
+                                transition:background 0.2s;white-space:nowrap;
+                            " title="Получить часы автоматически из Steam">
+                                🔄 Синхронизировать со Steam
+                            </button>
+                        </div>
+                        <div id="syncSteamStatus" style="font-size:11px;margin-top:4px;display:none;"></div>
                     </div>
 
                     <div>

@@ -120,13 +120,6 @@ router.patch("/profile/stats", requireAuth, async (req, res) => {
       update.discordUsername = dc;
     }
 
-    const currentUser = await User.findById(req.user._id).lean();
-    const finalTg = update.telegramUsername !== undefined ? update.telegramUsername : (currentUser.telegramUsername || "");
-    const finalDc = update.discordUsername  !== undefined ? update.discordUsername  : (currentUser.discordUsername  || "");
-    if (!finalTg && !finalDc) {
-      return res.status(400).json({ error: "Укажите хотя бы один контакт: Telegram или Discord" });
-    }
-
     await User.findByIdAndUpdate(req.user._id, { $set: update });
     res.json({ ok: true });
   } catch (err) {
@@ -234,6 +227,35 @@ router.get("/users/:steamId/public", async (req, res) => {
       discordUsername:  user.discordUsername  || "",
       team,
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+
+// POST /api/profile/sync-steam-hours — получить часы из Steam API
+router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
+  try {
+    const steamId  = req.user.steamId;
+    const apiKey   = process.env.STEAM_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "Steam API key не настроен" });
+
+    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_appinfo=false&appids_filter[0]=730`;
+    const response = await fetch(url);
+    if (!response.ok) return res.status(502).json({ error: "Ошибка Steam API" });
+
+    const data = await response.json();
+    const games = data?.response?.games || [];
+    const cs2   = games.find(g => g.appid === 730);
+
+    if (!cs2) {
+      return res.status(404).json({ error: "CS2 не найден в Steam библиотеке. Убедитесь что профиль Steam публичный." });
+    }
+
+    const hours = Math.round((cs2.playtime_forever || 0) / 60);
+    await User.findByIdAndUpdate(req.user._id, { $set: { hoursInCS2: hours } });
+    res.json({ ok: true, hoursInCS2: hours });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

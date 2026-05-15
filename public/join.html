@@ -364,7 +364,7 @@
         </div>
     </div>
 
-    //авторизован но не капитан
+    
     <div id="notCaptainState" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon">🛡️</div>
@@ -376,7 +376,7 @@
         </div>
     </div>
 
-    //Нет команды
+    
     <div id="noTeamState" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon">👥</div>
@@ -388,10 +388,10 @@
         </div>
     </div>
 
-    //Капитан, команда есть основной блок
+    
     <div id="captainState" style="display:none;">
 
-        //Карточка команды капитана
+       
         <div id="teamSummary" class="team-summary-card">
             <div class="team-summary-logo-placeholder">🛡️</div>
             <div class="team-summary-info">
@@ -401,7 +401,7 @@
             </div>
         </div>
 
-        //пред о составе
+        
         <div id="teamIncompleteWarning" class="warning-banner" style="display:none;">
             <span class="warning-banner-icon">⚠️</span>
             <span>
@@ -410,7 +410,6 @@
             </span>
         </div>
 
-        //список турниров
         <div id="tournamentsGrid" class="tournaments-grid"></div>
         <div id="noTournamentsState" class="empty-tournaments" style="display:none;">
             <div class="empty-tournaments-icon">🏆</div>
@@ -463,7 +462,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     hide("loadingState");
 
-    //чек пользователя
+    
     let user = null;
     try {
         const r = await fetch("/api/profile");
@@ -485,7 +484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    //капитан с командой
+    
     show("captainState");
 
     const team = user.team;
@@ -509,7 +508,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         show("teamIncompleteWarning");
     }
 
-    //грузим турики
+    
     let tournaments = [];
     try {
         const r = await fetch("/api/tournaments/my");
@@ -521,7 +520,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    //рендер карточек
+    
     const grid = $("tournamentsGrid");
 
     tournaments.forEach(t => {
@@ -628,7 +627,7 @@ async function register(tournamentId, btn) {
             btn.textContent      = "Зарегистрировать команду";
             return;
         }
-        //успех - рефреш
+        
         location.reload();
     } catch {
         errDiv.textContent   = "Ошибка соединения. Попробуйте ещё раз.";

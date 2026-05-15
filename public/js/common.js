@@ -121,6 +121,34 @@ document.addEventListener("DOMContentLoaded", function () {
         else navContainer.appendChild(rulesLink);
     }
 
+
+    // ─── Контакты в футере ───────────────────────────────────────────────────
+    const footerInner = document.querySelector(".footer-inner");
+    if (footerInner && !document.getElementById("_dynFooterContacts")) {
+        const contacts = document.createElement("div");
+        contacts.id = "_dynFooterContacts";
+        contacts.style.cssText = [
+            "display:flex",
+            "flex-wrap:wrap",
+            "justify-content:center",
+            "gap:10px 24px",
+            "margin-bottom:14px",
+            "font-size:12px",
+        ].join(";");
+
+        contacts.innerHTML = `
+            <a href="mailto:cs2.league.hub@gmail.com" style="display:inline-flex;align-items:center;gap:5px;color:#aebbc7;text-decoration:none;transition:color .15s;" onmouseover="this.style.color='#e6b022'" onmouseout="this.style.color='#aebbc7'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                cs2.league.hub@gmail.com
+            </a>
+        `;
+
+        // Вставляем перед .footer-divider или перед .footer-copy
+        const divider = footerInner.querySelector(".footer-divider");
+        if (divider) footerInner.insertBefore(contacts, divider);
+        else footerInner.appendChild(contacts);
+    }
+
     // ─── Ссылка «Правила» в футере ───────────────────────────────────────────
     const footerLinks = document.querySelector(".footer-links");
     if (footerLinks && !footerLinks.querySelector('a[href="rules.html"]')) {

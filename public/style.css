@@ -49,6 +49,9 @@ header {
     letter-spacing: 1px;
     color: white;
     font-family: 'Montserrat', sans-serif;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-decoration: none;
 }
 .logo span { color: var(--accent); }
 
@@ -735,8 +738,11 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .news-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 768px) {
-    header { padding: 16px 20px; }
+    header { padding: 14px 16px; gap: 8px; }
+    .header-right { gap: 10px; }
+    .social-links { gap: 12px; margin-right: 6px; }
     .social-links .hide-mobile-link { display: none; }
+    .btn-apply { padding: 9px 14px; font-size: 12px; letter-spacing: 0.5px; }
     .nav-links .hide-m { display: none; }
     .page-hero h1 { font-size: 28px; }
     table { font-size: 13px; }
@@ -754,8 +760,9 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .no-team-banner { flex-direction: column; text-align: center; }
 }
 @media (max-width: 600px) {
-    .page-index .social-links { display: none; }
-    .page-news .social-links { display: none; }
+    .social-links { display: none !important; }
+    .header-right { gap: 6px; }
+    .btn-apply { padding: 8px 12px; font-size: 11px; letter-spacing: 0; }
     .page-news .page-hero h1 { font-size: 28px; }
     .news-grid { grid-template-columns: 1fr; }
     .featured-content { padding: 24px; }
@@ -767,6 +774,9 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .btn-steam-login span { display: none; }
 }
 @media (max-width: 500px) {
+    .logo { font-size: 17px; letter-spacing: 0.5px; }
+    header { padding: 12px 14px; }
+    .btn-apply { padding: 8px 10px; font-size: 11px; }
     .roster-modal-box { border-radius: 12px; }
     .roster-modal-header { padding: 16px; }
     .roster-modal-body { padding: 20px 16px; }
@@ -1407,4 +1417,92 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .team-action-bar { flex-direction: column; }
     .btn-team-settings, .btn-team-danger { width: 100%; justify-content: center; }
     .profile-tab-btn { padding: 10px 14px; font-size: 11px; }
+}
+
+/* ================================================
+   MOBILE NAV — Hamburger Menu
+   ================================================ */
+.hamburger-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px;
+    flex-shrink: 0;
+}
+.hamburger-btn span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--text-gray);
+    border-radius: 2px;
+    transition: all 0.25s ease;
+}
+.hamburger-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger-btn.open span:nth-child(2) { opacity: 0; }
+.hamburger-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.mobile-nav-drawer {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+}
+.mobile-nav-drawer.open { display: block; }
+
+.mobile-nav-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 260px;
+    height: 100%;
+    background: #0e1318;
+    border-left: 1px solid var(--border);
+    padding: 80px 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+.mobile-nav-drawer.open .mobile-nav-panel {
+    transform: translateX(0);
+}
+.mobile-nav-panel a {
+    display: flex;
+    align-items: center;
+    padding: 13px 24px;
+    color: var(--text-gray);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    border-left: 3px solid transparent;
+}
+.mobile-nav-panel a:hover,
+.mobile-nav-panel a.active {
+    background: rgba(230,176,34,0.08);
+    color: var(--accent);
+    border-left-color: var(--accent);
+}
+.mobile-nav-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 24px;
+}
+
+@media (max-width: 600px) {
+    .hamburger-btn { display: flex; }
 }

@@ -761,6 +761,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 }
 @media (max-width: 600px) {
     .social-links { display: none !important; }
+    .nav-links { display: none !important; }
     .header-right { gap: 6px; }
     .btn-apply { padding: 8px 12px; font-size: 11px; letter-spacing: 0; }
     .page-news .page-hero h1 { font-size: 28px; }

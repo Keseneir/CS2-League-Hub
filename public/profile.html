@@ -320,7 +320,7 @@
                         </div>
 
                         <div id="captainActions" class="team-action-bar" style="display:none;">
-                            <button class="btn-team-settings" onclick="openTeamSettingsModal()">⚙️ Настройки команды</button>
+                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🛡️ Страница команды</a>
                             <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
                             <button class="btn-team-danger"   onclick="confirmDeleteTeam()">💀 Распустить команду</button>
                         </div>
@@ -356,71 +356,6 @@
 
 
 
-<div id="teamSettingsModal" class="p-modal-overlay p-modal-hidden">
-    <div class="p-modal-panel">
-        <div class="p-modal-header">
-            <span class="p-modal-title">⚙️ Настройки команды</span>
-            <button class="p-modal-close" onclick="closeTeamSettingsModal()">✕</button>
-        </div>
-        <div class="p-modal-body">
-            <div id="tsError" class="p-modal-error"></div>
-            <div>
-                <label class="p-field-label" for="tsName">Название</label>
-                <input type="text" id="tsName" class="p-field-input" placeholder="Название команды" maxlength="64">
-            </div>
-            <div>
-                <label class="p-field-label" for="tsTag">Тег (макс. 8 символов)</label>
-                <input type="text" id="tsTag" class="p-field-input" placeholder="TAG" maxlength="8" style="text-transform:uppercase;">
-            </div>
-            <div>
-                <label class="p-field-label" for="tsTelegram">Telegram команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
-                <input type="text" id="tsTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
-            </div>
-            <div>
-                <label class="p-field-label">Логотип команды</label>
-                <input type="hidden" id="tsLogo">
-                <div id="tsLogoUploadArea" style="display:flex;align-items:center;gap:14px;margin-top:4px;">
-                    <div id="tsLogoPreview" style="
-                        width:56px;height:56px;border-radius:10px;
-                        background:#1f252c;border:1px solid #2a3340;
-                        display:flex;align-items:center;justify-content:center;
-                        overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
-                    <div style="flex:1;">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <label for="tsLogoFile" id="tsLogoFileLabel" style="
-                                display:inline-block;cursor:pointer;
-                                background:#1f252c;border:1px solid #2a3340;
-                                border-radius:7px;padding:8px 16px;
-                                font-size:12px;font-family:'Montserrat',sans-serif;
-                                font-weight:700;letter-spacing:0.5px;color:#aebbc7;
-                                transition:border-color 0.2s,color 0.2s;">
-                                📁 Выбрать файл
-                            </label>
-                            <button type="button" id="tsLogoDeleteBtn" onclick="clearTeamLogo()" style="
-                                display:none;cursor:pointer;
-                                background:none;border:1px solid rgba(224,92,92,0.35);
-                                border-radius:7px;padding:8px 14px;
-                                font-size:12px;font-family:'Montserrat',sans-serif;
-                                font-weight:700;letter-spacing:0.5px;color:#e05c5c;
-                                transition:border-color 0.2s,background 0.2s;">
-                                🗑 Удалить лого
-                            </button>
-                        </div>
-                        <input type="file" id="tsLogoFile" accept="image/*" style="display:none;">
-                        <div id="tsLogoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">
-                            Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP
-                        </div>
-                        <div id="tsLogoUploadError" style="margin-top:4px;font-size:11px;color:#e05c5c;display:none;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="p-modal-footer">
-            <button class="p-btn-cancel" onclick="closeTeamSettingsModal()">Отмена</button>
-            <button class="p-btn-save" id="tsSaveBtn" onclick="saveTeamSettings()">Сохранить</button>
-        </div>
-    </div>
-</div>
 
 <div id="inviteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">

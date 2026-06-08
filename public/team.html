@@ -502,6 +502,36 @@ let _isManager = false;
 
 // ─── Инициализация ─────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
+    const params  = new URLSearchParams(location.search);
+    const tagParam = params.get("tag");
+
+    // ── Публичный просмотр по тегу /?tag=BAREBUH ──────────────────────────
+    if (tagParam) {
+        document.getElementById("loadingWrap").style.display = "";
+        try {
+            const res  = await fetch(`/api/teams/by-tag/${encodeURIComponent(tagParam)}`);
+            document.getElementById("loadingWrap").style.display = "none";
+            if (!res.ok) {
+                document.getElementById("noTeamWrap").querySelector("h2").textContent = "Команда не найдена";
+                document.getElementById("noTeamWrap").querySelector("p").textContent  = `Команды с тегом [${tagParam.toUpperCase()}] не существует`;
+                document.getElementById("noTeamWrap").querySelector("a").style.display = "none";
+                document.getElementById("noTeamWrap").style.display = "";
+                return;
+            }
+            _team = await res.json();
+            renderHero(_team);
+            renderRosters(_team);
+            renderStats(_team);
+            // Публичный просмотр: нет кошелька, нет редактора
+            document.getElementById("mainWrap").style.display = "";
+        } catch {
+            document.getElementById("loadingWrap").style.display = "none";
+            document.getElementById("noTeamWrap").style.display = "";
+        }
+        return;
+    }
+
+    // ── Личная страница (авторизация обязательна) ──────────────────────────
     const [meRes, profileRes] = await Promise.all([
         fetch("/api/user"),
         fetch("/api/profile"),
@@ -654,7 +684,7 @@ function playerCard(member, captainId, roleLabel) {
     const isCap = (member._id || member).toString() === (captainId || "").toString();
     const card  = document.createElement("a");
     card.className = "player-card";
-    card.href      = `/profile.html?steamId=${member.steamId || ""}`;
+    card.href      = `/profile.html?id=${member.steamId || ""}`;
     card.innerHTML = `
         <img src="${member.avatar || ""}" alt="" onerror="this.style.display='none'">
         <div class="player-card-name">${isCap ? `<span class="captain-crown">👑</span> ` : ""}${esc(member.displayName || "—")}</div>

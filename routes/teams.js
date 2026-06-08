@@ -393,6 +393,36 @@ router.patch("/team/settings", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/teams/by-tag/:tag — публичная страница по тегу (/team.html?tag=TAG)
+// ВАЖНО: должен быть ВЫШЕ /teams/:teamId/public
+router.get("/teams/by-tag/:tag", async (req, res) => {
+  try {
+    const team = await Team.findOne({ tag: req.params.tag.toUpperCase() })
+      .populate("members",   "displayName avatar steamId _id")
+      .populate("subs",      "displayName avatar steamId _id")
+      .populate("captainId", "displayName avatar steamId _id")
+      .lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    res.json({
+      _id:             team._id,
+      name:            team.name,
+      tag:             team.tag,
+      logo:            team.logo,
+      description:     team.description || "",
+      quote:           team.quote || "",
+      layoutStyle:     team.layoutStyle || 1,
+      privacySettings: team.privacySettings || {},
+      captainId:       team.captainId,
+      managerId:       team.managerId || null,
+      members:         team.members,
+      subs:            team.subs,
+      telegram:        team.telegram,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
 // GET /api/teams/:teamId/public — публичная страница команды
 router.get("/teams/:teamId/public", async (req, res) => {
   try {

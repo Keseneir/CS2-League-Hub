@@ -11,8 +11,7 @@ const shopItemSchema = new mongoose.Schema(
       enum:     ["personal", "team"],
       required: true,
     },
-    // cosmetic — визуальный предмет; boost — бустер; ticket — билет на турнир;
-    // slot — расширение ростера; placement — приоритет в таблице
+   
     type: {
       type:    String,
       enum:    ["cosmetic", "boost", "ticket", "slot", "placement"],

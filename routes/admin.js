@@ -7,6 +7,7 @@ const Season               = require("../models/Season");
 const TeamStat             = require("../models/TeamStat");
 const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
+const ShopItem             = require("../models/ShopItem");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
 
@@ -61,6 +62,35 @@ router.post("/match", requireAdmin, async (req, res) => {
     loser.isKingOfHill = false;
 
     await Promise.all([winner.save(), loser.save()]);
+
+    // ── Авто-начисление монет магазина ────────────────────────────────────────
+    // Победитель: +15 в командный кошелёк, все участники: +5 лично
+    try {
+      await Promise.all([
+        Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
+        Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
+      ]);
+      // Участникам обеих команд — по 5 личных монет за матч
+      const [winTeam, loseTeam] = await Promise.all([
+        Team.findById(winner.teamId).select("members subs captainId").lean(),
+        Team.findById(loser.teamId).select("members subs captainId").lean(),
+      ]);
+      const allPlayerIds = [
+        ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
+        ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
+      ].filter(Boolean).map(id => id.toString());
+      const uniqueIds = [...new Set(allPlayerIds)];
+      if (uniqueIds.length) {
+        await User.updateMany(
+          { _id: { $in: uniqueIds } },
+          { $inc: { personalBalance: 5 } }
+        );
+      }
+    } catch (balanceErr) {
+      console.error("Ошибка авто-начисления монет:", balanceErr);
+      // Не прерываем ответ — матч уже записан
+    }
+
     res.json({ ok: true, winner, loser });
   } catch (err) {
     console.error(err);
@@ -467,6 +497,119 @@ router.delete("/tournaments/:id/registrations/:teamId", requireAdmin, async (req
     tournament.registrations = (tournament.registrations || []).filter(r => r.teamId.toString() !== req.params.teamId);
     await tournament.save();
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Магазин: управление предметами ──────────────────────────────────────────
+
+router.get("/shop-items", requireAdmin, async (req, res) => {
+  try {
+    const items = await ShopItem.find().sort({ order: 1, createdAt: 1 }).lean();
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/shop-items", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, icon, price, category, type, isActive, isConsumable, order } = req.body;
+    if (!name || !String(name).trim())
+      return res.status(400).json({ error: "Название обязательно" });
+    if (!["personal","team"].includes(category))
+      return res.status(400).json({ error: "category: personal или team" });
+    if (price === undefined || price === null || Number(price) < 0)
+      return res.status(400).json({ error: "Укажите корректную цену" });
+
+    const item = await ShopItem.create({
+      name:        String(name).trim(),
+      description: description ? String(description).trim() : "",
+      icon:        icon        ? String(icon).trim()        : "🎁",
+      price:       Number(price),
+      category,
+      type:        type && ["cosmetic","boost","ticket","slot","placement"].includes(type) ? type : "cosmetic",
+      isActive:    isActive     !== undefined ? Boolean(isActive)     : true,
+      isConsumable:isConsumable !== undefined ? Boolean(isConsumable) : false,
+      order:       order        !== undefined ? Number(order)         : 0,
+    });
+    res.json({ ok: true, item });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/shop-items/:id", requireAdmin, async (req, res) => {
+  try {
+    const allowed = ["name","description","icon","price","category","type","isActive","isConsumable","order"];
+    const update  = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
+    }
+    if (update.name) update.name = String(update.name).trim();
+    const item = await ShopItem.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!item) return res.status(404).json({ error: "Предмет не найден" });
+    res.json({ ok: true, item });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/shop-items/:id", requireAdmin, async (req, res) => {
+  try {
+    await ShopItem.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Монеты: ручное начисление администратором ─────────────────────────────
+
+// POST /api/admin/balance/user/:userId  — начислить/списать личные монеты
+router.post("/balance/user/:userId", requireAdmin, async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount === 0)
+      return res.status(400).json({ error: "amount: целое ненулевое число (отрицательное = списание)" });
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $inc: { personalBalance: amount } },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.personalBalance < 0) {
+      // откат — не уходим в минус
+      await User.findByIdAndUpdate(req.params.userId, { $inc: { personalBalance: -amount } });
+      return res.status(400).json({ error: "Нельзя опустить баланс ниже нуля" });
+    }
+    res.json({ ok: true, personalBalance: user.personalBalance });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// POST /api/admin/balance/team/:teamId  — начислить/списать командные монеты
+router.post("/balance/team/:teamId", requireAdmin, async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount === 0)
+      return res.status(400).json({ error: "amount: целое ненулевое число" });
+
+    const team = await Team.findByIdAndUpdate(
+      req.params.teamId,
+      { $inc: { balance: amount } },
+      { new: true }
+    );
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.balance < 0) {
+      await Team.findByIdAndUpdate(req.params.teamId, { $inc: { balance: -amount } });
+      return res.status(400).json({ error: "Нельзя опустить баланс ниже нуля" });
+    }
+    res.json({ ok: true, balance: team.balance });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }

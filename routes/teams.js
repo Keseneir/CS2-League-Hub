@@ -324,4 +324,103 @@ router.patch("/team/member/:userId/role", requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/team/settings — расширенные настройки команды (team.html)
+router.patch("/team/settings", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+    const team = await Team.findById(req.user.teamId);
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+
+    const uid        = req.user._id.toString();
+    const isCaptain  = team.captainId.toString() === uid;
+    const isManager  = team.managerId && team.managerId.toString() === uid;
+    if (!isCaptain && !isManager)
+      return res.status(403).json({ error: "Только капитан или менеджер" });
+
+    const { name, tag, logo, telegram, description, quote, layoutStyle, privacySettings, managerId } = req.body;
+
+    if (isCaptain) {
+      if (name && name.trim()) team.name = name.trim();
+      if (tag  && tag.trim()) {
+        const t = tag.trim().toUpperCase();
+        if (t.length > 8) return res.status(400).json({ error: "Тег не более 8 символов" });
+        const ex = await Team.findOne({ tag: t, _id: { $ne: team._id } });
+        if (ex) return res.status(400).json({ error: "Команда с таким тегом уже существует" });
+        team.tag = t;
+      }
+      if (logo     !== undefined) team.logo     = (logo     || "").trim();
+      if (telegram !== undefined) team.telegram = (telegram || "").trim();
+
+      if (managerId !== undefined) {
+        if (!managerId) {
+          team.managerId = null;
+        } else {
+          const allIds = [...(team.members || []), ...(team.subs || [])].map(String);
+          if (!allIds.includes(managerId.toString()))
+            return res.status(400).json({ error: "Игрок не в команде" });
+          if (managerId.toString() === team.captainId.toString())
+            return res.status(400).json({ error: "Капитан не может быть менеджером" });
+          team.managerId = managerId;
+        }
+      }
+    } else {
+      if (telegram !== undefined) team.telegram = (telegram || "").trim();
+    }
+
+    if (description !== undefined) {
+      if (String(description).length > 500) return res.status(400).json({ error: "Описание не более 500 символов" });
+      team.description = String(description).trim();
+    }
+    if (quote !== undefined) {
+      if (String(quote).length > 150) return res.status(400).json({ error: "Девиз не более 150 символов" });
+      team.quote = String(quote).trim();
+    }
+    if (layoutStyle !== undefined) {
+      const ls = Number(layoutStyle);
+      if ([1,2,3].includes(ls)) team.layoutStyle = ls;
+    }
+    if (privacySettings && typeof privacySettings === "object") {
+      if (!team.privacySettings) team.privacySettings = {};
+      if (privacySettings.showStats   !== undefined) team.privacySettings.showStats   = Boolean(privacySettings.showStats);
+      if (privacySettings.showHistory !== undefined) team.privacySettings.showHistory = Boolean(privacySettings.showHistory);
+    }
+
+    await team.save();
+    res.json({ ok: true, team });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/teams/:teamId/public — публичная страница команды
+router.get("/teams/:teamId/public", async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId)
+      .populate("members",   "displayName avatar steamId _id")
+      .populate("subs",      "displayName avatar steamId _id")
+      .populate("captainId", "displayName avatar steamId _id")
+      .lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    res.json({
+      _id:             team._id,
+      name:            team.name,
+      tag:             team.tag,
+      logo:            team.logo,
+      description:     team.description || "",
+      quote:           team.quote || "",
+      layoutStyle:     team.layoutStyle || 1,
+      privacySettings: team.privacySettings || {},
+      captainId:       team.captainId,
+      managerId:       team.managerId,
+      members:         team.members,
+      subs:            team.subs,
+      telegram:        team.telegram,
+      balance:         undefined,  // баланс публично не раскрываем
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
 module.exports = router;

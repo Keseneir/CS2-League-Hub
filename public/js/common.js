@@ -161,6 +161,34 @@ async function checkAuth() {
                 profileItem.onmouseout  = () => profileItem.style.background = "transparent";
                 dropdown.appendChild(profileItem);
 
+                // Пункт — Моя команда (только если есть команда)
+                if (user.team) {
+                    const teamItem = document.createElement("a");
+                    teamItem.href = "/team.html";
+                    teamItem.style.cssText = [
+                        "display:flex","align-items:center","gap:8px","padding:10px 14px",
+                        "color:#ffffff","text-decoration:none","font-size:13px",
+                        "transition:background .15s","cursor:pointer",
+                    ].join(";");
+                    teamItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Моя команда`;
+                    teamItem.onmouseover = () => teamItem.style.background = "#12171d";
+                    teamItem.onmouseout  = () => teamItem.style.background = "transparent";
+                    dropdown.appendChild(teamItem);
+                }
+
+                // Пункт — Магазин
+                const shopItem = document.createElement("a");
+                shopItem.href = "/shop.html";
+                shopItem.style.cssText = [
+                    "display:flex","align-items:center","gap:8px","padding:10px 14px",
+                    "color:#e6b022","text-decoration:none","font-size:13px",
+                    "transition:background .15s","cursor:pointer",
+                ].join(";");
+                shopItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Магазин`;
+                shopItem.onmouseover = () => shopItem.style.background = "rgba(230,176,34,0.06)";
+                shopItem.onmouseout  = () => shopItem.style.background = "transparent";
+                dropdown.appendChild(shopItem);
+
                 // Разделитель
                 const sep = document.createElement("div");
                 sep.style.cssText = "height:1px;background:#1f252c;";
@@ -410,7 +438,8 @@ document.addEventListener("DOMContentLoaded", function () {
         div.innerHTML = `
             <div class="mobile-nav-divider"></div>
             <a href="/profile.html">👤 Профиль</a>
-            ${user.team ? `<a href="/join.html">🛡️ Моя команда</a>` : ""}
+            ${user.team ? `<a href="/team.html">🛡️ Моя команда</a>` : ""}
+            <a href="/shop.html" style="color:#e6b022;">🛒 Магазин</a>
             <a href="/logout" style="color:#e05c5c;">Выйти</a>
         `;
         div.querySelectorAll("a").forEach(a => a.addEventListener("click", closeDrawer));

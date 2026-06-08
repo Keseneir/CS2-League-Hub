@@ -1,1738 +1,618 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админ-панель — CS2 League Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:       #0b0f12;
-            --card:     #12171d;
-            --card2:    #0e1318;
-            --border:   #1f252c;
-            --accent:   #e6b022;
-            --accent-d: rgba(230,176,34,0.12);
-            --green:    #4caf82;
-            --red:      #e05c5c;
-            --gray:     #aebbc7;
-            --gray2:    #5c6b7f;
-            --text:     white;
-        }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--gray); min-height: 100vh; }
+const express              = require("express");
+const router               = express.Router();
+const User                 = require("../models/User");
+const Team                 = require("../models/Team");
+const Application          = require("../models/Application");
+const Season               = require("../models/Season");
+const TeamStat             = require("../models/TeamStat");
+const Rank                 = require("../models/Rank");
+const Tournament           = require("../models/Tournament");
+const ShopItem             = require("../models/ShopItem");
+const { requireAdmin }     = require("../middleware/auth");
+const { disbandTeam }      = require("./teams");
 
-        .topbar {
-            background: var(--card2);
-            border-bottom: 1px solid var(--border);
-            padding: 0 24px;
-            display: flex;
-            align-items: center;
-            height: 56px;
-            gap: 24px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .topbar-logo { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 16px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
-        .topbar-badge { background: var(--red); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; letter-spacing: 0.5px; }
-        .topbar-nav { display: flex; gap: 4px; margin-left: auto; }
-        .tab-btn {
-            background: none; border: 1px solid transparent; color: var(--gray2);
-            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px;
-            text-transform: uppercase; letter-spacing: 1px;
-            padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
-            white-space: nowrap;
-        }
-        .tab-btn:hover { color: var(--text); border-color: var(--border); }
-        .tab-btn.active { background: var(--accent-d); color: var(--accent); border-color: rgba(230,176,34,0.3); }
-        .topbar-user { display: flex; align-items: center; gap: 8px; margin-left: 16px; }
-        .topbar-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(230,176,34,0.3); }
-        .topbar-name { font-size: 12px; font-weight: 600; color: var(--gray); white-space: nowrap; }
-        .topbar-logout { font-size: 11px; color: var(--gray2); text-decoration: none; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); transition: all 0.2s; white-space: nowrap; }
-        .topbar-logout:hover { color: var(--red); border-color: rgba(224,92,92,0.4); }
+// ─── Логика рейтинга ─────────────────────────────────────────────────────────
 
-        .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
-        .section-title {
-            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 18px;
-            color: var(--text); text-transform: uppercase; letter-spacing: 1px;
-            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
-        }
-        .section-title .count { font-size: 13px; color: var(--gray2); font-weight: 600; text-transform: none; letter-spacing: 0; }
+function calcPoints(winnerStat, loserStat, roundDiffForWinner) {
+  let winPts, losePts;
 
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-bottom: 28px; }
+  if (loserStat.pts > winnerStat.pts) { winPts = 30; losePts = -10; }
+  else                                { winPts = 25; losePts = -20; }
 
-        .form-card {
-            background: var(--card); border: 1px solid rgba(230,176,34,0.2);
-            border-radius: 12px; overflow: hidden;
-        }
-        .form-card-header {
-            padding: 16px 20px; background: var(--card2); border-bottom: 1px solid var(--border);
-            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px;
-            text-transform: uppercase; letter-spacing: 1px; color: var(--accent);
-        }
-        .form-card-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--gray2); margin-bottom: 6px; }
-        .field-input, .field-select {
-            width: 100%; background: #0e1318; border: 1px solid var(--border); border-radius: 8px;
-            padding: 9px 13px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px;
-            outline: none; transition: border-color 0.2s;
-        }
-        .field-input:focus, .field-select:focus { border-color: rgba(230,176,34,0.5); }
-        .field-input::placeholder { color: #4a5a6b; }
-        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .field-error { color: var(--red); font-size: 12px; display: none; margin-top: 4px; }
+  const newWinStreak = winnerStat.winStreak + 1;
+  if (newWinStreak >= 3)     winPts += 5;
+  if (loserStat.isKingOfHill) winPts += 10;
 
-        .btn { border-radius: 6px; padding: 9px 18px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; border: 1px solid; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
-        .btn-primary   { background: var(--accent); color: #000; border-color: transparent; }
-        .btn-primary:hover { background: #ffc933; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-ghost  { background: transparent; color: var(--gray); border-color: var(--border); }
-        .btn-ghost:hover { color: var(--text); border-color: #aebbc7; }
-        .btn-danger { background: rgba(224,92,92,0.1); color: var(--red); border-color: rgba(224,92,92,0.3); }
-        .btn-danger:hover { background: rgba(224,92,92,0.2); border-color: var(--red); }
-        .btn-success { background: rgba(76,175,130,0.1); color: var(--green); border-color: rgba(76,175,130,0.3); }
-        .btn-success:hover { background: rgba(76,175,130,0.2); }
-        .btn-sm { padding: 5px 10px; font-size: 11px; }
-
-        .data-table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table thead tr { background: var(--card2); border-bottom: 2px solid var(--border); }
-        .data-table th { padding: 12px 16px; text-align: left; font-family: 'Montserrat', sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gray2); white-space: nowrap; }
-        .data-table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
-        .data-table tbody tr:last-child { border-bottom: none; }
-        .data-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-        .data-table td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
-        .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-
-        .team-cell { display: flex; align-items: center; gap: 10px; }
-        .team-logo-sm { width: 30px; height: 30px; border-radius: 6px; object-fit: cover; background: var(--accent-d); border: 1px solid rgba(230,176,34,0.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; color: var(--accent); flex-shrink: 0; font-family: 'Montserrat', sans-serif; overflow: hidden; }
-        .team-logo-sm img { width: 100%; height: 100%; object-fit: cover; }
-        .team-name-cell { font-weight: 700; color: var(--text); }
-        .team-tag-cell { font-size: 11px; color: var(--gray2); }
-        .user-cell { display: flex; align-items: center; gap: 8px; }
-        .user-avatar-sm { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-
-        .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; font-family: 'Montserrat', sans-serif; white-space: nowrap; }
-        .badge-active  { background: rgba(76,175,130,0.15); color: var(--green); }
-        .badge-archive { background: rgba(92,107,127,0.15); color: var(--gray2); }
-        .badge-pending  { background: rgba(230,176,34,0.15); color: var(--accent); }
-        .badge-accepted { background: rgba(76,175,130,0.15); color: var(--green); }
-        .badge-rejected { background: rgba(224,92,92,0.15); color: var(--red); }
-
-        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-        .pts-input { width: 72px; background: #0e1318; border: 1px solid var(--border); border-radius: 4px; color: var(--text); text-align: center; font-size: 13px; padding: 4px 6px; outline: none; font-family: 'Montserrat', sans-serif; font-weight: 700; }
-        .pts-input:focus { border-color: rgba(230,176,34,0.5); }
-
-        /* ── Rank swatch ── */
-        .rank-swatch {
-            display: inline-flex; align-items: center; gap: 7px;
-            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px;
-            padding: 3px 10px; border-radius: 10px; white-space: nowrap;
-        }
-        .rank-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-        #toast {
-            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-            padding: 12px 20px; font-weight: 600; font-size: 13px;
-            display: none; pointer-events: none; max-width: 320px;
-        }
-
-        .modal-overlay { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; display: none; }
-        .modal-overlay.open { display: flex; }
-        .modal-panel { background: #12171d; border: 1px solid rgba(230,176,34,0.25); border-radius: 16px; width: 100%; max-width: 480px; overflow: hidden; }
-        .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border); }
-        .modal-head-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; }
-        .modal-close-btn { background: #1a2128; border: none; color: var(--gray); width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
-        .modal-close-btn:hover { background: var(--red); color: white; }
-        .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
-        .modal-foot { padding: 14px 22px 18px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
-        .modal-error { background: rgba(224,92,92,0.1); border: 1px solid rgba(224,92,92,0.3); color: var(--red); border-radius: 6px; padding: 9px 13px; font-size: 12px; display: none; }
-
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--gray2); }
-        .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
-        .empty-state p { font-size: 14px; }
-
-        .seasons-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .season-chip {
-            background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-            padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
-            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
-        }
-        .season-chip.active { border-color: rgba(230,176,34,0.4); background: var(--accent-d); color: var(--accent); }
-        .season-chip:hover:not(.active) { border-color: var(--gray2); color: var(--text); }
-
-        .match-row { display: flex; align-items: center; gap: 12px; }
-        .vs-badge { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--gray2); flex-shrink: 0; }
-
-        .player-profile-cell { display: flex; align-items: flex-start; gap: 10px; }
-        .player-profile-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-        .player-profile-name { font-weight: 700; color: white; font-size: 13px; }
-        .player-profile-steamid { font-size: 11px; color: var(--gray2); }
-        .player-profile-stats { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
-        .player-stat-pill {
-            display: inline-flex; align-items: center; gap: 4px;
-            background: rgba(92,107,127,0.15); border: 1px solid rgba(92,107,127,0.25);
-            border-radius: 5px; padding: 2px 8px;
-            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 10px;
-            color: var(--gray); white-space: nowrap;
-        }
-        .player-stat-pill.faceit { background: rgba(255,95,31,0.1); border-color: rgba(255,95,31,0.25); color: #ff5f1f; }
-        .player-stat-pill.hours  { background: rgba(91,141,232,0.1); border-color: rgba(91,141,232,0.25); color: #5b8de8; }
-        .player-profile-bio {
-            font-size: 11px; color: var(--gray2); font-style: italic;
-            margin-top: 3px; line-height: 1.5; max-width: 220px;
-            overflow: hidden; text-overflow: ellipsis;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-        }
-
-        /* colour picker preview */
-        .color-preview-row { display: flex; align-items: center; gap: 10px; }
-        .color-preview-swatch { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; transition: background 0.2s; }
-
-        @media (max-width: 680px) {
-            .topbar-nav { display: none; }
-            .field-row { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-
-<header class="topbar">
-    <span class="topbar-logo">CS2 League Hub</span>
-    <span class="topbar-badge">ADMIN</span>
-
-    <nav class="topbar-nav">
-        <button class="tab-btn active" data-tab="leaderboard">🏆 Лидерборд</button>
-        <button class="tab-btn" data-tab="teams">🛡️ Команды</button>
-        <button class="tab-btn" data-tab="applications">📋 Заявки</button>
-        <button class="tab-btn" data-tab="players">👤 Игроки</button>
-        <button class="tab-btn" data-tab="ranks">🎖️ Ранги</button>
-        <button class="tab-btn" data-tab="tournaments">🎮 Турниры</button>
-    </nav>
-
-    <div class="topbar-user" id="topbarUser" style="margin-left:auto;">
-        <img id="topbarAvatar" src="" alt="" class="topbar-avatar" onerror="this.style.display='none'">
-        <span class="topbar-name" id="topbarName">—</span>
-        <a href="/logout" class="topbar-logout">Выйти</a>
-    </div>
-</header>
-
-<main class="main">
-
-    
-    <div class="tab-panel active" id="panel-leaderboard">
-
-        <div class="section-title">Сезоны</div>
-        <div class="seasons-strip" id="seasonsStrip">
-            <div class="empty-state" style="padding:20px;"><div class="empty-state-icon">📅</div><p>Загрузка...</p></div>
-        </div>
-
-        <div class="cards-grid" style="max-width:500px;">
-            <div class="form-card">
-                <div class="form-card-header">➕ Создать сезон</div>
-                <div class="form-card-body">
-                    <div id="seasonCreateError" class="modal-error"></div>
-                    <div>
-                        <label class="field-label">Название</label>
-                        <input type="text" id="snName" class="field-input" placeholder="Сезон 3 · 2026" maxlength="64">
-                    </div>
-                    <div class="field-row">
-                        <div>
-                            <label class="field-label">Год</label>
-                            <input type="number" id="snYear" class="field-input" value="2026" min="2020" max="2099">
-                        </div>
-                        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
-                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                                <input type="checkbox" id="snActive" style="width:16px;height:16px;accent-color:var(--accent);">
-                                Сделать активным
-                            </label>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" id="btnCreateSeason" onclick="createSeason()">Создать сезон</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-title" style="margin-top:8px;">
-            Таблица сезона
-            <span class="count" id="lbSeasonLabel">— выберите сезон</span>
-        </div>
-
-        <div class="cards-grid" style="max-width:520px;margin-bottom:20px;">
-            <div class="form-card">
-                <div class="form-card-header">➕ Добавить команду</div>
-                <div class="form-card-body">
-                    <div id="addTeamError" class="modal-error"></div>
-                    <div>
-                        <label class="field-label">Команда</label>
-                        <select id="addTeamSelect" class="field-select">
-                            <option value="">— выберите команду —</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label">Стартовые очки</label>
-                        <input type="number" id="addTeamPts" class="field-input" value="100" min="0" max="9999">
-                    </div>
-                    <button class="btn btn-primary" onclick="addTeamToLeaderboard()">Добавить в таблицу</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="data-table-wrap" id="lbTableWrap">
-            <div class="empty-state"><div class="empty-state-icon">🏆</div><p>Выберите сезон выше</p></div>
-        </div>
-
-        <div class="section-title" style="margin-top:8px;">⚔️ Записать матч</div>
-        <div class="cards-grid" style="max-width:600px;">
-            <div class="form-card">
-                <div class="form-card-header">Результат матча</div>
-                <div class="form-card-body">
-                    <div id="matchError" class="modal-error"></div>
-                    <div class="match-row">
-                        <div style="flex:1;">
-                            <label class="field-label">Победитель</label>
-                            <select id="matchWinner" class="field-select"><option value="">—</option></select>
-                        </div>
-                        <span class="vs-badge">VS</span>
-                        <div style="flex:1;">
-                            <label class="field-label">Проигравший</label>
-                            <select id="matchLoser" class="field-select"><option value="">—</option></select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="field-label">Разница раундов (победителя)</label>
-                        <input type="number" id="matchRD" class="field-input" value="0" min="-50" max="50" placeholder="например: 6">
-                    </div>
-                    <button class="btn btn-primary" onclick="recordMatch()">✔ Записать матч</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <div class="tab-panel" id="panel-teams">
-        <div class="section-title">
-            Зарегистрированные команды
-            <span class="count" id="teamsCount"></span>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-            <input type="text" id="teamSearchInput" class="field-input" placeholder="🔍 Поиск по названию или тегу..." oninput="filterTeamsTable()" style="max-width:380px;">
-        </div>
-        <div class="data-table-wrap" id="teamsTableWrap">
-            <div class="empty-state"><div class="empty-state-icon">🛡️</div><p>Загрузка...</p></div>
-        </div>
-    </div>
-
-    
-    <div class="tab-panel" id="panel-applications">
-        <div class="section-title">
-            Заявки на участие
-            <span class="count" id="appsCount"></span>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-            <input type="text" id="appSearchInput" class="field-input" placeholder="🔍 Поиск по нику или команде..." oninput="filterAppsTable()" style="max-width:380px;">
-        </div>
-        <div class="data-table-wrap" id="appsTableWrap">
-            <div class="empty-state"><div class="empty-state-icon">📋</div><p>Загрузка...</p></div>
-        </div>
-    </div>
-
-    
-    <div class="tab-panel" id="panel-players">
-        <div class="section-title">
-            Все игроки
-            <span class="count" id="playersCount"></span>
-        </div>
-        <div style="display:flex;gap:10px;margin-bottom:16px;">
-            <input type="text" id="playerSearchInput" class="field-input" placeholder="🔍 Поиск по нику, SteamID или команде..." oninput="filterPlayersTable()" style="max-width:440px;">
-        </div>
-        <div class="data-table-wrap" id="playersTableWrap">
-            <div class="empty-state"><div class="empty-state-icon">👤</div><p>Загрузка...</p></div>
-        </div>
-    </div>
-
-    
-    <div class="tab-panel" id="panel-ranks">
-        <div class="section-title">
-            Управление рангами
-            <span class="count" id="ranksCount"></span>
-        </div>
-
-        <div class="cards-grid" style="max-width:500px;">
-            <div class="form-card">
-                <div class="form-card-header">➕ Создать ранг</div>
-                <div class="form-card-body">
-                    <div id="rankCreateError" class="modal-error"></div>
-                    <div>
-                        <label class="field-label">Название</label>
-                        <input type="text" id="rkName" class="field-input" placeholder="например: Silver I" maxlength="32">
-                    </div>
-                    <div>
-                        <label class="field-label">Цвет бейджа</label>
-                        <div class="color-preview-row">
-                            <input type="color" id="rkColor" value="#e6b022"
-                                style="width:48px;height:36px;padding:2px;background:#0e1318;border:1px solid var(--border);border-radius:8px;cursor:pointer;outline:none;"
-                                oninput="updateColorPreview()">
-                            <div class="color-preview-swatch" id="rkColorSwatch" style="background:#e6b022;"></div>
-                            <span id="rkColorLabel" style="font-size:13px;font-family:monospace;color:var(--gray);">#e6b022</span>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="field-label">Порядок (меньше = выше в списке)</label>
-                        <input type="number" id="rkOrder" class="field-input" value="0" min="0" max="999">
-                    </div>
-                    <button class="btn btn-primary" id="btnCreateRank" onclick="createRank()">Создать ранг</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-title" style="margin-top:4px;">Список рангов</div>
-        <div class="data-table-wrap" id="ranksTableWrap">
-            <div class="empty-state"><div class="empty-state-icon">🎖️</div><p>Рангов пока нет</p></div>
-        </div>
-
-        <div style="background:rgba(230,176,34,0.06);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--gray2);line-height:1.8;max-width:600px;">
-            💡 <strong style="color:var(--accent);">Как назначить ранг игроку:</strong><br>
-            Перейди во вкладку <strong style="color:white;">👤 Игроки</strong> → найди игрока → нажми кнопку <strong style="color:white;">🎖 Ранг</strong>.
-        </div>
-    </div>
-
-    
-    <div class="tab-panel" id="panel-tournaments">
-
-        <div class="cards-grid" style="max-width:620px;">
-            <div class="form-card">
-                <div class="form-card-header">➕ Создать турнир</div>
-                <div class="form-card-body">
-                    <div id="tnCreateError" class="modal-error"></div>
-                    <div>
-                        <label class="field-label">Название <span style="color:var(--red);">*</span></label>
-                        <input type="text" id="tnName" class="field-input" placeholder="Сезон 3 · Весна 2026" maxlength="128">
-                    </div>
-                    <div>
-                        <label class="field-label">Описание</label>
-                        <textarea id="tnDesc" class="field-input" rows="3" placeholder="Краткое описание турнира..." maxlength="1000" style="resize:vertical;min-height:70px;"></textarea>
-                    </div>
-                    <div class="field-row">
-                        <div>
-                            <label class="field-label">Дата начала</label>
-                            <input type="date" id="tnDate" class="field-input">
-                        </div>
-                        <div>
-                            <label class="field-label">Статус</label>
-                            <select id="tnStatus" class="field-select">
-                                <option value="upcoming">Скоро (upcoming)</option>
-                                <option value="active">Активный (active)</option>
-                                <option value="finished">Завершён (finished)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="field-row">
-                        <div>
-                            <label class="field-label">Мин. состав (основных)</label>
-                            <input type="number" id="tnMinMembers" class="field-input" value="5" min="1" max="5">
-                        </div>
-                        <div>
-                            <label class="field-label">Макс. команд</label>
-                            <input type="number" id="tnMaxTeams" class="field-input" value="16" min="2">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="field-label">Призовой фонд / Приз</label>
-                        <input type="text" id="tnPrize" class="field-input" placeholder="например: 3000 грн + медали" maxlength="256">
-                    </div>
-                    <button class="btn btn-primary" id="tnCreateBtn" onclick="createTournament()">Создать турнир</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-title" style="margin-top:8px;">
-            Все турниры
-            <span class="count" id="tournamentsCount"></span>
-        </div>
-
-        <div id="tournamentsTableWrap" class="data-table-wrap">
-            <div class="empty-state"><div class="empty-state-icon">🎮</div><p>Загрузка...</p></div>
-        </div>
-
-        
-        <div id="tournamentRegistrationsSection" style="display:none;margin-top:24px;">
-            <div class="section-title">
-                Заявки турнира: <span id="tnRegTitle" style="color:var(--accent);"></span>
-                <span class="count" id="tnRegCount"></span>
-            </div>
-            <div id="tnRegTableWrap" class="data-table-wrap">
-                <div class="empty-state"><div class="empty-state-icon">👥</div><p>Заявок нет</p></div>
-            </div>
-        </div>
-
-    </div>
-
-</main>
-
-
-
-<div class="modal-overlay" id="playerNoticeModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">💬 Сообщение игроку</span>
-            <button class="modal-close-btn" onclick="closeModal('playerNoticeModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="playerNoticeError" class="modal-error"></div>
-            <p style="font-size:13px;color:var(--gray2);">Игрок: <strong id="playerNoticeName" style="color:white;"></strong></p>
-            <div>
-                <label class="field-label">Текст сообщения</label>
-                <textarea id="playerNoticeText" class="field-input" rows="3" placeholder="Введите сообщение..." style="resize:vertical;min-height:80px;"></textarea>
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('playerNoticeModal')">Отмена</button>
-            <button class="btn btn-primary" id="playerNoticeSendBtn" onclick="submitPlayerNotice()">Отправить</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal-overlay" id="customNoticeModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">💬 Сообщение команде</span>
-            <button class="modal-close-btn" onclick="closeModal('customNoticeModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="noticeError" class="modal-error"></div>
-            <p style="font-size:13px;color:var(--gray2);">Команда: <strong id="noticeTeamName" style="color:white;"></strong></p>
-            <div>
-                <label class="field-label">Текст сообщения</label>
-                <textarea id="noticeText" class="field-input" rows="3" placeholder="Например: Пожалуйста, обновите состав..." style="resize:vertical;min-height:80px;"></textarea>
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('customNoticeModal')">Отмена</button>
-            <button class="btn btn-primary" id="noticeSendBtn" onclick="submitCustomNotice()">Отправить</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal-overlay" id="editStatModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">✏️ Редактировать статистику</span>
-            <button class="modal-close-btn" onclick="closeModal('editStatModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="editStatError" class="modal-error"></div>
-            <p style="font-size:13px;color:var(--gray2);margin-bottom:4px;">Команда: <strong id="editStatTeamName" style="color:white;"></strong></p>
-            <div class="field-row">
-                <div><label class="field-label">Очки</label><input type="number" id="esPts" class="field-input" min="0"></div>
-                <div><label class="field-label">Победы</label><input type="number" id="esWins" class="field-input" min="0"></div>
-            </div>
-            <div class="field-row">
-                <div><label class="field-label">Поражения</label><input type="number" id="esLosses" class="field-input" min="0"></div>
-                <div><label class="field-label">Матчи</label><input type="number" id="esMatches" class="field-input" min="0"></div>
-            </div>
-            <div class="field-row">
-                <div><label class="field-label">Round Diff</label><input type="number" id="esRD" class="field-input"></div>
-                <div><label class="field-label">Серия побед</label><input type="number" id="esStreak" class="field-input" min="0"></div>
-            </div>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" id="esKing" style="width:16px;height:16px;accent-color:var(--accent);">
-                Статус «Царь горы»
-            </label>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('editStatModal')">Отмена</button>
-            <button class="btn btn-primary" id="editStatSaveBtn" onclick="saveStatEdit()">Сохранить</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal-overlay" id="assignRankModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">🎖️ Назначить ранг</span>
-            <button class="modal-close-btn" onclick="closeModal('assignRankModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="assignRankError" class="modal-error"></div>
-            <p style="font-size:13px;color:var(--gray2);">Игрок: <strong id="assignRankPlayerName" style="color:white;"></strong></p>
-            <div>
-                <label class="field-label">Ранг</label>
-                <select id="assignRankSelect" class="field-select">
-                    <option value="Unranked">— Unranked (без ранга) —</option>
-                </select>
-            </div>
-            
-            <div id="assignRankPreview" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;"></div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('assignRankModal')">Отмена</button>
-            <button class="btn btn-primary" id="assignRankSaveBtn" onclick="submitAssignRank()">Назначить</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal-overlay" id="editRankModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">✏️ Редактировать ранг</span>
-            <button class="modal-close-btn" onclick="closeModal('editRankModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="editRankError" class="modal-error"></div>
-            <div>
-                <label class="field-label">Название</label>
-                <input type="text" id="erName" class="field-input" maxlength="32">
-            </div>
-            <div>
-                <label class="field-label">Цвет</label>
-                <div class="color-preview-row">
-                    <input type="color" id="erColor"
-                        style="width:48px;height:36px;padding:2px;background:#0e1318;border:1px solid var(--border);border-radius:8px;cursor:pointer;outline:none;"
-                        oninput="updateEditColorPreview()">
-                    <div class="color-preview-swatch" id="erColorSwatch" style="background:#e6b022;"></div>
-                    <span id="erColorLabel" style="font-size:13px;font-family:monospace;color:var(--gray);">#e6b022</span>
-                </div>
-            </div>
-            <div>
-                <label class="field-label">Порядок</label>
-                <input type="number" id="erOrder" class="field-input" min="0" max="999">
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('editRankModal')">Отмена</button>
-            <button class="btn btn-primary" id="editRankSaveBtn" onclick="submitEditRank()">Сохранить</button>
-        </div>
-    </div>
-</div>
-
-
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title" style="color:var(--red);">⚠️ Подтверждение</span>
-            <button class="modal-close-btn" onclick="closeModal('confirmModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <p id="confirmMsg" style="font-size:14px;color:var(--gray);line-height:1.7;"></p>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Отмена</button>
-            <button class="btn btn-danger" id="confirmOkBtn">Подтвердить</button>
-        </div>
-    </div>
-</div>
-
-<div id="toast"></div>
-
-<script>
-
-
-function toast(msg, type = "ok") {
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.style.color = type === "ok" ? "#4caf82" : "#e05c5c";
-    t.style.display = "block";
-    clearTimeout(t._t);
-    t._t = setTimeout(() => { t.style.display = "none"; }, 3200);
-}
-function showError(elId, msg) {
-    const el = document.getElementById(elId);
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = "block";
-}
-function hideError(elId) {
-    const el = document.getElementById(elId);
-    if (el) el.style.display = "none";
-}
-function closeModal(id) {
-    document.getElementById(id)?.classList.remove("open");
-    document.body.style.overflow = "";
-}
-function openModal(id) {
-    document.getElementById(id)?.classList.add("open");
-    document.body.style.overflow = "hidden";
-}
-function initials(name) {
-    return (name || "?").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
-}
-function logoEl(logo, name, size = 30) {
-    const init = initials(name);
-    if (logo) return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;"><img src="${logo}" alt="${name}" onerror="this.parentNode.textContent='${init}'"></div>`;
-    return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;">${init}</div>`;
-}
-function rankSwatchHtml(rankName, color) {
-    if (!rankName || rankName === "Unranked")
-        return `<span style="color:var(--gray2);font-size:12px;">Unranked</span>`;
-    const c = color || "#aebbc7";
-    return `<span class="rank-swatch" style="background:${c}18;border:1px solid ${c}44;color:${c};">
-        <span class="rank-dot" style="background:${c};"></span>${rankName}
-    </span>`;
+  return { winPts, losePts, newWinStreak };
 }
 
-//статус
-let _seasons    = [];
-let _activeSid  = null;
-let _lbStats    = [];
-let _allTeams   = [];
-let _editStatId = null;
-let _allPlayers = [];
-let _allApps    = [];
-let _allRanks   = [];
-let _editRankId = null;
-let _playerNoticeId  = null;
-let _assignRankUserId = null;
-let _tournaments = [];
-let _editTournamentId = null;
+// ─── Матчи ────────────────────────────────────────────────────────────────────
 
-//инит
-async function init() {
+router.post("/match", requireAdmin, async (req, res) => {
+  const { seasonId, winnerId, loserId, winnerRoundDiff } = req.body;
+  if (!seasonId || !winnerId || !loserId)
+    return res.status(400).json({ error: "Необходимо указать сезон, победителя и проигравшего" });
+  if (winnerId === loserId)
+    return res.status(400).json({ error: "Победитель и проигравший не могут совпадать" });
+
+  try {
+    const [winner, loser] = await Promise.all([
+      TeamStat.findById(winnerId),
+      TeamStat.findById(loserId),
+    ]);
+    if (!winner || !loser) return res.status(404).json({ error: "TeamStat не найден" });
+    if (winner.seasonId.toString() !== seasonId || loser.seasonId.toString() !== seasonId)
+      return res.status(400).json({ error: "Команды принадлежат разным сезонам" });
+
+    const rd = parseInt(winnerRoundDiff) || 0;
+    const { winPts, losePts, newWinStreak } = calcPoints(winner, loser, rd);
+
+    winner.pts         = Math.max(0, winner.pts + winPts);
+    winner.wins       += 1;
+    winner.matches    += 1;
+    winner.roundDiff  += rd;
+    winner.winStreak   = newWinStreak;
+    winner.isKingOfHill = newWinStreak >= 3;
+
+    loser.pts          = Math.max(0, loser.pts + losePts);
+    loser.losses      += 1;
+    loser.matches     += 1;
+    loser.roundDiff   -= rd;
+    loser.winStreak    = 0;
+    loser.isKingOfHill = false;
+
+    await Promise.all([winner.save(), loser.save()]);
+
+    // ── Авто-начисление монет магазина ────────────────────────────────────────
+    // Победитель: +15 в командный кошелёк, все участники: +5 лично
     try {
-        const res  = await fetch("/api/user");
-        const user = await res.json();
-        if (!user || !user.isAdmin) {
-            document.body.innerHTML = `<div style="text-align:center;padding:100px 20px;font-family:'Montserrat',sans-serif;color:#e05c5c;"><div style="font-size:48px;margin-bottom:20px;">🔒</div><h2>Нет доступа</h2><p style="color:#5c6b7f;margin-top:10px;"><a href="/" style="color:#e6b022;">На главную</a></p></div>`;
-            return;
-        }
-        if (user.avatar) document.getElementById("topbarAvatar").src = user.avatar;
-        document.getElementById("topbarName").textContent = user.displayName;
-    } catch { }
+      await Promise.all([
+        Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
+        Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
+      ]);
+      // Участникам обеих команд — по 5 личных монет за матч
+      const [winTeam, loseTeam] = await Promise.all([
+        Team.findById(winner.teamId).select("members subs captainId").lean(),
+        Team.findById(loser.teamId).select("members subs captainId").lean(),
+      ]);
+      const allPlayerIds = [
+        ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
+        ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
+      ].filter(Boolean).map(id => id.toString());
+      const uniqueIds = [...new Set(allPlayerIds)];
+      if (uniqueIds.length) {
+        await User.updateMany(
+          { _id: { $in: uniqueIds } },
+          { $inc: { personalBalance: 5 } }
+        );
+      }
+    } catch (balanceErr) {
+      console.error("Ошибка авто-начисления монет:", balanceErr);
+      // Не прерываем ответ — матч уже записан
+    }
 
-    await Promise.all([loadSeasons(), loadAllTeams(), loadRanks()]);
-    loadApplications();
-}
-
-//табы
-document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.addEventListener("click", function() {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
-        this.classList.add("active");
-        document.getElementById("panel-" + this.dataset.tab)?.classList.add("active");
-        if (this.dataset.tab === "teams")        loadAllTeams();
-        if (this.dataset.tab === "applications") loadApplications();
-        if (this.dataset.tab === "players")      loadAllPlayers();
-        if (this.dataset.tab === "ranks")        loadRanks();
-        if (this.dataset.tab === "tournaments")  loadTournaments();
-    });
+    res.json({ ok: true, winner, loser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
 });
 
-document.querySelectorAll(".modal-overlay").forEach(o => {
-    o.addEventListener("click", function(e) { if (e.target === this) closeModal(this.id); });
+// ─── Пользователи ─────────────────────────────────────────────────────────────
+
+router.get("/users", requireAdmin, async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio telegramUsername discordUsername teamId createdAt")
+      .populate("teamId", "name tag")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
 });
-document.addEventListener("keydown", e => {
-    if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id));
+
+router.post("/users/:userId/notice", requireAdmin, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !String(message).trim()) return res.status(400).json({ error: "Текст сообщения обязателен" });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (!user.adminNotices) user.adminNotices = [];
+    user.adminNotices.push({ type: "custom", message: String(message).trim(), read: false, createdAt: new Date() });
+    await user.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
 });
 
-//сезоны и лидерборд
-async function loadSeasons() {
-    try {
-        const res = await fetch("/api/admin/seasons");
-        if (!res.ok) throw new Error();
-        _seasons = await res.json();
-    } catch { _seasons = []; }
-    renderSeasonsStrip();
-    if (_seasons.length > 0) {
-        const active = _seasons.find(s => s.isActive) || _seasons[0];
-        await selectSeason(active._id);
+router.patch("/users/:userId/rank", requireAdmin, async (req, res) => {
+  try {
+    const { rank } = req.body;
+    if (rank === undefined || rank === null) return res.status(400).json({ error: "Укажите ранг" });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (rank !== "Unranked") {
+      const exists = await Rank.findOne({ name: rank });
+      if (!exists) return res.status(400).json({ error: "Звание не найдено. Сначала создайте его." });
     }
-}
+    user.rank = rank;
+    await user.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function renderSeasonsStrip() {
-    const strip = document.getElementById("seasonsStrip");
-    if (!_seasons.length) {
-        strip.innerHTML = `<div style="color:var(--gray2);font-size:13px;padding:8px 0;">Сезонов пока нет — создайте первый выше</div>`;
-        return;
+router.delete("/users/:userId", requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.steamId === process.env.ADMIN_STEAM_ID)
+      return res.status(400).json({ error: "Нельзя удалить аккаунт администратора" });
+
+    if (user.teamId) {
+      const team = await Team.findById(user.teamId);
+      if (team) {
+        const uid = user._id.toString();
+        if (team.captainId.toString() === uid) {
+          await disbandTeam(user.teamId);
+        } else {
+          team.members = (team.members || []).filter(m => m.toString() !== uid);
+          team.subs    = (team.subs    || []).filter(s => s.toString() !== uid);
+          await team.save();
+        }
+      }
     }
-    strip.innerHTML = _seasons.map(s => `
-        <div class="season-chip${s._id === _activeSid ? " active" : ""}" onclick="selectSeason('${s._id}')">
-            ${s.isActive ? "🔴 " : ""}${s.name}
-            <span style="font-size:10px;color:var(--gray2);">${s.isActive ? "активный" : "архив"}</span>
-            <button onclick="event.stopPropagation();deleteSeason('${s._id}','${s.name}')" style="background:none;border:none;color:var(--gray2);cursor:pointer;font-size:13px;padding:0 2px;" title="Удалить">✕</button>
-            ${!s.isActive ? `<button onclick="event.stopPropagation();activateSeason('${s._id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;font-weight:700;padding:0 2px;" title="Активировать">▶</button>` : ""}
-        </div>
-    `).join("");
-}
 
-async function selectSeason(sid) {
-    _activeSid = sid;
-    renderSeasonsStrip();
-    const s = _seasons.find(x => x._id === sid);
-    if (s) document.getElementById("lbSeasonLabel").textContent = s.name;
-    await loadLbStats();
-    buildMatchSelects();
-}
-
-async function createSeason() {
-    hideError("seasonCreateError");
-    const name     = document.getElementById("snName").value.trim();
-    const year     = document.getElementById("snYear").value;
-    const isActive = document.getElementById("snActive").checked;
-    if (!name) { showError("seasonCreateError", "Введите название сезона"); return; }
-    const btn = document.getElementById("btnCreateSeason");
-    btn.disabled = true; btn.textContent = "Создаём...";
-    try {
-        const res = await fetch("/api/admin/seasons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, year, isActive }) });
-        const d   = await res.json();
-        if (!res.ok) { showError("seasonCreateError", d.error || "Ошибка"); return; }
-        toast("Сезон создан!", "ok");
-        document.getElementById("snName").value = "";
-        document.getElementById("snActive").checked = false;
-        await loadSeasons();
-        if (d.season?._id) selectSeason(d.season._id);
-    } catch { showError("seasonCreateError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Создать сезон"; }
-}
-
-async function activateSeason(sid) {
-    try {
-        await fetch(`/api/admin/seasons/${sid}/activate`, { method: "PATCH" });
-        toast("Сезон активирован", "ok");
-        await loadSeasons();
-    } catch { toast("Ошибка", "err"); }
-}
-
-async function deleteSeason(sid, name) {
-    _confirmAction(`Удалить сезон «${name}» и все его статистики? Это необратимо.`, async () => {
-        try {
-            await fetch(`/api/admin/seasons/${sid}`, { method: "DELETE" });
-            toast("Сезон удалён", "ok");
-            if (_activeSid === sid) {
-                _activeSid = null; _lbStats = [];
-                document.getElementById("lbTableWrap").innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><p>Выберите сезон</p></div>`;
-            }
-            await loadSeasons();
-        } catch { toast("Ошибка", "err"); }
+    await User.updateMany({}, {
+      $pull: {
+        friends:        user._id,
+        friendRequests: { from: user._id },
+        teamInvites:    { from: user._id },
+      }
     });
-}
 
-//лидерборд
-async function loadLbStats() {
-    if (!_activeSid) return;
-    try {
-        const res = await fetch(`/api/admin/leaderboard/${_activeSid}`);
-        _lbStats  = res.ok ? await res.json() : [];
-    } catch { _lbStats = []; }
-    renderLbTable();
-}
+    await Application.deleteMany({ userId: user._id });
+    await User.findByIdAndDelete(user._id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function renderLbTable() {
-    const wrap = document.getElementById("lbTableWrap");
-    if (!_lbStats.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><p>В этом сезоне нет команд — добавьте выше</p></div>`;
-        return;
-    }
-    const sorted = [..._lbStats].sort((a, b) => b.pts - a.pts);
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr>
-            <th>#</th><th>Команда</th>
-            <th class="num">Очки</th><th class="num">М</th><th class="num">В</th><th class="num">П</th>
-            <th class="num">Серия</th><th class="num">Царь</th>
-            <th>Действия</th>
-        </tr></thead>
-        <tbody>${sorted.map((s, i) => `
-        <tr>
-            <td style="color:var(--gray2);font-weight:700;">${i + 1}</td>
-            <td><div class="team-cell">
-                ${logoEl(s.teamId?.logo, s.teamId?.name)}
-                <div>
-                    <div class="team-name-cell">${s.teamId?.name || "—"}</div>
-                    <div class="team-tag-cell">[${s.teamId?.tag || "?"}]</div>
-                </div>
-            </div></td>
-            <td class="num"><strong style="color:var(--accent);font-size:15px;">${s.pts}</strong></td>
-            <td class="num">${s.matches}</td>
-            <td class="num" style="color:var(--green);">${s.wins}</td>
-            <td class="num" style="color:var(--red);">${s.losses}</td>
-            <td class="num">${s.winStreak >= 3 ? `🔥${s.winStreak}` : s.winStreak}</td>
-            <td class="num">${s.isKingOfHill ? "👑" : "—"}</td>
-            <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="openEditStat('${s._id}','${(s.teamId?.name||"").replace(/'/g,"\\'")}',${s.pts},${s.wins},${s.losses},${s.matches},${s.roundDiff},${s.winStreak},${s.isKingOfHill})">✏️ Правка</button>
-                <button class="btn btn-danger btn-sm" onclick="removeFromLb('${s._id}','${(s.teamId?.name||"").replace(/'/g,"\\'")}')">✕ Убрать</button>
-            </div></td>
-        </tr>`).join("")}
-        </tbody>
-    </table>`;
-}
+// ─── Команды ──────────────────────────────────────────────────────────────────
 
-async function addTeamToLeaderboard() {
-    hideError("addTeamError");
-    const teamId = document.getElementById("addTeamSelect").value;
-    const pts    = parseInt(document.getElementById("addTeamPts").value) || 100;
-    if (!teamId)     { showError("addTeamError", "Выберите команду"); return; }
-    if (!_activeSid) { showError("addTeamError", "Выберите сезон");   return; }
-    try {
-        const res = await fetch("/api/admin/leaderboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teamId, seasonId: _activeSid, pts }) });
-        const d   = await res.json();
-        if (!res.ok) { showError("addTeamError", d.error || "Ошибка"); return; }
-        toast("Команда добавлена в сезон!", "ok");
-        document.getElementById("addTeamSelect").value = "";
-        await loadLbStats();
-        buildMatchSelects();
-    } catch { showError("addTeamError", "Ошибка соединения"); }
-}
+router.get("/teams", requireAdmin, async (req, res) => {
+  try {
+    const teams = await Team.find()
+      .populate("captainId", "displayName steamId avatar")
+      .populate("members",   "displayName")
+      .populate("subs",      "displayName")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(teams);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function removeFromLb(statId, name) {
-    _confirmAction(`Убрать команду «${name}» из таблицы сезона?`, async () => {
-        try {
-            await fetch(`/api/admin/leaderboard/${statId}`, { method: "DELETE" });
-            toast("Команда убрана из таблицы", "ok");
-            await loadLbStats();
-            buildMatchSelects();
-        } catch { toast("Ошибка", "err"); }
+router.delete("/teams/:teamId", requireAdmin, async (req, res) => {
+  try {
+    await disbandTeam(req.params.teamId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Ошибка сервера" });
+  }
+});
+
+router.post("/teams/:teamId/notice", requireAdmin, async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId).populate("captainId", "_id");
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    const { type, message } = req.body;
+    const labels = { rename: "Требование сменить название", logo: "Требование обновить логотип", custom: "Сообщение от администрации" };
+    const captain = await User.findById(team.captainId._id || team.captainId);
+    if (!captain) return res.status(404).json({ error: "Капитан не найден" });
+    if (!captain.adminNotices) captain.adminNotices = [];
+    captain.adminNotices.push({
+      type:     type || "custom",
+      message:  message || labels[type] || "Сообщение от администрации",
+      teamId:   team._id,
+      teamName: team.name,
+      read:     false,
+      createdAt: new Date(),
     });
-}
+    await captain.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function openEditStat(id, name, pts, wins, losses, matches, rd, streak, king) {
-    _editStatId = id;
-    document.getElementById("editStatTeamName").textContent = name;
-    document.getElementById("esPts").value     = pts;
-    document.getElementById("esWins").value    = wins;
-    document.getElementById("esLosses").value  = losses;
-    document.getElementById("esMatches").value = matches;
-    document.getElementById("esRD").value      = rd;
-    document.getElementById("esStreak").value  = streak;
-    document.getElementById("esKing").checked  = king;
-    hideError("editStatError");
-    openModal("editStatModal");
-}
+// ─── Заявки ───────────────────────────────────────────────────────────────────
 
-async function saveStatEdit() {
-    hideError("editStatError");
-    if (!_editStatId) return;
-    const body = {
-        pts:          parseInt(document.getElementById("esPts").value),
-        wins:         parseInt(document.getElementById("esWins").value),
-        losses:       parseInt(document.getElementById("esLosses").value),
-        matches:      parseInt(document.getElementById("esMatches").value),
-        roundDiff:    parseInt(document.getElementById("esRD").value),
-        winStreak:    parseInt(document.getElementById("esStreak").value),
-        isKingOfHill: document.getElementById("esKing").checked,
-    };
-    const btn = document.getElementById("editStatSaveBtn");
-    btn.disabled = true; btn.textContent = "Сохранение...";
-    try {
-        const res = await fetch(`/api/admin/leaderboard/${_editStatId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const d   = await res.json();
-        if (!res.ok) { showError("editStatError", d.error || "Ошибка"); return; }
-        closeModal("editStatModal");
-        toast("Статистика обновлена!", "ok");
-        await loadLbStats();
-    } catch { showError("editStatError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
-}
+router.get("/applications", requireAdmin, async (req, res) => {
+  try {
+    const applications = await Application.find()
+      .populate({ path: "userId", select: "displayName avatar steamId faceitLevel hoursInCS2 bio" })
+      .populate("teamId", "name tag")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(applications);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function buildMatchSelects() {
-    const opts = `<option value="">—</option>` + _lbStats.map(s =>
-        `<option value="${s._id}">${s.teamId?.name || "?"}</option>`
-    ).join("");
-    document.getElementById("matchWinner").innerHTML = opts;
-    document.getElementById("matchLoser").innerHTML  = opts;
-}
+router.patch("/applications/:id", requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["accepted","rejected","pending"].includes(status))
+      return res.status(400).json({ error: "Недопустимый статус" });
+    const app = await Application.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!app) return res.status(404).json({ error: "Заявка не найдена" });
+    res.json({ ok: true, application: app });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function recordMatch() {
-    hideError("matchError");
-    const winnerId = document.getElementById("matchWinner").value;
-    const loserId  = document.getElementById("matchLoser").value;
-    const rd       = parseInt(document.getElementById("matchRD").value) || 0;
-    if (!winnerId) { showError("matchError", "Выберите победителя");   return; }
-    if (!loserId)  { showError("matchError", "Выберите проигравшего"); return; }
-    if (winnerId === loserId) { showError("matchError", "Победитель и проигравший не могут совпадать"); return; }
-    const btn = document.querySelector('[onclick="recordMatch()"]');
-    if (btn) { btn.disabled = true; btn.textContent = "Записываем..."; }
-    try {
-        const res = await fetch("/api/admin/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seasonId: _activeSid, winnerId, loserId, winnerRoundDiff: rd }) });
-        const d   = await res.json();
-        if (!res.ok) { showError("matchError", d.error || "Ошибка"); return; }
-        toast(`✅ Матч записан!`, "ok");
-        document.getElementById("matchWinner").value = "";
-        document.getElementById("matchLoser").value  = "";
-        document.getElementById("matchRD").value     = "0";
-        await loadLbStats();
-        buildMatchSelects();
-    } catch { showError("matchError", "Ошибка соединения"); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = "✔ Записать матч"; } }
-}
+router.delete("/applications/:id", requireAdmin, async (req, res) => {
+  try {
+    await Application.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-//команды
-async function loadAllTeams() {
-    try {
-        const res = await fetch("/api/admin/teams");
-        _allTeams = res.ok ? await res.json() : [];
-    } catch { _allTeams = []; }
+// ─── Сезоны ───────────────────────────────────────────────────────────────────
 
-    const sel = document.getElementById("addTeamSelect");
-    sel.innerHTML = `<option value="">— выберите команду —</option>` +
-        _allTeams.map(t => `<option value="${t._id}">${t.name} [${t.tag}]</option>`).join("");
+router.get("/seasons", requireAdmin, async (req, res) => {
+  try {
+    const seasons = await Season.find().sort({ createdAt: -1 }).lean();
+    res.json(seasons);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-    document.getElementById("teamsCount").textContent = `(${_allTeams.length})`;
-    renderTeamsTable();
-}
+router.post("/seasons", requireAdmin, async (req, res) => {
+  const { name, year, isActive } = req.body;
+  if (!name || !year) return res.status(400).json({ error: "Название и год обязательны" });
+  try {
+    if (isActive) await Season.updateMany({}, { $set: { isActive: false } });
+    const season = await Season.create({ name, year: Number(year), isActive: !!isActive });
+    res.json({ ok: true, season });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function renderTeamsTable() {
-    const wrap = document.getElementById("teamsTableWrap");
-    if (!_allTeams.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🛡️</div><p>Команд пока нет</p></div>`;
-        return;
+router.patch("/seasons/:id/activate", requireAdmin, async (req, res) => {
+  try {
+    await Season.updateMany({}, { $set: { isActive: false } });
+    const season = await Season.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
+    res.json({ ok: true, season });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/seasons/:id", requireAdmin, async (req, res) => {
+  try {
+    await TeamStat.deleteMany({ seasonId: req.params.id });
+    await Season.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Лидерборд (управление) ───────────────────────────────────────────────────
+
+router.get("/leaderboard/:seasonId", requireAdmin, async (req, res) => {
+  try {
+    const stats = await TeamStat.find({ seasonId: req.params.seasonId })
+      .populate("teamId", "name tag logo")
+      .sort({ pts: -1 })
+      .lean();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/leaderboard", requireAdmin, async (req, res) => {
+  const { teamId, seasonId, pts } = req.body;
+  if (!teamId || !seasonId) return res.status(400).json({ error: "teamId и seasonId обязательны" });
+  try {
+    const existing = await TeamStat.findOne({ teamId, seasonId });
+    if (existing) return res.status(400).json({ error: "Команда уже добавлена в этот сезон" });
+    const stat      = await TeamStat.create({ teamId, seasonId, pts: pts !== undefined ? Number(pts) : 100 });
+    const populated = await TeamStat.findById(stat._id).populate("teamId", "name tag logo").lean();
+    res.json({ ok: true, stat: populated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/leaderboard/:statId", requireAdmin, async (req, res) => {
+  try {
+    const allowed = ["pts","wins","losses","matches","roundDiff","winStreak","isKingOfHill"];
+    const update  = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
     }
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr><th>Команда</th><th>Тег</th><th>Капитан</th><th class="num">Осн.</th><th class="num">Замены</th><th>Действия</th></tr></thead>
-        <tbody>${_allTeams.map(t => `
-        <tr>
-            <td><div class="team-cell">
-                ${logoEl(t.logo, t.name)}
-                <span class="team-name-cell">${t.name}</span>
-            </div></td>
-            <td><span class="badge badge-active">[${t.tag}]</span></td>
-            <td><div class="user-cell">
-                ${t.captainId?.avatar ? `<img src="${t.captainId.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">` : ""}
-                <span style="font-size:13px;">${t.captainId?.displayName || "—"}</span>
-            </div></td>
-            <td class="num">${(t.members || []).length}/5</td>
-            <td class="num">${(t.subs || []).length}/5</td>
-            <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','rename')" title="Требование сменить название">✏️ Название</button>
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','logo')"   title="Требование обновить логотип">🖼 Лого</button>
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','custom')" title="Своё сообщение">💬</button>
-                <button class="btn btn-danger btn-sm" onclick="disbandTeam('${t._id}','${(t.name).replace(/'/g,"\\'")}')">💀 Расформировать</button>
-            </div></td>
-        </tr>`).join("")}
-        </tbody>
-    </table>`;
-}
+    const stat = await TeamStat.findByIdAndUpdate(req.params.statId, { $set: update }, { new: true })
+      .populate("teamId", "name tag logo").lean();
+    if (!stat) return res.status(404).json({ error: "Не найдено" });
+    res.json({ ok: true, stat });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function filterTeamsTable() {
-    const q = (document.getElementById("teamSearchInput")?.value || "").toLowerCase().trim();
-    document.querySelectorAll("#teamsTableWrap tbody tr").forEach(tr => {
-        tr.style.display = (!q || tr.textContent.toLowerCase().includes(q)) ? "" : "none";
-    });
-}
+router.delete("/leaderboard/:statId", requireAdmin, async (req, res) => {
+  try {
+    await TeamStat.findByIdAndDelete(req.params.statId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-let _noticeTeamId = null, _noticeTeamName = null, _noticeType = null;
+// ─── Ранги ────────────────────────────────────────────────────────────────────
 
-async function sendNotice(teamId, name, type) {
-    _noticeTeamId = teamId; _noticeTeamName = name; _noticeType = type;
-    if (type === "custom") {
-        document.getElementById("noticeTeamName").textContent = name;
-        document.getElementById("noticeText").value = "";
-        hideError("noticeError");
-        openModal("customNoticeModal");
-        return;
+router.get("/ranks", requireAdmin, async (req, res) => {
+  try {
+    const ranks = await Rank.find().sort({ order: 1, name: 1 }).lean();
+    res.json(ranks);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/ranks", requireAdmin, async (req, res) => {
+  try {
+    const { name, color, order } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: "Название обязательно" });
+    const rank = await Rank.create({ name: String(name).trim(), color: color || "#e6b022", order: order !== undefined ? Number(order) : 0 });
+    res.json({ ok: true, rank });
+  } catch (err) {
+    if (err.code === 11000) return res.status(400).json({ error: "Звание с таким названием уже существует" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/ranks/:id", requireAdmin, async (req, res) => {
+  try {
+    const { name, color, order } = req.body;
+    const update = {};
+    if (name  !== undefined) update.name  = String(name).trim();
+    if (color !== undefined) update.color = color;
+    if (order !== undefined) update.order = Number(order);
+    const oldRank = await Rank.findById(req.params.id);
+    if (!oldRank) return res.status(404).json({ error: "Звание не найдено" });
+    const rank = await Rank.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (name && name.trim() !== oldRank.name) {
+      await User.updateMany({ rank: oldRank.name }, { $set: { rank: name.trim() } });
     }
-    const labels = { rename: "потребовать сменить название", logo: "потребовать обновить логотип" };
-    _confirmAction(`${labels[type] || "отправить уведомление"} команде «${name}»?`, async () => {
-        await _doSendNotice(type, "");
+    res.json({ ok: true, rank });
+  } catch (err) {
+    if (err.code === 11000) return res.status(400).json({ error: "Звание с таким названием уже существует" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/ranks/:id", requireAdmin, async (req, res) => {
+  try {
+    const rank = await Rank.findByIdAndDelete(req.params.id);
+    if (!rank) return res.status(404).json({ error: "Звание не найдено" });
+    await User.updateMany({ rank: rank.name }, { $set: { rank: "Unranked" } });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Турниры ──────────────────────────────────────────────────────────────────
+
+router.get("/tournaments", requireAdmin, async (req, res) => {
+  try {
+    const tournaments = await Tournament.find().sort({ createdAt: -1 }).lean();
+    const teamIds = [...new Set(tournaments.flatMap(t => (t.registrations || []).map(r => r.teamId.toString())))];
+    const teams   = await Team.find({ _id: { $in: teamIds } }).select("name tag logo").lean();
+    const teamMap = Object.fromEntries(teams.map(t => [t._id.toString(), t]));
+    const result  = tournaments.map(t => ({
+      ...t,
+      registrations: (t.registrations || []).map(r => ({ ...r, team: teamMap[r.teamId.toString()] || null })),
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/tournaments", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: "Название обязательно" });
+    const tournament = await Tournament.create({
+      name:        String(name).trim(),
+      description: description ? String(description).trim() : "",
+      startDate:   startDate || null,
+      status:      ["upcoming","active","finished"].includes(status) ? status : "upcoming",
+      minMembers:  minMembers ? Math.min(5, Math.max(1, Number(minMembers))) : 5,
+      maxTeams:    maxTeams   ? Math.max(2, Number(maxTeams)) : 16,
+      prize:       prize ? String(prize).trim() : "",
     });
-}
+    res.json({ ok: true, tournament });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function submitCustomNotice() {
-    const msg = document.getElementById("noticeText").value.trim();
-    if (!msg) { showError("noticeError", "Введите текст сообщения"); return; }
-    const btn = document.getElementById("noticeSendBtn");
-    btn.disabled = true; btn.textContent = "Отправляем...";
-    await _doSendNotice(_noticeType, msg);
-    btn.disabled = false; btn.textContent = "Отправить";
-    closeModal("customNoticeModal");
-}
+router.patch("/tournaments/:id", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    const update = {};
+    if (name        !== undefined) update.name        = String(name).trim();
+    if (description !== undefined) update.description = String(description).trim();
+    if (startDate   !== undefined) update.startDate   = startDate || null;
+    if (status      !== undefined && ["upcoming","active","finished"].includes(status)) update.status = status;
+    if (minMembers  !== undefined) update.minMembers  = Math.min(5, Math.max(1, Number(minMembers)));
+    if (maxTeams    !== undefined) update.maxTeams    = Math.max(2, Number(maxTeams));
+    if (prize       !== undefined) update.prize       = String(prize).trim();
+    const tournament = await Tournament.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    res.json({ ok: true, tournament });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function _doSendNotice(type, message) {
-    try {
-        const res = await fetch(`/api/admin/teams/${_noticeTeamId}/notice`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type, message })
-        });
-        const d = await res.json();
-        if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
-        toast(`✅ Уведомление отправлено капитану «${_noticeTeamName}»`, "ok");
-    } catch { toast("Ошибка соединения", "err"); }
-}
+router.delete("/tournaments/:id", requireAdmin, async (req, res) => {
+  try {
+    await Tournament.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function disbandTeam(teamId, name) {
-    _confirmAction(`Расформировать команду «${name}»? Все участники будут освобождены.`, async () => {
-        try {
-            const res = await fetch(`/api/admin/teams/${teamId}`, { method: "DELETE" });
-            const d   = await res.json();
-            if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
-            toast(`Команда «${name}» расформирована`, "ok");
-            await loadAllTeams();
-        } catch { toast("Ошибка соединения", "err"); }
+router.delete("/tournaments/:id/registrations/:teamId", requireAdmin, async (req, res) => {
+  try {
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    tournament.registrations = (tournament.registrations || []).filter(r => r.teamId.toString() !== req.params.teamId);
+    await tournament.save();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Магазин: управление предметами ──────────────────────────────────────────
+
+router.get("/shop-items", requireAdmin, async (req, res) => {
+  try {
+    const items = await ShopItem.find().sort({ order: 1, createdAt: 1 }).lean();
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/shop-items", requireAdmin, async (req, res) => {
+  try {
+    const { name, description, icon, price, category, type, isActive, isConsumable, order } = req.body;
+    if (!name || !String(name).trim())
+      return res.status(400).json({ error: "Название обязательно" });
+    if (!["personal","team"].includes(category))
+      return res.status(400).json({ error: "category: personal или team" });
+    if (price === undefined || price === null || Number(price) < 0)
+      return res.status(400).json({ error: "Укажите корректную цену" });
+
+    const item = await ShopItem.create({
+      name:        String(name).trim(),
+      description: description ? String(description).trim() : "",
+      icon:        icon        ? String(icon).trim()        : "🎁",
+      price:       Number(price),
+      category,
+      type:        type && ["cosmetic","boost","ticket","slot","placement"].includes(type) ? type : "cosmetic",
+      isActive:    isActive     !== undefined ? Boolean(isActive)     : true,
+      isConsumable:isConsumable !== undefined ? Boolean(isConsumable) : false,
+      order:       order        !== undefined ? Number(order)         : 0,
     });
-}
+    res.json({ ok: true, item });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-//заявки (!!потом убрать)
-async function loadApplications() {
-    try {
-        const res  = await fetch("/api/admin/applications");
-        _allApps = res.ok ? await res.json() : [];
-        document.getElementById("appsCount").textContent = `(${_allApps.length})`;
-        renderAppsTable(_allApps);
-    } catch {
-        document.getElementById("appsTableWrap").innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить заявки</p></div>`;
+router.patch("/shop-items/:id", requireAdmin, async (req, res) => {
+  try {
+    const allowed = ["name","description","icon","price","category","type","isActive","isConsumable","order"];
+    const update  = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
     }
-}
+    if (update.name) update.name = String(update.name).trim();
+    const item = await ShopItem.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!item) return res.status(404).json({ error: "Предмет не найден" });
+    res.json({ ok: true, item });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-function filterAppsTable() {
-    const q = (document.getElementById("appSearchInput")?.value || "").toLowerCase().trim();
-    if (!q) { renderAppsTable(_allApps); return; }
-    const filtered = _allApps.filter(a =>
-        (a.userId?.displayName || "").toLowerCase().includes(q) ||
-        (a.userId?.steamId     || "").toLowerCase().includes(q) ||
-        (a.teamId?.name        || "").toLowerCase().includes(q) ||
-        (a.teamId?.tag         || "").toLowerCase().includes(q)
+router.delete("/shop-items/:id", requireAdmin, async (req, res) => {
+  try {
+    await ShopItem.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Монеты: ручное начисление администратором ─────────────────────────────
+
+// POST /api/admin/balance/user/:userId  — начислить/списать личные монеты
+router.post("/balance/user/:userId", requireAdmin, async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount === 0)
+      return res.status(400).json({ error: "amount: целое ненулевое число (отрицательное = списание)" });
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $inc: { personalBalance: amount } },
+      { new: true }
     );
-    renderAppsTable(filtered);
-}
-
-function renderAppsTable(apps) {
-    const wrap = document.getElementById("appsTableWrap");
-    if (!apps.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>Заявок пока нет</p></div>`;
-        return;
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.personalBalance < 0) {
+      // откат — не уходим в минус
+      await User.findByIdAndUpdate(req.params.userId, { $inc: { personalBalance: -amount } });
+      return res.status(400).json({ error: "Нельзя опустить баланс ниже нуля" });
     }
-    const statusMap = {
-        pending:  ["badge-pending",  "⏳ Ожидание"],
-        accepted: ["badge-accepted", "✅ Принята"],
-        rejected: ["badge-rejected", "❌ Отклонена"]
-    };
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr>
-            <th>Игрок</th><th>Команда</th><th>Роль</th><th>Статус</th><th>Действия</th>
-        </tr></thead>
-        <tbody>${apps.map(a => {
-            const [cls, label] = statusMap[a.status] || ["badge-pending", "⏳"];
-            const profileFaceit = a.userId?.faceitLevel ?? null;
-            const profileHours  = a.userId?.hoursInCS2  ?? null;
-            const profileBio    = a.userId?.bio          || "";
-            const faceitPill = profileFaceit !== null
-                ? (profileFaceit === 0 ? `<span class="player-stat-pill faceit">FACEIT: нет</span>` : `<span class="player-stat-pill faceit">FACEIT lv${profileFaceit}</span>`)
-                : "";
-            const hoursPill = profileHours !== null
-                ? `<span class="player-stat-pill hours">⏱ ${profileHours} ч.</span>` : "";
-            const bioPart = profileBio
-                ? `<div class="player-profile-bio">${profileBio.replace(/</g,"&lt;")}</div>` : "";
-            return `<tr>
-                <td>
-                    <div class="player-profile-cell">
-                        ${a.userId?.avatar ? `<img src="${a.userId.avatar}" class="user-avatar-sm" style="width:36px;height:36px;border-radius:50%;" onerror="this.style.display='none'">` : ""}
-                        <div class="player-profile-info">
-                            <div class="player-profile-name">${a.userId?.displayName || "—"}</div>
-                            <div class="player-profile-steamid">${a.userId?.steamId || ""}</div>
-                            <div class="player-profile-stats">${faceitPill}${hoursPill}</div>
-                            ${bioPart}
-                        </div>
-                    </div>
-                </td>
-                <td style="font-size:13px;">${a.teamId ? `[${a.teamId.tag}] ${a.teamId.name}` : "—"}</td>
-                <td>${
-                    a.role === "captain" ? '<span class="badge" style="background:rgba(230,176,34,0.15);color:#e6b022;">👑 Капитан</span>' :
-                    a.role === "sub"     ? '<span class="badge" style="background:rgba(92,107,127,0.15);color:#aebbc7;">🔄 Замена</span>' :
-                                          '<span class="badge" style="background:rgba(76,175,130,0.15);color:#4caf82;">⚔️ Основа</span>'
-                }</td>
-                <td><span class="badge ${cls}">${label}</span></td>
-                <td><div class="actions">
-                    <button class="btn btn-success btn-sm" onclick="updateApp('${a._id}','accepted')">✅ Принять</button>
-                    <button class="btn btn-danger  btn-sm" onclick="updateApp('${a._id}','rejected')">❌ Отклонить</button>
-                    <button class="btn btn-ghost   btn-sm" onclick="deleteApp('${a._id}')">🗑</button>
-                </div></td>
-            </tr>`;
-        }).join("")}</tbody>
-    </table>`;
-}
-
-async function deleteApp(id) {
-    _confirmAction("Удалить эту заявку безвозвратно?", async () => {
-        try {
-            const res = await fetch(`/api/admin/applications/${id}`, { method: "DELETE" });
-            if (!res.ok) { toast("Ошибка удаления", "err"); return; }
-            toast("Заявка удалена", "ok");
-            loadApplications();
-        } catch { toast("Ошибка соединения", "err"); }
-    });
-}
-
-async function updateApp(id, status) {
-    try {
-        const res = await fetch(`/api/admin/applications/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-        if (!res.ok) { toast("Ошибка", "err"); return; }
-        toast(status === "accepted" ? "✅ Заявка принята" : "❌ Заявка отклонена", "ok");
-        loadApplications();
-    } catch { toast("Ошибка соединения", "err"); }
-}
-
-//игроки
-async function loadAllPlayers() {
-    const wrap = document.getElementById("playersTableWrap");
-    if (!wrap) return;
-    wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⏳</div><p>Загрузка...</p></div>`;
-    try {
-        const [usersRes, ranksRes] = await Promise.all([
-            fetch("/api/admin/users"),
-            fetch("/api/ranks"),
-        ]);
-        _allPlayers = usersRes.ok ? await usersRes.json() : [];
-        if (ranksRes.ok) _allRanks = await ranksRes.json();
-        document.getElementById("playersCount").textContent = `(${_allPlayers.length})`;
-        renderPlayersTable(_allPlayers);
-    } catch {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить игроков</p></div>`;
-    }
-}
-
-function filterPlayersTable() {
-    const q = (document.getElementById("playerSearchInput")?.value || "").toLowerCase().trim();
-    if (!q) { renderPlayersTable(_allPlayers); return; }
-    const filtered = _allPlayers.filter(u =>
-        (u.displayName      || "").toLowerCase().includes(q) ||
-        (u.steamId          || "").toLowerCase().includes(q) ||
-        (u.teamId?.name     || "").toLowerCase().includes(q) ||
-        (u.teamId?.tag      || "").toLowerCase().includes(q) ||
-        (u.telegramUsername || "").toLowerCase().includes(q) ||
-        (u.discordUsername  || "").toLowerCase().includes(q)
-    );
-    renderPlayersTable(filtered);
-}
-
-function renderPlayersTable(players) {
-    const wrap = document.getElementById("playersTableWrap");
-    if (!players.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Игроки не найдены</p></div>`;
-        return;
-    }
-    //карта цветов ранги
-    const rankColorMap = {};
-    _allRanks.forEach(r => { rankColorMap[r.name] = r.color; });
-
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr>
-            <th>Игрок</th>
-            <th>Steam ID</th>
-            <th>FACEIT / Часы</th>
-            <th>Ранг</th>
-            <th>Команда</th>
-            <th>Контакты</th>
-            <th>Действия</th>
-        </tr></thead>
-        <tbody>${players.map(u => {
-            const faceitPill = u.faceitLevel !== null && u.faceitLevel !== undefined
-                ? (u.faceitLevel === 0 ? `<span class="player-stat-pill faceit">Нет аккаунта</span>` : `<span class="player-stat-pill faceit">lv${u.faceitLevel}</span>`)
-                : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
-            const hoursPill = u.hoursInCS2 !== null && u.hoursInCS2 !== undefined
-                ? `<span class="player-stat-pill hours">⏱ ${u.hoursInCS2} ч.</span>`
-                : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
-            const tgLink  = u.telegramUsername ? `<a href="https://t.me/${u.telegramUsername}" target="_blank" style="color:#5b8de8;font-size:12px;">tg: @${u.telegramUsername}</a>` : "";
-            const dcLink  = u.discordUsername  ? `<span style="font-size:12px;color:#aebbc7;">ds: ${u.discordUsername}</span>` : "";
-            const socials = [tgLink, dcLink].filter(Boolean).join("<br>");
-            const teamStr = u.teamId ? `[${u.teamId.tag}] ${u.teamId.name}` : `<span style="color:var(--gray2);">—</span>`;
-            const rankHtml = rankSwatchHtml(u.rank, rankColorMap[u.rank]);
-            const esc      = (s) => (s || "").replace(/'/g, "\\'");
-            return `<tr>
-                <td>
-                    <div class="player-profile-cell">
-                        ${u.avatar
-                            ? `<img src="${u.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">`
-                            : `<div style="width:28px;height:28px;border-radius:50%;background:rgba(230,176,34,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:var(--accent);flex-shrink:0;">${initials(u.displayName)}</div>`}
-                        <div class="player-profile-info">
-                            <div class="player-profile-name">${u.displayName || "—"}</div>
-                            ${u.bio ? `<div class="player-profile-bio">${u.bio.replace(/</g,"&lt;")}</div>` : ""}
-                        </div>
-                    </div>
-                </td>
-                <td style="font-size:11px;color:var(--gray2);font-family:monospace;">${u.steamId}</td>
-                <td><div style="display:flex;flex-direction:column;gap:4px;">${faceitPill}${hoursPill}</div></td>
-                <td>${rankHtml}</td>
-                <td style="font-size:13px;">${teamStr}</td>
-                <td style="font-size:12px;">${socials || `<span style="color:var(--gray2);">—</span>`}</td>
-                <td><div class="actions">
-                    <a href="/profile.html?id=${u.steamId}" target="_blank" class="btn btn-ghost btn-sm">👤 Профиль</a>
-                    <button class="btn btn-primary btn-sm" onclick="openPlayerNotice('${u._id}','${esc(u.displayName)}')">💬 Написать</button>
-                    <button class="btn btn-ghost btn-sm" onclick="openAssignRank('${u._id}','${esc(u.displayName)}','${esc(u.rank)}')">🎖 Ранг</button>
-                    <button class="btn btn-danger btn-sm" onclick="deletePlayer('${u._id}','${esc(u.displayName)}')">🗑 Удалить</button>
-                </div></td>
-            </tr>`;
-        }).join("")}</tbody>
-    </table>`;
-}
-
-//написать игроку
-function openPlayerNotice(userId, name) {
-    _playerNoticeId = userId;
-    document.getElementById("playerNoticeName").textContent = name;
-    document.getElementById("playerNoticeText").value = "";
-    hideError("playerNoticeError");
-    openModal("playerNoticeModal");
-}
-
-async function submitPlayerNotice() {
-    const text = document.getElementById("playerNoticeText")?.value.trim();
-    if (!text) { showError("playerNoticeError", "Введите текст сообщения"); return; }
-    const btn = document.getElementById("playerNoticeSendBtn");
-    if (btn) { btn.disabled = true; btn.textContent = "Отправка..."; }
-    try {
-        const res = await fetch(`/api/admin/users/${_playerNoticeId}/notice`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("playerNoticeError", d.error || "Ошибка"); if (btn) { btn.disabled = false; btn.textContent = "Отправить"; } return; }
-        closeModal("playerNoticeModal");
-        toast("Сообщение отправлено!", "ok");
-    } catch { showError("playerNoticeError", "Ошибка соединения"); if (btn) { btn.disabled = false; btn.textContent = "Отправить"; } }
-    _playerNoticeId = null;
-}
-
-//назначить ранг
-function openAssignRank(userId, name, currentRank) {
-    _assignRankUserId = userId;
-    document.getElementById("assignRankPlayerName").textContent = name;
-    hideError("assignRankError");
-
-    const sel = document.getElementById("assignRankSelect");
-    sel.innerHTML = `<option value="Unranked">— Unranked (без ранга) —</option>` +
-        _allRanks.map(r => `<option value="${r.name}"${r.name === currentRank ? " selected" : ""}>${r.name}</option>`).join("");
-    if (currentRank && currentRank !== "Unranked") sel.value = currentRank;
-
-    updateAssignRankPreview();
-    sel.addEventListener("change", updateAssignRankPreview);
-    openModal("assignRankModal");
-}
-
-function updateAssignRankPreview() {
-    const sel     = document.getElementById("assignRankSelect");
-    const preview = document.getElementById("assignRankPreview");
-    const val     = sel.value;
-    if (!val || val === "Unranked") {
-        preview.style.display = "none";
-        return;
-    }
-    const rank = _allRanks.find(r => r.name === val);
-    if (!rank) { preview.style.display = "none"; return; }
-    preview.style.display   = "block";
-    preview.style.color     = rank.color;
-    preview.style.background = rank.color + "14";
-    preview.style.borderColor = rank.color + "44";
-    preview.innerHTML = `<span class="rank-dot" style="background:${rank.color};display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;"></span>${rank.name}`;
-}
-
-async function submitAssignRank() {
-    const rank = document.getElementById("assignRankSelect").value;
-    const btn  = document.getElementById("assignRankSaveBtn");
-    btn.disabled = true; btn.textContent = "Сохранение...";
-    try {
-        const res = await fetch(`/api/admin/users/${_assignRankUserId}/rank`, {
-            method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rank })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("assignRankError", d.error || "Ошибка"); return; }
-        closeModal("assignRankModal");
-        toast("Ранг назначен!", "ok");
-        await loadAllPlayers();
-    } catch { showError("assignRankError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Назначить"; }
-}
-
-//делит игрока
-function deletePlayer(userId, name) {
-    _confirmAction(
-        `Удалить игрока «${name}» из базы данных?\n\nЭто действие необратимо. Игрок будет исключён из команды, удалён из списков друзей и все его данные будут уничтожены.`,
-        async () => {
-            try {
-                const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
-                const d   = await res.json();
-                if (!res.ok) { toast(d.error || "Ошибка", "err"); return; }
-                toast(`Игрок «${name}» удалён`, "ok");
-                await loadAllPlayers();
-            } catch { toast("Ошибка соединения", "err"); }
-        }
-    );
-}
-
-//ранги
-async function loadRanks() {
-    try {
-        const res = await fetch("/api/admin/ranks");
-        _allRanks = res.ok ? await res.json() : [];
-    } catch { _allRanks = []; }
-    document.getElementById("ranksCount").textContent = `(${_allRanks.length})`;
-    renderRanksTable();
-}
-
-function renderRanksTable() {
-    const wrap = document.getElementById("ranksTableWrap");
-    if (!_allRanks.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎖️</div><p>Рангов пока нет — создайте первый выше</p></div>`;
-        return;
-    }
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr>
-            <th>Порядок</th>
-            <th>Ранг</th>
-            <th>Цвет</th>
-            <th>Действия</th>
-        </tr></thead>
-        <tbody>${_allRanks.map(r => `
-        <tr>
-            <td style="color:var(--gray2);font-weight:700;text-align:center;width:60px;">${r.order}</td>
-            <td>${rankSwatchHtml(r.name, r.color)}</td>
-            <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <div style="width:20px;height:20px;border-radius:5px;background:${r.color};border:1px solid rgba(255,255,255,0.1);flex-shrink:0;"></div>
-                    <span style="font-family:monospace;font-size:12px;color:var(--gray2);">${r.color}</span>
-                </div>
-            </td>
-            <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="openEditRank('${r._id}','${r.name.replace(/'/g,"\\'")}','${r.color}',${r.order})">✏️ Изменить</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteRank('${r._id}','${r.name.replace(/'/g,"\\'")}')">🗑 Удалить</button>
-            </div></td>
-        </tr>`).join("")}
-        </tbody>
-    </table>`;
-}
-
-//создать ранг
-function updateColorPreview() {
-    const c = document.getElementById("rkColor").value;
-    document.getElementById("rkColorSwatch").style.background = c;
-    document.getElementById("rkColorLabel").textContent = c;
-}
-
-async function createRank() {
-    hideError("rankCreateError");
-    const name  = document.getElementById("rkName").value.trim();
-    const color = document.getElementById("rkColor").value;
-    const order = parseInt(document.getElementById("rkOrder").value) || 0;
-    if (!name) { showError("rankCreateError", "Введите название ранга"); return; }
-    const btn = document.getElementById("btnCreateRank");
-    btn.disabled = true; btn.textContent = "Создаём...";
-    try {
-        const res = await fetch("/api/admin/ranks", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, color, order })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("rankCreateError", d.error || "Ошибка"); return; }
-        toast(`Ранг «${name}» создан!`, "ok");
-        document.getElementById("rkName").value  = "";
-        document.getElementById("rkOrder").value = "0";
-        document.getElementById("rkColor").value = "#e6b022";
-        updateColorPreview();
-        await loadRanks();
-    } catch { showError("rankCreateError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Создать ранг"; }
-}
-
-// редактировать ранг
-function updateEditColorPreview() {
-    const c = document.getElementById("erColor").value;
-    document.getElementById("erColorSwatch").style.background = c;
-    document.getElementById("erColorLabel").textContent = c;
-}
-
-function openEditRank(id, name, color, order) {
-    _editRankId = id;
-    document.getElementById("erName").value  = name;
-    document.getElementById("erColor").value = color;
-    document.getElementById("erOrder").value = order;
-    updateEditColorPreview();
-    hideError("editRankError");
-    openModal("editRankModal");
-}
-
-async function submitEditRank() {
-    hideError("editRankError");
-    const name  = document.getElementById("erName").value.trim();
-    const color = document.getElementById("erColor").value;
-    const order = parseInt(document.getElementById("erOrder").value) || 0;
-    if (!name) { showError("editRankError", "Введите название"); return; }
-    const btn = document.getElementById("editRankSaveBtn");
-    btn.disabled = true; btn.textContent = "Сохранение...";
-    try {
-        const res = await fetch(`/api/admin/ranks/${_editRankId}`, {
-            method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, color, order })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("editRankError", d.error || "Ошибка"); return; }
-        closeModal("editRankModal");
-        toast("Ранг обновлён!", "ok");
-        await loadRanks();
-    } catch { showError("editRankError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
-}
-
-// удалить ранг
-async function deleteRank(id, name) {
-    _confirmAction(`Удалить ранг «${name}»?\n\nУ всех игроков с этим рангом он сбросится в Unranked.`, async () => {
-        try {
-            const res = await fetch(`/api/admin/ranks/${id}`, { method: "DELETE" });
-            if (!res.ok) { toast("Ошибка", "err"); return; }
-            toast(`Ранг «${name}» удалён`, "ok");
-            await loadRanks();
-        } catch { toast("Ошибка соединения", "err"); }
-    });
-}
-
-//конфирм
-let _confirmCb = null;
-function _confirmAction(msg, cb) {
-    _confirmCb = cb;
-    document.getElementById("confirmMsg").textContent = msg;
-    openModal("confirmModal");
-}
-document.getElementById("confirmOkBtn").addEventListener("click", async function() {
-    closeModal("confirmModal");
-    if (_confirmCb) { await _confirmCb(); _confirmCb = null; }
+    res.json({ ok: true, personalBalance: user.personalBalance });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
 });
 
-//турниры
-async function loadTournaments() {
-    try {
-        const res = await fetch("/api/admin/tournaments");
-        _tournaments = res.ok ? await res.json() : [];
-    } catch { _tournaments = []; }
-    renderTournamentsTable();
-}
+// POST /api/admin/balance/team/:teamId  — начислить/списать командные монеты
+router.post("/balance/team/:teamId", requireAdmin, async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    if (!Number.isInteger(amount) || amount === 0)
+      return res.status(400).json({ error: "amount: целое ненулевое число" });
 
-function renderTournamentsTable() {
-    const wrap = document.getElementById("tournamentsTableWrap");
-    document.getElementById("tournamentsCount").textContent = `(${_tournaments.length})`;
-    if (!_tournaments.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎮</div><p>Турниров пока нет — создайте первый выше</p></div>`;
-        return;
+    const team = await Team.findByIdAndUpdate(
+      req.params.teamId,
+      { $inc: { balance: amount } },
+      { new: true }
+    );
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.balance < 0) {
+      await Team.findByIdAndUpdate(req.params.teamId, { $inc: { balance: -amount } });
+      return res.status(400).json({ error: "Нельзя опустить баланс ниже нуля" });
     }
-    const statusLabel = { upcoming: "Скоро", active: "Активный", finished: "Завершён" };
-    const statusColor = { upcoming: "var(--accent)", active: "var(--green)", finished: "var(--gray2)" };
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr>
-            <th>Название</th>
-            <th>Статус</th>
-            <th class="num">Заявок</th>
-            <th class="num">Макс.</th>
-            <th>Дата начала</th>
-            <th>Приз</th>
-            <th>Действия</th>
-        </tr></thead>
-        <tbody>${_tournaments.map(t => `
-        <tr>
-            <td><strong style="color:white;">${escAdmin(t.name)}</strong></td>
-            <td><span style="color:${statusColor[t.status] || "var(--gray)"};">${statusLabel[t.status] || t.status}</span></td>
-            <td class="num">${(t.registrations || []).length}</td>
-            <td class="num">${t.maxTeams}</td>
-            <td>${t.startDate ? new Date(t.startDate).toLocaleDateString("ru-RU") : "—"}</td>
-            <td style="color:var(--accent);">${t.prize ? escAdmin(t.prize) : "—"}</td>
-            <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="openTournamentRegistrations('${t._id}','${escAdmin(t.name).replace(/'/g,"\\'")}')">👥 Заявки</button>
-                <button class="btn btn-ghost btn-sm" onclick="openEditTournament('${t._id}')">✏️</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteTournament('${t._id}','${escAdmin(t.name).replace(/'/g,"\\'")}')">✕</button>
-            </div></td>
-        </tr>`).join("")}
-        </tbody>
-    </table>`;
-}
+    res.json({ ok: true, balance: team.balance });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-async function createTournament() {
-    hideError("tnCreateError");
-    const name       = document.getElementById("tnName").value.trim();
-    const desc       = document.getElementById("tnDesc").value.trim();
-    const dateVal    = document.getElementById("tnDate").value;
-    const status     = document.getElementById("tnStatus").value;
-    const minMembers = document.getElementById("tnMinMembers").value;
-    const maxTeams   = document.getElementById("tnMaxTeams").value;
-    const prize      = document.getElementById("tnPrize").value.trim();
-    if (!name) { showError("tnCreateError", "Введите название турнира"); return; }
-    const btn = document.getElementById("tnCreateBtn");
-    btn.disabled = true; btn.textContent = "Создаём...";
-    try {
-        const res = await fetch("/api/admin/tournaments", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal || null, status, minMembers, maxTeams, prize })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("tnCreateError", d.error || "Ошибка"); return; }
-        toast("Турнир создан!", "ok");
-        document.getElementById("tnName").value  = "";
-        document.getElementById("tnDesc").value  = "";
-        document.getElementById("tnDate").value  = "";
-        document.getElementById("tnPrize").value = "";
-        await loadTournaments();
-    } catch { showError("tnCreateError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Создать турнир"; }
-}
-
-function openEditTournament(id) {
-    const t = _tournaments.find(x => x._id === id);
-    if (!t) return;
-    _editTournamentId = id;
-    document.getElementById("etName").value       = t.name;
-    document.getElementById("etDesc").value       = t.description || "";
-    document.getElementById("etDate").value       = t.startDate ? t.startDate.split("T")[0] : "";
-    document.getElementById("etStatus").value     = t.status;
-    document.getElementById("etMinMembers").value = t.minMembers;
-    document.getElementById("etMaxTeams").value   = t.maxTeams;
-    document.getElementById("etPrize").value      = t.prize || "";
-    hideError("etError");
-    openModal("editTournamentModal");
-}
-
-async function submitEditTournament() {
-    hideError("etError");
-    const name       = document.getElementById("etName").value.trim();
-    const desc       = document.getElementById("etDesc").value.trim();
-    const dateVal    = document.getElementById("etDate").value;
-    const status     = document.getElementById("etStatus").value;
-    const minMembers = document.getElementById("etMinMembers").value;
-    const maxTeams   = document.getElementById("etMaxTeams").value;
-    const prize      = document.getElementById("etPrize").value.trim();
-    if (!name) { showError("etError", "Введите название"); return; }
-    const btn = document.getElementById("etSaveBtn");
-    btn.disabled = true; btn.textContent = "Сохранение...";
-    try {
-        const res = await fetch(`/api/admin/tournaments/${_editTournamentId}`, {
-            method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal || null, status, minMembers, maxTeams, prize })
-        });
-        const d = await res.json();
-        if (!res.ok) { showError("etError", d.error || "Ошибка"); return; }
-        closeModal("editTournamentModal");
-        toast("Турнир обновлён!", "ok");
-        await loadTournaments();
-    } catch { showError("etError", "Ошибка соединения"); }
-    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
-}
-
-async function deleteTournament(id, name) {
-    _confirmAction(`Удалить турнир «${name}»?\nВсе заявки будут удалены вместе с ним.`, async () => {
-        try {
-            const res = await fetch(`/api/admin/tournaments/${id}`, { method: "DELETE" });
-            if (!res.ok) { toast("Ошибка", "err"); return; }
-            toast(`Турнир «${name}» удалён`, "ok");
-            document.getElementById("tournamentRegistrationsSection").style.display = "none";
-            await loadTournaments();
-        } catch { toast("Ошибка соединения", "err"); }
-    });
-}
-
-function openTournamentRegistrations(id, name) {
-    const t = _tournaments.find(x => x._id === id);
-    if (!t) return;
-    const section = document.getElementById("tournamentRegistrationsSection");
-    section.style.display = "";
-    document.getElementById("tnRegTitle").textContent = name;
-    const regs = t.registrations || [];
-    document.getElementById("tnRegCount").textContent = `(${regs.length})`;
-    const wrap = document.getElementById("tnRegTableWrap");
-    if (!regs.length) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>Заявок пока нет</p></div>`;
-        section.scrollIntoView({ behavior: "smooth" });
-        return;
-    }
-    wrap.innerHTML = `<table class="data-table">
-        <thead><tr><th>#</th><th>Команда</th><th>Дата заявки</th><th>Действия</th></tr></thead>
-        <tbody>${regs.map((r, i) => `
-        <tr>
-            <td style="color:var(--gray2);font-weight:700;">${i + 1}</td>
-            <td><div class="team-cell">
-                ${r.team ? logoEl(r.team.logo, r.team.name) : ""}
-                <div>
-                    <div class="team-name-cell">${r.team ? escAdmin(r.team.name) : "—"}</div>
-                    <div class="team-tag-cell">${r.team ? `[${r.team.tag}]` : ""}</div>
-                </div>
-            </div></td>
-            <td>${new Date(r.registeredAt).toLocaleDateString("ru-RU")}</td>
-            <td>
-                <button class="btn btn-danger btn-sm" onclick="removeRegistration('${id}','${r.teamId}','${r.team?.name || "команду"}')">✕ Удалить заявку</button>
-            </td>
-        </tr>`).join("")}
-        </tbody>
-    </table>`;
-    section.scrollIntoView({ behavior: "smooth" });
-}
-
-async function removeRegistration(tournamentId, teamId, teamName) {
-    _confirmAction(`Удалить заявку команды «${teamName}» из турнира?`, async () => {
-        try {
-            const res = await fetch(`/api/admin/tournaments/${tournamentId}/registrations/${teamId}`, { method: "DELETE" });
-            if (!res.ok) { toast("Ошибка", "err"); return; }
-            toast("Заявка удалена", "ok");
-            await loadTournaments();
-            // Обновить открытую секцию
-            const t = _tournaments.find(x => x._id === tournamentId);
-            if (t) openTournamentRegistrations(tournamentId, t.name);
-        } catch { toast("Ошибка соединения", "err"); }
-    });
-}
-
-function escAdmin(str) {
-    return String(str || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-}
-
-init();
-</script>
-<div class="modal-overlay" id="editTournamentModal">
-    <div class="modal-panel">
-        <div class="modal-head">
-            <span class="modal-head-title">✏️ Редактировать турнир</span>
-            <button class="modal-close-btn" onclick="closeModal('editTournamentModal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="etError" class="modal-error"></div>
-            <div>
-                <label class="field-label">Название</label>
-                <input type="text" id="etName" class="field-input" maxlength="128">
-            </div>
-            <div>
-                <label class="field-label">Описание</label>
-                <textarea id="etDesc" class="field-input" rows="3" maxlength="1000" style="resize:vertical;min-height:70px;"></textarea>
-            </div>
-            <div class="field-row">
-                <div>
-                    <label class="field-label">Дата начала</label>
-                    <input type="date" id="etDate" class="field-input">
-                </div>
-                <div>
-                    <label class="field-label">Статус</label>
-                    <select id="etStatus" class="field-select">
-                        <option value="upcoming">Скоро</option>
-                        <option value="active">Активный</option>
-                        <option value="finished">Завершён</option>
-                    </select>
-                </div>
-            </div>
-            <div class="field-row">
-                <div>
-                    <label class="field-label">Мин. состав</label>
-                    <input type="number" id="etMinMembers" class="field-input" min="1" max="5">
-                </div>
-                <div>
-                    <label class="field-label">Макс. команд</label>
-                    <input type="number" id="etMaxTeams" class="field-input" min="2">
-                </div>
-            </div>
-            <div>
-                <label class="field-label">Приз</label>
-                <input type="text" id="etPrize" class="field-input" maxlength="256">
-            </div>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-ghost" onclick="closeModal('editTournamentModal')">Отмена</button>
-            <button class="btn btn-primary" id="etSaveBtn" onclick="submitEditTournament()">Сохранить</button>
-        </div>
-    </div>
-</div>
-
-</body>
-</html>
+module.exports = router;

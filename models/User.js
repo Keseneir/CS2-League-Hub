@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
-    //ВХОДЯЩИЕ заявки в др 
+    //ВХОДЯЩИЕ заявки в др
     friendRequests: [
       {
         from: {
@@ -135,6 +135,28 @@ const userSchema = new mongoose.Schema(
       type:    Boolean,
       default: false,
     },
+
+    // ── Магазин: личный кошелёк и инвентарь ──────────────────────────────────
+    // Монеты начисляются автоматически за участие в матчах.
+    // Тратятся в Personal Store (shop.html, вкладка «Для себя»).
+    personalBalance: {
+      type:    Number,
+      default: 0,
+      min:     0,
+    },
+
+    personalInventory: [
+      {
+        itemId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref:  "ShopItem",
+        },
+        addedAt: {
+          type:    Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

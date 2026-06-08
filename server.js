@@ -15,6 +15,7 @@ const Season      = require("./models/Season");
 const TeamStat    = require("./models/TeamStat");
 const Rank        = require("./models/Rank");
 const Tournament  = require("./models/Tournament");
+const ShopItem    = require("./models/ShopItem");
 
 const app    = express();
 const PORT   = process.env.PORT || 3000;
@@ -119,6 +120,7 @@ app.use("/api/applications", require("./routes/applications"));
 app.use("/api/leaderboard",  require("./routes/leaderboard"));
 app.use("/api/admin",        require("./routes/admin"));
 app.use("/api/tournaments",  require("./routes/tournaments"));
+app.use("/api/shop",         require("./routes/shop"));
 
 app.get("/api/seasons", async (req, res) => {
   try {

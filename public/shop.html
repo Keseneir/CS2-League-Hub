@@ -701,7 +701,7 @@ async function submitDeposit() {
     btn.disabled = false;
 }
 
-// ─── Надеть / Снять ───────────────────────────────────────────────────────────
+
 async function equipPersonal(itemId, slot, isCurrentlyEquipped) {
     try {
         const res  = await fetch("/api/shop/equip/personal", {
@@ -734,7 +734,7 @@ async function equipTeam(itemId, slot, isCurrentlyEquipped) {
     } catch { showToast("Ошибка сети", "err"); }
 }
 
-// ─── Утилиты ──────────────────────────────────────────────────────────────────
+
 function openModal(id)  { document.getElementById(id).classList.add("open");    document.body.style.overflow = "hidden"; }
 function closeModal(id) { document.getElementById(id).classList.remove("open"); document.body.style.overflow = ""; }
 

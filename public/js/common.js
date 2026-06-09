@@ -16,9 +16,7 @@ console.log(
 'color:#ff4444;font-size:12px;','color:#888;font-size:11px;'
 );
 
-/* ================================================
-   AUTH — подключается на всех страницах
-   ================================================ */
+//auth на всех страницах
 async function checkAuth() {
     try {
         const res  = await fetch("/api/user");
@@ -247,10 +245,7 @@ async function checkAuth() {
 
 document.addEventListener("DOMContentLoaded", checkAuth);
 
-/* ================================================
-   ЕДИНЫЕ ССЫЛКИ — добавляются на всех страницах
-   автоматически, HTML файлы менять не нужно
-   ================================================ */
+
 document.addEventListener("DOMContentLoaded", function () {
     const currentPage = window.location.pathname.split("/").pop() || "index.html";
 
@@ -313,9 +308,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 
-/* ================================================
-   ГЛОБАЛЬНЫЙ ПОЛЛИНГ УВЕДОМЛЕНИЙ (все страницы)
-   ================================================ */
+//поллинг уведомлений на всех страницах
 (function() {
     let _globalPrevCount = -1;
     const _globalAudio   = new Audio("assets/notification.mp3");
@@ -354,9 +347,7 @@ document.addEventListener("DOMContentLoaded", function () {
 })();
 
 
-/* ================================================
-   MOBILE HAMBURGER MENU
-   ================================================ */
+
 document.addEventListener("DOMContentLoaded", function () {
     if (document.getElementById("_dynHamburger")) return;
 
@@ -428,7 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.key === "Escape") closeDrawer();
     });
 
-    // Добавить профиль/выход после checkAuth
+    
     const origCheckAuth = window._origCheckAuth;
     document.addEventListener("_authDone", function(e) {
         const user = e.detail;
@@ -447,9 +438,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-/* ================================================
-   ANTI-CLONE
-   ================================================ */
+
 (function() {
     const isOriginal = window.location.hostname === "cs2-league-hub.vercel.app" || window.location.hostname === "localhost";
     if (!isOriginal) {

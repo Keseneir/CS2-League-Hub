@@ -52,14 +52,16 @@ router.get("/rosters", async (req, res) => {
     const ids = (req.query.ids || "").split(",").filter(Boolean).slice(0, 30);
     if (!ids.length) return res.json({});
     const teams = await Team.find({ _id: { $in: ids } })
-      .populate("members", "displayName")
-      .populate("subs",    "displayName")
+      .populate("members", "displayName steamId")
+      .populate("subs",    "displayName steamId")
       .lean();
     const map = {};
     teams.forEach(t => {
       map[t._id.toString()] = {
-        members: (t.members || []).map(m => ({ displayName: m.displayName })),
-        subs:    (t.subs    || []).map(m => ({ displayName: m.displayName })),
+        name:    t.name,
+        tag:     t.tag,
+        members: (t.members || []).map(m => ({ displayName: m.displayName, steamId: m.steamId })),
+        subs:    (t.subs    || []).map(m => ({ displayName: m.displayName, steamId: m.steamId })),
       };
     });
     res.json(map);

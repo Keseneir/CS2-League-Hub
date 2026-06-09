@@ -339,6 +339,30 @@
 
     <div class="container" style="max-width:900px;">
 
+        <!-- ── Кнопка поделиться ── -->
+        <div style="margin-bottom:32px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:0;">
+                <div class="section-label">🔗 Ссылка на страницу команды</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <input id="shareUrlInput" readonly
+                        style="flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-gray);font-family:'Inter',sans-serif;font-size:13px;outline:none;min-width:0;"
+                        value="">
+                    <button onclick="copyShareUrl()"
+                        style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text-gray);font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .2s;"
+                        onmouseover="this.style.borderColor='rgba(230,176,34,0.5)';this.style.color='#e6b022'"
+                        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
+                        📋 Копировать
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Управление составом (только капитан) ── -->
+        <div id="memberMgmtSection" style="display:none;margin-bottom:32px;">
+            <div class="section-label">👥 Управление составом</div>
+            <div id="memberMgmtList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
         <!-- ── Выбор лейаута (капитан / менеджер) ── -->
         <div id="layoutPickerSection" style="display:none;margin-bottom:32px;">
             <div class="section-label">🎨 Шаблон страницы</div>
@@ -407,15 +431,33 @@
             <div class="section-label">✏️ Управление командой</div>
             <div class="edit-section">
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-                    <div class="field-row" style="margin-bottom:0;">
-                        <label class="field-label-sm" for="editName">Название</label>
-                        <input id="editName" class="field-input-sm" type="text" maxlength="64" placeholder="Название команды">
+                <div class="field-row">
+                    <label class="field-label-sm">Логотип команды</label>
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div id="logoPreview" style="width:56px;height:56px;border-radius:10px;background:var(--input-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0;">🛡️</div>
+                        <div style="flex:1;">
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                <label for="logoFileInput" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--input-bg);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-gray);transition:all .2s;"
+                                    onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'"
+                                    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">📁 Загрузить</label>
+                                <input type="file" id="logoFileInput" accept="image/*" style="display:none;" onchange="handleLogoFile(this)">
+                                <button type="button" id="logoDeleteBtn" style="display:none;background:transparent;border:1px solid rgba(224,92,92,.35);border-radius:7px;padding:8px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--red);cursor:pointer;transition:all .2s;"
+                                    onclick="clearLogo()">🗑 Удалить</button>
+                            </div>
+                            <div id="logoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">Файл не выбран · до 2 МБ</div>
+                            <div id="logoUploadErr" style="margin-top:4px;font-size:11px;color:var(--red);display:none;"></div>
+                        </div>
                     </div>
-                    <div class="field-row" style="margin-bottom:0;">
-                        <label class="field-label-sm" for="editTag">Тег</label>
-                        <input id="editTag" class="field-input-sm" type="text" maxlength="8" style="text-transform:uppercase;" placeholder="TAG">
-                    </div>
+                </div>
+
+                <div class="field-row">
+                    <label class="field-label-sm" for="editName">Название</label>
+                    <input id="editName" class="field-input-sm" type="text" maxlength="64" placeholder="Название команды">
+                </div>
+
+                <div class="field-row">
+                    <label class="field-label-sm" for="editTag">Тег</label>
+                    <input id="editTag" class="field-input-sm" type="text" maxlength="8" style="text-transform:uppercase;" placeholder="TAG">
                 </div>
 
                 <div class="field-row">
@@ -522,6 +564,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderHero(_team);
             renderRosters(_team);
             renderStats(_team);
+            if (_team.equippedCosmetics?.teamBg) applyTeamCosmetic(_team.equippedCosmetics.teamBg);
+            initShareUrl(_team.tag);
             // Публичный просмотр: нет кошелька, нет редактора
             document.getElementById("mainWrap").style.display = "";
         } catch {
@@ -564,13 +608,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderStats(_team);
     renderWallet(_team, canEdit);
 
+    // Применяем надетый косметический фон команды
+    if (_team.equippedCosmetics?.teamBg) {
+        applyTeamCosmetic(_team.equippedCosmetics.teamBg);
+    }
+
     if (canEdit) {
         document.getElementById("layoutPickerSection").style.display = "";
         document.getElementById("editSection").style.display = "";
         populateEditForm(_team, profile);
         highlightActiveLayout(_team.layoutStyle || 1);
+        await loadCloudinaryConfig();
+        initLogoPreview(_team.logo);
+        renderMemberManagement(_team);
     }
 
+    initShareUrl(_team.tag);
     document.getElementById("mainWrap").style.display = "";
 });
 
@@ -740,35 +793,6 @@ function populateEditForm(team, profile) {
     }
 }
 
-// ─── Сохранение настроек ───────────────────────────────────────────────────
-async function saveTeamSettings() {
-    const body = {
-        name:        document.getElementById("editName").value.trim(),
-        tag:         document.getElementById("editTag").value.trim(),
-        quote:       document.getElementById("editQuote").value.trim(),
-        description: document.getElementById("editDesc").value.trim(),
-        telegram:    document.getElementById("editTelegram").value.trim(),
-        privacySettings: {
-            showStats:   document.getElementById("privStats").checked,
-            showHistory: document.getElementById("privHistory").checked,
-        },
-    };
-    if (_isCaptain) {
-        body.managerId = document.getElementById("managerSelect").value || null;
-    }
-    const errEl = document.getElementById("editError");
-    errEl.style.display = "none";
-    try {
-        const res  = await fetch("/api/team/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = await res.json();
-        if (!res.ok) { errEl.textContent = data.error; errEl.style.display = ""; return; }
-        showToast("Настройки сохранены", "ok");
-        setTimeout(() => location.reload(), 800);
-    } catch {
-        showToast("Ошибка сети", "err");
-    }
-}
-
 // ─── Лейаут ────────────────────────────────────────────────────────────────
 async function setLayout(num) {
     try {
@@ -798,6 +822,224 @@ function showToast(msg, type) {
     t.textContent = msg;
     t.className   = `toast ${type} show`;
     setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+// ─── Ссылка поделиться ─────────────────────────────────────────────────────
+function initShareUrl(tag) {
+    const url = `${location.origin}/team.html?tag=${encodeURIComponent(tag)}`;
+    const inp = document.getElementById("shareUrlInput");
+    if (inp) inp.value = url;
+}
+
+function copyShareUrl() {
+    const inp = document.getElementById("shareUrlInput");
+    if (!inp) return;
+    navigator.clipboard.writeText(inp.value)
+        .then(() => showToast("Ссылка скопирована!", "ok"))
+        .catch(() => {
+            inp.select();
+            document.execCommand("copy");
+            showToast("Ссылка скопирована!", "ok");
+        });
+}
+
+// ─── Загрузка логотипа (Cloudinary) ───────────────────────────────────────
+let _cloudinaryCloud  = "";
+let _cloudinaryPreset = "";
+let _pendingLogoUrl   = null;   // новый URL после загрузки (до Save)
+
+async function loadCloudinaryConfig() {
+    try {
+        const d = await fetch("/api/config").then(r => r.json());
+        _cloudinaryCloud  = d.cloudinaryCloud  || "";
+        _cloudinaryPreset = d.cloudinaryPreset || "";
+    } catch {}
+}
+
+function handleLogoFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const errEl = document.getElementById("logoUploadErr");
+    errEl.style.display = "none";
+
+    if (file.size > 2 * 1024 * 1024) {
+        errEl.textContent   = "Файл больше 2 МБ";
+        errEl.style.display = "";
+        input.value = "";
+        return;
+    }
+    if (!file.type.startsWith("image/")) {
+        errEl.textContent   = "Выберите изображение";
+        errEl.style.display = "";
+        input.value = "";
+        return;
+    }
+
+    document.getElementById("logoFileName").textContent = `${file.name} — загрузка...`;
+
+    if (!_cloudinaryCloud || !_cloudinaryPreset) {
+        errEl.textContent   = "Cloudinary не настроен (проверьте .env)";
+        errEl.style.display = "";
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append("file",   file);
+    fd.append("upload_preset", _cloudinaryPreset);
+
+    fetch(`https://api.cloudinary.com/v1_1/${_cloudinaryCloud}/image/upload`, { method: "POST", body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.secure_url) throw new Error("Нет URL");
+            _pendingLogoUrl = data.secure_url;
+            const preview = document.getElementById("logoPreview");
+            preview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='🛡️'">`;
+            document.getElementById("logoFileName").textContent = "Готово — нажмите «Сохранить»";
+            document.getElementById("logoDeleteBtn").style.display = "";
+        })
+        .catch(e => {
+            const errEl = document.getElementById("logoUploadErr");
+            errEl.textContent   = "Ошибка загрузки: " + e.message;
+            errEl.style.display = "";
+            document.getElementById("logoFileName").textContent = "Ошибка";
+        });
+}
+
+function clearLogo() {
+    _pendingLogoUrl = "";   // пустая строка = удалить
+    document.getElementById("logoPreview").textContent = "🛡️";
+    document.getElementById("logoFileName").textContent = "Логотип будет удалён после сохранения";
+    document.getElementById("logoDeleteBtn").style.display = "none";
+}
+
+function initLogoPreview(logoUrl) {
+    if (!logoUrl) return;
+    const preview = document.getElementById("logoPreview");
+    if (preview) {
+        preview.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='🛡️'">`;
+        document.getElementById("logoDeleteBtn").style.display = "";
+    }
+}
+
+// ─── Управление составом (только капитан) ──────────────────────────────────
+function renderMemberManagement(team) {
+    if (!_isCaptain) return;
+    const section = document.getElementById("memberMgmtSection");
+    const list    = document.getElementById("memberMgmtList");
+    if (!section || !list) return;
+    section.style.display = "";
+
+    const capId  = (team.captainId?._id || team.captainId || "").toString();
+    const all    = [
+        ...(team.members || []).map(m => ({ ...m, slot: "main" })),
+        ...(team.subs    || []).map(m => ({ ...m, slot: "sub"  })),
+    ];
+
+    list.innerHTML = "";
+    all.forEach(member => {
+        const mid   = (member._id || "").toString();
+        const isCap = mid === capId;
+        const row   = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;";
+
+        row.innerHTML = `
+            <img src="${esc(member.avatar||"")}" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;" onerror="this.style.display='none'">
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:13px;">${isCap?"👑 ":""}${esc(member.displayName||"—")}</div>
+                <div style="font-size:11px;color:var(--text-gray);">${member.slot === "main" ? "Основной" : "Запасной"}</div>
+            </div>
+            ${!isCap ? `
+            <button onclick="changeRole('${mid}','${member.slot === "main" ? "sub" : "main"}')"
+                style="background:rgba(91,141,232,0.1);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.background='rgba(91,141,232,0.2)'" onmouseout="this.style.background='rgba(91,141,232,0.1)'">
+                ${member.slot === "main" ? "→ Запасной" : "→ Основной"}
+            </button>
+            <button onclick="transferCaptain('${mid}')"
+                style="background:rgba(230,176,34,0.08);border:1px solid rgba(230,176,34,0.25);color:var(--accent);border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.background='rgba(230,176,34,0.15)'" onmouseout="this.style.background='rgba(230,176,34,0.08)'">
+                👑 Капитан
+            </button>
+            <button onclick="kickMember('${mid}')"
+                style="background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.25);color:var(--red);border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.background='rgba(224,92,92,0.18)'" onmouseout="this.style.background='rgba(224,92,92,0.08)'">
+                Кик
+            </button>` : `<span style="font-size:11px;color:var(--text-gray);">вы</span>`}
+        `;
+        list.appendChild(row);
+    });
+}
+
+async function changeRole(userId, newRole) {
+    if (!confirm(`Сменить роль игрока на "${newRole === "main" ? "Основной" : "Запасной"}"?`)) return;
+    try {
+        const res  = await fetch(`/api/team/member/${userId}/role`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: newRole }) });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.error, "err");
+        showToast("Роль изменена", "ok");
+        setTimeout(() => location.reload(), 700);
+    } catch { showToast("Ошибка сети", "err"); }
+}
+
+async function transferCaptain(userId) {
+    if (!confirm("Передать капитанство этому игроку? Вы потеряете права капитана.")) return;
+    try {
+        const res  = await fetch(`/api/team/captain/${userId}`, { method: "PATCH" });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.error, "err");
+        showToast("Капитанство передано", "ok");
+        setTimeout(() => location.reload(), 700);
+    } catch { showToast("Ошибка сети", "err"); }
+}
+
+async function kickMember(userId) {
+    if (!confirm("Исключить игрока из команды?")) return;
+    try {
+        const res  = await fetch(`/api/team/member/${userId}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.error, "err");
+        showToast("Игрок исключён", "ok");
+        setTimeout(() => location.reload(), 700);
+    } catch { showToast("Ошибка сети", "err"); }
+}
+
+// ─── Косметика команды (применяем CSS) ────────────────────────────────────
+function applyTeamCosmetic(item) {
+    if (!item?.css) return;
+    const style = document.createElement("style");
+    if (item.keyframes) style.textContent += item.keyframes + "\n";
+    style.textContent += `.team-hub-hero { ${item.css} }`;
+    document.head.appendChild(style);
+}
+
+// ─── Обновлённое сохранение (с учётом логотипа) ────────────────────────────
+async function saveTeamSettings() {
+    const body = {
+        name:        document.getElementById("editName").value.trim(),
+        tag:         document.getElementById("editTag").value.trim(),
+        quote:       document.getElementById("editQuote").value.trim(),
+        description: document.getElementById("editDesc").value.trim(),
+        telegram:    document.getElementById("editTelegram").value.trim(),
+        privacySettings: {
+            showStats:   document.getElementById("privStats").checked,
+            showHistory: document.getElementById("privHistory").checked,
+        },
+    };
+    // Логотип: только если был изменён
+    if (_pendingLogoUrl !== null) body.logo = _pendingLogoUrl;
+    if (_isCaptain) {
+        body.managerId = document.getElementById("managerSelect").value || null;
+    }
+    const errEl = document.getElementById("editError");
+    errEl.style.display = "none";
+    try {
+        const res  = await fetch("/api/team/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error; errEl.style.display = ""; return; }
+        showToast("Настройки сохранены", "ok");
+        setTimeout(() => location.reload(), 800);
+    } catch {
+        showToast("Ошибка сети", "err");
+    }
 }
 </script>
 </body>

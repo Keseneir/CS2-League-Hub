@@ -157,6 +157,12 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+
+    // ── Надетая косметика ─────────────────────────────────────────────────
+    equippedCosmetics: {
+      avatarFrame: { type: mongoose.Schema.Types.ObjectId, ref: "ShopItem", default: null },
+      profileBg:   { type: mongoose.Schema.Types.ObjectId, ref: "ShopItem", default: null },
+    },
   },
   {
     timestamps: true,

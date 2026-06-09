@@ -533,23 +533,54 @@ function renderItems(category) {
 
 // ─── Инвентарь ───────────────────────────────────────────────────────────────
 function renderInventory(category) {
+    const equipped = category === "personal"
+        ? (_inventory.equippedUser || {})
+        : (_inventory.equippedTeam || {});
+
     if (category === "personal") {
         const items = _inventory.personal || [];
         if (!items.length) return;
         document.getElementById("personalInvSection").style.display = "";
         document.getElementById("personalInvGrid").innerHTML = items.map(e => {
-            const n = e.itemId?.name || "Предмет";
-            const ic = e.itemId?.icon || "📦";
-            return `<div class="inv-pill">${ic} ${esc(n)}</div>`;
+            const item = e.itemId || {};
+            const n    = item.name || "Предмет";
+            const ic   = item.icon || "📦";
+            const ct   = item.cosmeticType;
+            const slotMap = { avatar_frame: "avatarFrame", profile_bg: "profileBg" };
+            const slot    = slotMap[ct];
+            const isEquipped = slot && (equipped[slot]?._id || equipped[slot])?.toString() === (item._id || "").toString();
+            const canEquip   = !!slot;
+            return `<div class="inv-pill" style="${isEquipped ? "border-color:rgba(230,176,34,0.5);background:rgba(230,176,34,0.06);" : ""}">
+                <span>${ic}</span>
+                <span style="font-weight:600;">${esc(n)}</span>
+                ${canEquip ? `
+                <button onclick="equipPersonal('${item._id}','${slot}',${isEquipped})"
+                    style="margin-left:6px;background:${isEquipped?"rgba(230,176,34,0.15)":"rgba(255,255,255,0.05)"};border:1px solid ${isEquipped?"rgba(230,176,34,0.4)":"rgba(255,255,255,0.1)"};color:${isEquipped?"#e6b022":"#aebbc7"};border-radius:5px;padding:3px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;">
+                    ${isEquipped ? "✓ Надето" : "Надеть"}
+                </button>` : ""}
+            </div>`;
         }).join("");
     } else {
         const items = _inventory.team || [];
         if (!items.length) return;
         document.getElementById("teamInvSection").style.display = "";
         document.getElementById("teamInvGrid").innerHTML = items.map(e => {
-            const n  = e.itemId?.name || "Предмет";
-            const ic = e.itemId?.icon || "📦";
-            return `<div class="inv-pill ${e.consumed ? "consumed" : ""}">${ic} ${esc(n)}${e.consumed ? " (использован)" : ""}</div>`;
+            const item = e.itemId || {};
+            const n    = item.name || "Предмет";
+            const ic   = item.icon || "📦";
+            const ct   = item.cosmeticType;
+            const slot = ct === "team_bg" ? "teamBg" : null;
+            const isEquipped = slot && (equipped[slot]?._id || equipped[slot])?.toString() === (item._id || "").toString();
+            const canEquip   = !!slot && !e.consumed && _balance.isTeamManager;
+            return `<div class="inv-pill ${e.consumed ? "consumed" : ""}" style="${isEquipped ? "border-color:rgba(230,176,34,0.5);background:rgba(230,176,34,0.06);" : ""}">
+                <span>${ic}</span>
+                <span style="font-weight:600;">${esc(n)}${e.consumed ? " (использован)" : ""}</span>
+                ${canEquip ? `
+                <button onclick="equipTeam('${item._id}','${slot}',${isEquipped})"
+                    style="margin-left:6px;background:${isEquipped?"rgba(230,176,34,0.15)":"rgba(255,255,255,0.05)"};border:1px solid ${isEquipped?"rgba(230,176,34,0.4)":"rgba(255,255,255,0.1)"};color:${isEquipped?"#e6b022":"#aebbc7"};border-radius:5px;padding:3px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;">
+                    ${isEquipped ? "✓ Надето" : "Надеть"}
+                </button>` : ""}
+            </div>`;
         }).join("");
     }
 }
@@ -668,6 +699,39 @@ async function submitDeposit() {
         showToast("Ошибка сети", "err");
     }
     btn.disabled = false;
+}
+
+// ─── Надеть / Снять ───────────────────────────────────────────────────────────
+async function equipPersonal(itemId, slot, isCurrentlyEquipped) {
+    try {
+        const res  = await fetch("/api/shop/equip/personal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: isCurrentlyEquipped ? null : itemId, slot }),
+        });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.error, "err");
+        showToast(isCurrentlyEquipped ? "Снято" : "Надето!", "ok");
+        const invRes = await fetch("/api/shop/inventory");
+        _inventory = await invRes.json();
+        renderInventory("personal");
+    } catch { showToast("Ошибка сети", "err"); }
+}
+
+async function equipTeam(itemId, slot, isCurrentlyEquipped) {
+    try {
+        const res  = await fetch("/api/shop/equip/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: isCurrentlyEquipped ? null : itemId, slot }),
+        });
+        const data = await res.json();
+        if (!res.ok) return showToast(data.error, "err");
+        showToast(isCurrentlyEquipped ? "Снято" : "Надето!", "ok");
+        const invRes = await fetch("/api/shop/inventory");
+        _inventory = await invRes.json();
+        renderInventory("team");
+    } catch { showToast("Ошибка сети", "err"); }
 }
 
 // ─── Утилиты ──────────────────────────────────────────────────────────────────

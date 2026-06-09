@@ -46,9 +46,14 @@ const teamSchema = new mongoose.Schema(
       {
         tournamentId: { type: mongoose.Schema.Types.ObjectId, ref: "Tournament" },
         lockedAt:     { type: Date, default: Date.now },
-        roster:       [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],  // снимок состава
+        roster:       [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
       },
     ],
+
+    // ── Надетая косметика ─────────────────────────────────────────────────
+    equippedCosmetics: {
+      teamBg: { type: mongoose.Schema.Types.ObjectId, ref: "ShopItem", default: null },
+    },
   },
   { timestamps: true }
 );

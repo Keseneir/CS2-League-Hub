@@ -35,6 +35,8 @@ router.get("/profile", requireAuth, async (req, res) => {
       .populate("friendRequests.from", "displayName avatar steamId")
       .populate({ path: "teamInvites.teamId", select: "name tag logo" })
       .populate({ path: "teamInvites.from",   select: "displayName avatar" })
+      .populate({ path: "equippedCosmetics.avatarFrame", select: "name css keyframes cosmeticType" })
+      .populate({ path: "equippedCosmetics.profileBg",   select: "name css keyframes cosmeticType" })
       .lean();
 
     let team      = null;
@@ -73,6 +75,7 @@ router.get("/profile", requireAuth, async (req, res) => {
       applications,
       adminNotices:     (user.adminNotices    || []).filter(n => !n.read),
       isAdmin:          user.steamId === ADMIN_STEAM_ID,
+      equippedCosmetics: user.equippedCosmetics || {},
     });
   } catch (err) {
     console.error(err);

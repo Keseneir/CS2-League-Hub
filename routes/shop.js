@@ -66,21 +66,115 @@ router.get("/inventory", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .populate("personalInventory.itemId")
-      .select("personalInventory teamId").lean();
+      .populate("equippedCosmetics.avatarFrame", "name icon cosmeticType")
+      .populate("equippedCosmetics.profileBg",   "name icon cosmeticType")
+      .select("personalInventory equippedCosmetics teamId").lean();
 
     let teamInventory = [];
+    let teamEquipped  = {};
     if (user.teamId) {
       const team = await Team.findById(user.teamId)
         .populate("inventory.itemId")
-        .select("inventory").lean();
-      if (team) teamInventory = team.inventory || [];
+        .populate("equippedCosmetics.teamBg", "name icon cosmeticType")
+        .select("inventory equippedCosmetics").lean();
+      if (team) {
+        teamInventory = team.inventory || [];
+        teamEquipped  = team.equippedCosmetics || {};
+      }
     }
 
     res.json({
-      personal: user.personalInventory || [],
-      team:     teamInventory,
+      personal:      user.personalInventory || [],
+      team:          teamInventory,
+      equippedUser:  user.equippedCosmetics || {},
+      equippedTeam:  teamEquipped,
     });
   } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── POST /api/shop/equip/personal ─── надеть личную косметику ────────────
+// slot: 'avatarFrame' | 'profileBg'  (null = снять)
+router.post("/equip/personal", requireAuth, async (req, res) => {
+  try {
+    const { itemId, slot } = req.body;
+    if (!["avatarFrame", "profileBg"].includes(slot))
+      return res.status(400).json({ error: "slot: avatarFrame или profileBg" });
+
+    if (!itemId) {
+      // Снять
+      await User.findByIdAndUpdate(req.user._id, {
+        $set: { [`equippedCosmetics.${slot}`]: null },
+      });
+      return res.json({ ok: true, equipped: null });
+    }
+
+    const item = await ShopItem.findById(itemId).lean();
+    if (!item) return res.status(404).json({ error: "Предмет не найден" });
+
+    const user = await User.findById(req.user._id)
+      .select("personalInventory equippedCosmetics").lean();
+    const owns = (user.personalInventory || []).some(
+      (e) => e.itemId?.toString() === itemId
+    );
+    if (!owns)
+      return res.status(400).json({ error: "Этого предмета нет в вашем инвентаре" });
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $set: { [`equippedCosmetics.${slot}`]: item._id },
+    });
+    res.json({ ok: true, equipped: item._id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── POST /api/shop/equip/team ─── надеть командную косметику ─────────────
+// slot: 'teamBg'  (null itemId = снять)
+router.post("/equip/team", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId)
+      return res.status(400).json({ error: "Вы не в команде" });
+
+    const { itemId, slot } = req.body;
+    if (!["teamBg"].includes(slot))
+      return res.status(400).json({ error: "slot: teamBg" });
+
+    const team = await Team.findById(req.user.teamId)
+      .select("captainId managerId inventory equippedCosmetics").lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+
+    const uid = req.user._id.toString();
+    const canEdit =
+      team.captainId.toString() === uid ||
+      (team.managerId && team.managerId.toString() === uid);
+    if (!canEdit)
+      return res.status(403).json({ error: "Только капитан или менеджер" });
+
+    if (!itemId) {
+      await Team.findByIdAndUpdate(req.user.teamId, {
+        $set: { [`equippedCosmetics.${slot}`]: null },
+      });
+      return res.json({ ok: true, equipped: null });
+    }
+
+    const item = await ShopItem.findById(itemId).lean();
+    if (!item) return res.status(404).json({ error: "Предмет не найден" });
+
+    const owns = (team.inventory || []).some(
+      (e) => !e.consumed && e.itemId?.toString() === itemId
+    );
+    if (!owns)
+      return res.status(400).json({ error: "Этого предмета нет в инвентаре команды" });
+
+    await Team.findByIdAndUpdate(req.user.teamId, {
+      $set: { [`equippedCosmetics.${slot}`]: item._id },
+    });
+    res.json({ ok: true, equipped: item._id });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

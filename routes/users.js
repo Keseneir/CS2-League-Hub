@@ -46,6 +46,7 @@ router.get("/profile", requireAuth, async (req, res) => {
         .populate("members",   "displayName avatar steamId _id")
         .populate("subs",      "displayName avatar steamId _id")
         .populate("captainId", "_id")
+        .populate({ path: "equippedCosmetics.teamBg", select: "name icon css keyframes cosmeticType" })
         .lean();
       if (team) {
         isCaptain = team.captainId._id.toString() === req.user._id.toString();
@@ -196,7 +197,9 @@ router.get("/users/search", requireAuth, async (req, res) => {
 router.get("/users/:steamId/public", async (req, res) => {
   try {
     const user = await User.findOne({ steamId: req.params.steamId })
-      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId telegramUsername discordUsername")
+      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId telegramUsername discordUsername equippedCosmetics")
+      .populate({ path: "equippedCosmetics.avatarFrame", select: "name icon css keyframes cosmeticType" })
+      .populate({ path: "equippedCosmetics.profileBg",   select: "name icon css keyframes cosmeticType" })
       .lean();
 
     if (!user) return res.status(404).json({ error: "Пользователь не найден" });
@@ -217,18 +220,19 @@ router.get("/users/:steamId/public", async (req, res) => {
     }
 
     return res.json({
-      steamId:          user.steamId,
-      displayName:      user.displayName,
-      avatar:           user.avatar,
-      rank:             user.rank || "Unranked",
+      steamId:           user.steamId,
+      displayName:       user.displayName,
+      avatar:            user.avatar,
+      rank:              user.rank || "Unranked",
       rankColor,
-      faceitLevel:      user.faceitLevel,
-      hoursInCS2:       user.hoursInCS2,
-      bio:              user.bio || "",
-      isPrivate:        false,
-      telegramUsername: user.telegramUsername || "",
-      discordUsername:  user.discordUsername  || "",
+      faceitLevel:       user.faceitLevel,
+      hoursInCS2:        user.hoursInCS2,
+      bio:               user.bio || "",
+      isPrivate:         false,
+      telegramUsername:  user.telegramUsername || "",
+      discordUsername:   user.discordUsername  || "",
       team,
+      equippedCosmetics: user.equippedCosmetics || {},
     });
   } catch (err) {
     console.error(err);

@@ -401,22 +401,24 @@ router.get("/teams/by-tag/:tag", async (req, res) => {
       .populate("members",   "displayName avatar steamId _id")
       .populate("subs",      "displayName avatar steamId _id")
       .populate("captainId", "displayName avatar steamId _id")
+      .populate({ path: "equippedCosmetics.teamBg", select: "name icon css keyframes cosmeticType" })
       .lean();
     if (!team) return res.status(404).json({ error: "Команда не найдена" });
     res.json({
-      _id:             team._id,
-      name:            team.name,
-      tag:             team.tag,
-      logo:            team.logo,
-      description:     team.description || "",
-      quote:           team.quote || "",
-      layoutStyle:     team.layoutStyle || 1,
-      privacySettings: team.privacySettings || {},
-      captainId:       team.captainId,
-      managerId:       team.managerId || null,
-      members:         team.members,
-      subs:            team.subs,
-      telegram:        team.telegram,
+      _id:               team._id,
+      name:              team.name,
+      tag:               team.tag,
+      logo:              team.logo,
+      description:       team.description || "",
+      quote:             team.quote || "",
+      layoutStyle:       team.layoutStyle || 1,
+      privacySettings:   team.privacySettings || {},
+      captainId:         team.captainId,
+      managerId:         team.managerId || null,
+      members:           team.members,
+      subs:              team.subs,
+      telegram:          team.telegram,
+      equippedCosmetics: team.equippedCosmetics || {},
     });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
@@ -430,23 +432,24 @@ router.get("/teams/:teamId/public", async (req, res) => {
       .populate("members",   "displayName avatar steamId _id")
       .populate("subs",      "displayName avatar steamId _id")
       .populate("captainId", "displayName avatar steamId _id")
+      .populate({ path: "equippedCosmetics.teamBg", select: "name icon css keyframes cosmeticType" })
       .lean();
     if (!team) return res.status(404).json({ error: "Команда не найдена" });
     res.json({
-      _id:             team._id,
-      name:            team.name,
-      tag:             team.tag,
-      logo:            team.logo,
-      description:     team.description || "",
-      quote:           team.quote || "",
-      layoutStyle:     team.layoutStyle || 1,
-      privacySettings: team.privacySettings || {},
-      captainId:       team.captainId,
-      managerId:       team.managerId,
-      members:         team.members,
-      subs:            team.subs,
-      telegram:        team.telegram,
-      balance:         undefined,  // баланс публично не раскрываем
+      _id:               team._id,
+      name:              team.name,
+      tag:               team.tag,
+      logo:              team.logo,
+      description:       team.description || "",
+      quote:             team.quote || "",
+      layoutStyle:       team.layoutStyle || 1,
+      privacySettings:   team.privacySettings || {},
+      captainId:         team.captainId,
+      managerId:         team.managerId,
+      members:           team.members,
+      subs:              team.subs,
+      telegram:          team.telegram,
+      equippedCosmetics: team.equippedCosmetics || {},
     });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });

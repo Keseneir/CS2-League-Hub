@@ -423,10 +423,7 @@
             <a href="privacy.html">Политика конфиденциальности</a>
         </div>
         <hr class="footer-divider">
-        <p class="footer-copy">
-            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
-            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
-        </p>
+        <p class="footer-copy">© 2026 CS2 League Hub. Developed by Keseneir. Все права защищены.</p>
     </div>
 </footer>
 
@@ -436,17 +433,18 @@ let _balance      = { personalBalance: 0, teamBalance: null, isTeamManager: fals
 let _pendingBuy   = null;   // { itemId, category }
 let _allItems     = [];
 let _inventory    = { personal: [], team: [] };
+let _me           = null;   // данные текущего пользователя (для превью)
 
 const TYPE_LABELS = { cosmetic: "Косметика", boost: "Буст", ticket: "Билет", slot: "Слот", placement: "Приоритет" };
 
 // ─── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
     const userRes = await fetch("/api/user");
-    const me      = await userRes.json();
+    _me = await userRes.json();
 
     document.getElementById("loadingWrap").style.display = "none";
 
-    if (!me) {
+    if (!_me) {
         document.getElementById("authGate").style.display = "";
         return;
     }

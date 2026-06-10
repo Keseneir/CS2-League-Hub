@@ -571,10 +571,7 @@
             <a href="privacy.html">Политика конфиденциальности</a>
         </div>
         <hr class="footer-divider">
-        <p class="footer-copy">
-            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
-            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
-        </p>
+        <p class="footer-copy">© 2026 CS2 League Hub. Developed by Keseneir. Все права защищены.</p>
     </div>
 </footer>
 
@@ -1105,10 +1102,21 @@ async function kickMember(userId) {
 // ─── Косметика команды (применяем CSS) ────────────────────────────────────
 function applyTeamCosmetic(item) {
     if (!item?.css) return;
-    const style = document.createElement("style");
-    if (item.keyframes) style.textContent += item.keyframes + "\n";
-    style.textContent += `.team-hub-hero { ${item.css} }`;
-    document.head.appendChild(style);
+    let styleContent = "";
+    if (item.keyframes) styleContent += item.keyframes + "\n";
+    // !important чтобы победить правила style.css с той же специфичностью
+    const importantCss = item.css.replace(/([^:{};]+:[^;{}]+)(;|(?=\s*}))/g, function(m, prop) {
+        const p = prop.trim();
+        return (p.endsWith("!important") ? p : p + " !important") + ";";
+    });
+    styleContent += `.team-hub-hero { ${importantCss} }`;
+    let el = document.getElementById("_team_cosmetic");
+    if (!el) {
+        el = document.createElement("style");
+        el.id = "_team_cosmetic";
+        document.head.appendChild(el);
+    }
+    el.textContent = styleContent;
 }
 
 // ─── Обновлённое сохранение (с учётом логотипа) ────────────────────────────

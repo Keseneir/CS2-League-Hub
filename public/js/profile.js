@@ -392,22 +392,30 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     // ── Инъекция CSS косметики ─────────────────────────────────────────────
+    function addImportant(css) {
+        // Добавляет !important к каждому свойству в CSS-строке
+        return css.replace(/([^:{};]+:[^;{}]+)(;|(?=}))/g, function(m, prop, end) {
+            if (prop.trim().endsWith("!important")) return m;
+            return prop.trim() + " !important" + (end || "");
+        });
+    }
+
     function applyCosmeticCSS(cosmetics) {
         let styles = "";
 
         const frame = cosmetics.avatarFrame;
         if (frame?.css) {
             if (frame.keyframes) styles += frame.keyframes + "\n";
-            styles += `#profileAvatar { ${frame.css} }\n`;
-            // Публичный профиль тоже
-            styles += `#pubAvatar { ${frame.css} }\n`;
+            const css = addImportant(frame.css);
+            styles += `#profileAvatar { ${css} }\n`;
+            styles += `#pubAvatar     { ${css} }\n`;
         }
 
         const bg = cosmetics.profileBg;
         if (bg?.css) {
             if (bg.keyframes) styles += bg.keyframes + "\n";
-            // Применяем к обёртке профиля, не ко всему body (чтобы header не трогать)
-            styles += `#profileCoverArea { ${bg.css} }\n`;
+            const css = addImportant(bg.css);
+            styles += `#profileCoverArea { ${css} }\n`;
         }
 
         let el = document.getElementById("_cosmetic_styles");
@@ -511,6 +519,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 </div>
             </div>
         `).join("");
+    }   // ← конец renderCosmeticsSection
 
     window.selectFaceit = function(level) {
         const hiddenInput = document.getElementById("statFaceit");

@@ -402,7 +402,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     function applyCosmeticCSS(cosmetics) {
         let styles = "";
-
+ 
+        // ── Рамка аватарки ────────────────────────────────────────────────
         const frame = cosmetics.avatarFrame;
         if (frame?.css) {
             if (frame.keyframes) styles += frame.keyframes + "\n";
@@ -410,14 +411,17 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             styles += `#profileAvatar { ${css} }\n`;
             styles += `#pubAvatar     { ${css} }\n`;
         }
-
+ 
+        // ── Фон профиля ───────────────────────────────────────────────────
         const bg = cosmetics.profileBg;
         if (bg?.css) {
             if (bg.keyframes) styles += bg.keyframes + "\n";
             const css = addImportant(bg.css);
+            // Применяем к обоим вариантам страницы: личный кабинет и публичный профиль
             styles += `#profileCoverArea { ${css} }\n`;
+            styles += `#pubCoverArea     { ${css} }\n`;   // ← FIX: добавлена эта строка
         }
-
+ 
         let el = document.getElementById("_cosmetic_styles");
         if (!el) {
             el = document.createElement("style");

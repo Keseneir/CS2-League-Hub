@@ -516,6 +516,46 @@
             </div>
         </div>
 
+        <!-- ── Зона опасных действий ── -->
+        <div id="dangerZoneSection" style="display:none;margin-bottom:32px;">
+            <div class="section-label" style="color:rgba(224,92,92,0.7);">⚠️ Опасная зона</div>
+            <div style="background:rgba(224,92,92,0.04);border:1px solid rgba(224,92,92,0.18);border-radius:14px;padding:20px 24px;">
+                <div id="dangerDisbandBlock" style="display:none;">
+                    <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Расформировать команду</div>
+                    <div style="font-size:12px;color:var(--text-gray);margin-bottom:14px;">Команда будет удалена навсегда. Все участники автоматически покинут её.</div>
+                    <button class="btn-danger" onclick="openDisbandConfirm()">💀 Распустить команду</button>
+                </div>
+                <div id="dangerLeaveBlock" style="display:none;">
+                    <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Покинуть команду</div>
+                    <div style="font-size:12px;color:var(--text-gray);margin-bottom:14px;">Вы покинете команду. Капитан сможет пригласить другого игрока.</div>
+                    <button class="btn-danger" onclick="openLeaveConfirm()">🚪 Покинуть команду</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модалы подтверждения -->
+        <div id="disbandConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;padding:20px;">
+            <div style="background:var(--bg2,#12171d);border:1px solid rgba(224,92,92,0.4);border-radius:14px;padding:28px;max-width:380px;width:100%;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#e05c5c;margin-bottom:12px;">⚠️ Распустить команду?</div>
+                <p style="font-size:13px;color:var(--text-gray);margin-bottom:20px;line-height:1.6;">Это действие нельзя отменить. Все игроки будут удалены из команды.</p>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="closeDisbandConfirm()" style="background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;">Отмена</button>
+                    <button onclick="doDisband()" id="disbandBtn" style="background:#e05c5c;color:#fff;border:none;border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;cursor:pointer;">Распустить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="leaveConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;padding:20px;">
+            <div style="background:var(--bg2,#12171d);border:1px solid rgba(224,92,92,0.3);border-radius:14px;padding:28px;max-width:380px;width:100%;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;margin-bottom:12px;">🚪 Покинуть команду?</div>
+                <p style="font-size:13px;color:var(--text-gray);margin-bottom:20px;">Вы уверены, что хотите покинуть команду?</p>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button onclick="closeLeaveConfirm()" style="background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;">Отмена</button>
+                    <button onclick="doLeave()" id="leaveBtn" style="background:#e05c5c;color:#fff;border:none;border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;cursor:pointer;">Покинуть</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -621,6 +661,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadCloudinaryConfig();
         initLogoPreview(_team.logo);
         renderMemberManagement(_team);
+    }
+
+    // Зона опасных действий — видна всем участникам команды
+    const dangerZone = document.getElementById("dangerZoneSection");
+    if (dangerZone) {
+        dangerZone.style.display = "";
+        if (_isCaptain) {
+            document.getElementById("dangerDisbandBlock").style.display = "";
+        } else {
+            document.getElementById("dangerLeaveBlock").style.display = "";
+        }
     }
 
     initShareUrl(_team.tag);
@@ -793,7 +844,53 @@ function populateEditForm(team, profile) {
     }
 }
 
-// ─── Лейаут ────────────────────────────────────────────────────────────────
+// ─── Опасные действия ──────────────────────────────────────────────────────
+function openDisbandConfirm() {
+    const o = document.getElementById("disbandConfirmOverlay");
+    if (o) { o.style.display = "flex"; document.body.style.overflow = "hidden"; }
+}
+function closeDisbandConfirm() {
+    const o = document.getElementById("disbandConfirmOverlay");
+    if (o) { o.style.display = "none"; document.body.style.overflow = ""; }
+}
+async function doDisband() {
+    const btn = document.getElementById("disbandBtn");
+    if (btn) btn.disabled = true;
+    try {
+        const res  = await fetch("/api/team", { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || "Ошибка", "err"); if (btn) btn.disabled = false; return; }
+        showToast("Команда распущена", "ok");
+        setTimeout(() => location.href = "/profile.html", 1200);
+    } catch { showToast("Ошибка сети", "err"); if (btn) btn.disabled = false; }
+}
+
+function openLeaveConfirm() {
+    const o = document.getElementById("leaveConfirmOverlay");
+    if (o) { o.style.display = "flex"; document.body.style.overflow = "hidden"; }
+}
+function closeLeaveConfirm() {
+    const o = document.getElementById("leaveConfirmOverlay");
+    if (o) { o.style.display = "none"; document.body.style.overflow = ""; }
+}
+async function doLeave() {
+    const btn = document.getElementById("leaveBtn");
+    if (btn) btn.disabled = true;
+    try {
+        const res  = await fetch("/api/team/leave", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.error || "Ошибка", "err"); if (btn) btn.disabled = false; return; }
+        showToast("Вы покинули команду", "ok");
+        setTimeout(() => location.href = "/profile.html", 1200);
+    } catch { showToast("Ошибка сети", "err"); if (btn) btn.disabled = false; }
+}
+
+// Close overlays on backdrop click
+["disbandConfirmOverlay","leaveConfirmOverlay"].forEach(id => {
+    document.getElementById(id)?.addEventListener("click", e => {
+        if (e.target.id === id) { e.target.style.display = "none"; document.body.style.overflow = ""; }
+    });
+});
 async function setLayout(num) {
     try {
         await fetch("/api/team/settings", {

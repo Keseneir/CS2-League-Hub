@@ -209,6 +209,11 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             else { avatar.style.display = "none"; }
         }
 
+        // Применяем косметику владельца публичного профиля
+        if (data.equippedCosmetics && window._applyCosmeticCSS) {
+            window._applyCosmeticCSS(data.equippedCosmetics);
+        }
+
         const nameEl = document.getElementById("pubName");
         if (nameEl) nameEl.textContent = data.displayName || "—";
 
@@ -376,12 +381,46 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const helpBtn = document.getElementById("profileHelpBtn");
         if (helpBtn) helpBtn.style.display = "inline-flex";
 
+        // ── Применяем косметику ──────────────────────────────────────────
+        applyCosmeticCSS(d.equippedCosmetics || {});
+
         renderMyProfileTab(d);
         renderTeamTab(d);
         renderFriendsTab(d);
         renderNotifsTab(d);
         updateBadges(d);
     }
+
+    // ── Инъекция CSS косметики ─────────────────────────────────────────────
+    function applyCosmeticCSS(cosmetics) {
+        let styles = "";
+
+        const frame = cosmetics.avatarFrame;
+        if (frame?.css) {
+            if (frame.keyframes) styles += frame.keyframes + "\n";
+            styles += `#profileAvatar { ${frame.css} }\n`;
+            // Публичный профиль тоже
+            styles += `#pubAvatar { ${frame.css} }\n`;
+        }
+
+        const bg = cosmetics.profileBg;
+        if (bg?.css) {
+            if (bg.keyframes) styles += bg.keyframes + "\n";
+            // Применяем к обёртке профиля, не ко всему body (чтобы header не трогать)
+            styles += `#profileCoverArea { ${bg.css} }\n`;
+        }
+
+        let el = document.getElementById("_cosmetic_styles");
+        if (!el) {
+            el = document.createElement("style");
+            el.id = "_cosmetic_styles";
+            document.head.appendChild(el);
+        }
+        el.textContent = styles;
+    }
+
+    // Экспортируем для публичного профиля
+    window._applyCosmeticCSS = applyCosmeticCSS;
 
     //таб мой профиль
 
@@ -441,7 +480,37 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         const badge = document.getElementById("profileIncompleteBadge");
         if (badge) badge.style.display = isIncomplete ? "inline-flex" : "none";
+
+        // ── Секция кастомизации ──────────────────────────────────────────
+        renderCosmeticsSection(d);
     }
+
+    function renderCosmeticsSection(d) {
+        const section = document.getElementById("cosmeticsSection");
+        const list    = document.getElementById("equippedCosmeticsList");
+        if (!section || !list) return;
+        section.style.display = "";
+
+        const c = d.equippedCosmetics || {};
+        const items = [];
+        if (c.avatarFrame) items.push({ label: "Рамка аватарки", item: c.avatarFrame });
+        if (c.profileBg)   items.push({ label: "Фон профиля",   item: c.profileBg  });
+
+        if (!items.length) {
+            list.innerHTML = `<span style="font-size:13px;color:var(--text-gray);">Ничего не надето — купите косметику в магазине</span>`;
+            return;
+        }
+        list.innerHTML = items.map(({ label, item }) => `
+            <div style="display:inline-flex;align-items:center;gap:8px;
+                        padding:7px 14px;border-radius:8px;
+                        background:rgba(230,176,34,0.08);border:1px solid rgba(230,176,34,0.25);">
+                <span style="font-size:16px;">${item.icon || "🎨"}</span>
+                <div>
+                    <div style="font-size:12px;font-weight:700;color:#e6b022;">${item.name || label}</div>
+                    <div style="font-size:11px;color:#5c6b7f;">${label}</div>
+                </div>
+            </div>
+        `).join("");
 
     window.selectFaceit = function(level) {
         const hiddenInput = document.getElementById("statFaceit");

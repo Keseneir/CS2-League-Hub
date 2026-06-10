@@ -360,7 +360,27 @@
     </div>
 </div>
 
-<!-- Модал пополнения командного кошелька -->
+<!-- Модал предпросмотра -->
+<div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1001;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#12171d;border:1px solid rgba(230,176,34,0.25);border-radius:16px;width:100%;max-width:400px;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #1f252c;">
+            <div id="previewTitle" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;"></div>
+            <button onclick="closePreview()" style="background:#1a2128;border:none;color:#aebbc7;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;">✕</button>
+        </div>
+        <div style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px;">
+            <!-- Preview area -->
+            <div id="previewArea" style="width:100%;border-radius:12px;overflow:hidden;min-height:160px;display:flex;align-items:center;justify-content:center;position:relative;"></div>
+            <div id="previewDesc" style="font-size:13px;color:var(--text-gray);text-align:center;line-height:1.5;"></div>
+            <div style="display:flex;gap:10px;width:100%;">
+                <button onclick="closePreview()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:10px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
+                    onmouseover="this.style.borderColor='rgba(255,255,255,.3)'" onmouseout="this.style.borderColor='var(--border)'">Закрыть</button>
+                <button id="previewBuyBtn" style="flex:2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:all .2s;"
+                    onmouseover="this.style.background='#ffc933'" onmouseout="this.style.background='var(--accent)'"></button>
+            </div>
+        </div>
+    </div>
+</div>
+<style id="preview-cosmetic-style"></style>
 <div class="modal-overlay" id="depositModal">
     <div class="modal-box">
         <div class="modal-title">💸 Пополнить командный кошелёк</div>
@@ -515,15 +535,24 @@ function renderItems(category) {
         const disabled  = owned || !canAfford || !canBuy;
         const btnLabel  = owned ? "Куплено" : !canAfford ? "Мало монет" : !canBuy ? "Нет прав" : "Купить";
 
-        return `<div class="item-card">
+        // Инлайн-превью фона прямо на карточке
+        const bgPreview = (item.cosmeticType === "profile_bg" || item.cosmeticType === "team_bg") && item.css
+            ? `<div style="width:100%;height:36px;border-radius:6px;overflow:hidden;margin-bottom:4px;flex-shrink:0;">
+                 <div style="${item.css.replace(/animation:[^;]+;?/g,'').trim()};width:100%;height:100%;"></div>
+               </div>`
+            : "";
+
+        return `<div class="item-card" style="cursor:pointer;"
+                     onclick="openPreview(${encodeItemForAttr(item)})">
             <div class="item-icon">${item.icon || "🎁"}</div>
+            ${bgPreview}
             <div class="item-name">${esc(item.name)}</div>
             ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ""}
             <div class="item-type-badge ${item.type}">${TYPE_LABELS[item.type] || item.type}</div>
             <div class="item-price-row">
                 <div class="item-price">${item.price} <small>монет</small></div>
                 <button class="buy-btn" ${disabled ? "disabled" : ""}
-                    onclick="openBuyModal('${item._id}','${item.category}','${esc(item.name)}',${item.price})">
+                    onclick="event.stopPropagation();openBuyModal('${item._id}','${item.category}','${esc(item.name)}',${item.price})">
                     ${btnLabel}
                 </button>
             </div>
@@ -701,7 +730,7 @@ async function submitDeposit() {
     btn.disabled = false;
 }
 
-
+// ─── Надеть / Снять ───────────────────────────────────────────────────────────
 async function equipPersonal(itemId, slot, isCurrentlyEquipped) {
     try {
         const res  = await fetch("/api/shop/equip/personal", {
@@ -734,7 +763,95 @@ async function equipTeam(itemId, slot, isCurrentlyEquipped) {
     } catch { showToast("Ошибка сети", "err"); }
 }
 
+// ─── Предпросмотр ─────────────────────────────────────────────────────────────
+function encodeItemForAttr(item) {
+    // Безопасная сериализация объекта для атрибута onclick
+    return "'" + JSON.stringify(item).replace(/'/g, "\\'").replace(/"/g, "&quot;") + "'";
+}
 
+let _previewItem = null;
+
+function openPreview(raw) {
+    const item = typeof raw === "string" ? JSON.parse(raw.replace(/&quot;/g, '"')) : raw;
+    _previewItem = item;
+
+    document.getElementById("previewTitle").textContent = item.name || "Предпросмотр";
+    document.getElementById("previewDesc").textContent  = item.description || "";
+
+    const area = document.getElementById("previewArea");
+    const pStyle = document.getElementById("preview-cosmetic-style");
+    pStyle.textContent = "";
+
+    if (item.cosmeticType === "avatar_frame" && item.css) {
+        // Показываем аватарку с рамкой
+        const avatar = _me?.avatar || "";
+        if (item.keyframes) pStyle.textContent = item.keyframes;
+        pStyle.textContent += `#previewAvatarEl { ${item.css} }`;
+        area.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;">
+                <img id="previewAvatarEl" src="${avatar}" alt="avatar"
+                     style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;"
+                     onerror="this.src='';this.style.background='#1f252c'">
+                <div style="font-size:12px;color:#5c6b7f;">Так будет выглядеть ваш аватар</div>
+            </div>`;
+
+    } else if ((item.cosmeticType === "profile_bg" || item.cosmeticType === "team_bg") && item.css) {
+        // Показываем фон
+        if (item.keyframes) pStyle.textContent = item.keyframes;
+        pStyle.textContent += `#previewBgEl { ${item.css} }`;
+        const label = item.cosmeticType === "profile_bg" ? "Фон страницы профиля" : "Фон страницы команды";
+        area.innerHTML = `
+            <div id="previewBgEl" style="width:100%;height:160px;display:flex;align-items:center;justify-content:center;position:relative;">
+                <div style="position:relative;z-index:1;text-align:center;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:rgba(255,255,255,0.9);">PREVIEW</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;">${label}</div>
+                </div>
+            </div>`;
+
+    } else {
+        area.innerHTML = `<div style="padding:30px;color:#5c6b7f;font-size:13px;">Предпросмотр недоступен</div>`;
+    }
+
+    // Настраиваем кнопку покупки
+    const buyBtn = document.getElementById("previewBuyBtn");
+    const myInv = item.category === "personal"
+        ? (_inventory.personal || []).map(e => (e.itemId?._id || e.itemId)?.toString())
+        : (_inventory.team     || []).filter(e => !e.consumed).map(e => (e.itemId?._id || e.itemId)?.toString());
+    const owned = myInv.includes(item._id?.toString());
+
+    if (owned) {
+        buyBtn.textContent = "✓ Куплено";
+        buyBtn.disabled    = true;
+        buyBtn.style.opacity = "0.5";
+    } else {
+        buyBtn.textContent = `Купить — ${item.price} монет`;
+        buyBtn.disabled    = false;
+        buyBtn.style.opacity = "1";
+        buyBtn.onclick = () => {
+            closePreview();
+            openBuyModal(item._id, item.category, item.name, item.price);
+        };
+    }
+
+    const modal = document.getElementById("previewModal");
+    modal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+}
+
+function closePreview() {
+    document.getElementById("previewModal").style.display = "none";
+    document.getElementById("preview-cosmetic-style").textContent = "";
+    document.body.style.overflow = "";
+}
+
+document.getElementById("previewModal")?.addEventListener("click", e => {
+    if (e.target.id === "previewModal") closePreview();
+});
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closePreview();
+});
+
+// ─── Утилиты ──────────────────────────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add("open");    document.body.style.overflow = "hidden"; }
 function closeModal(id) { document.getElementById(id).classList.remove("open"); document.body.style.overflow = ""; }
 

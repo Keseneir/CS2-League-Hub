@@ -389,6 +389,13 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         renderFriendsTab(d);
         renderNotifsTab(d);
         updateBadges(d);
+
+        const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
+    if (viewPublicProfileLink && d.steamId) {
+        viewPublicProfileLink.href  = `/profile.html?id=${d.steamId}`;
+        viewPublicProfileLink.style.display = "inline-flex";
+        }
+
     }
 
     // ── Инъекция CSS косметики ─────────────────────────────────────────────
@@ -400,14 +407,28 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         });
     }
 
-    function applyCosmeticCSS(cosmetics) {
+    function extractKeyframes(css) {
+     let keyframes = "";
+        // Матчим @keyframes name { ... }, включая вложенные {} внутри правил
+        const kfRegex = /@keyframes\s+[\w\-]+\s*\{(?:[^{}]+|\{[^{}]*\})*\}/g;
+        const cleanCss = css.replace(kfRegex, function(match) {
+            keyframes += match + "\n";
+         return "";
+    });
+          return { keyframes, cleanCss: cleanCss.trim() };
+}
+
+  function applyCosmeticCSS(cosmetics) {
         let styles = "";
  
         // ── Рамка аватарки ────────────────────────────────────────────────
         const frame = cosmetics.avatarFrame;
         if (frame?.css) {
-            if (frame.keyframes) styles += frame.keyframes + "\n";
-            const css = addImportant(frame.css);
+            // тоже защищаем от встроенных keyframes
+            const extracted = extractKeyframes(frame.css);
+            if (frame.keyframes)    styles += frame.keyframes + "\n";
+            if (extracted.keyframes) styles += extracted.keyframes + "\n";
+            const css = addImportant(extracted.cleanCss);
             styles += `#profileAvatar { ${css} }\n`;
             styles += `#pubAvatar     { ${css} }\n`;
         }
@@ -415,11 +436,29 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         // ── Фон профиля ───────────────────────────────────────────────────
         const bg = cosmetics.profileBg;
         if (bg?.css) {
+            // 1. Keyframes из поля keyframes (если есть)
             if (bg.keyframes) styles += bg.keyframes + "\n";
-            const css = addImportant(bg.css);
-            // Применяем к обоим вариантам страницы: личный кабинет и публичный профиль
-            styles += `#profileCoverArea { ${css} }\n`;
-            styles += `#pubCoverArea     { ${css} }\n`;   // ← FIX: добавлена эта строка
+ 
+            // 2. Keyframes, которые могут быть встроены прямо в поле css
+            const extracted = extractKeyframes(bg.css);
+            if (extracted.keyframes) styles += extracted.keyframes + "\n";
+ 
+            const css = addImportant(extracted.cleanCss);
+ 
+            // 3. Применяем ФОН НА ВЕСЬ ЭКРАН через body.page-profile
+            styles += `body.page-profile { ${css} }\n`;
+ 
+            // 4. Делаем cover-области прозрачными — фон body просвечивает
+            styles += `
+#profileCoverArea {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+}
+#pubCoverArea {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+}
+`;
         }
  
         let el = document.getElementById("_cosmetic_styles");

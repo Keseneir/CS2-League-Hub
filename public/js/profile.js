@@ -390,11 +390,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         renderNotifsTab(d);
         updateBadges(d);
 
-        const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
-    if (viewPublicProfileLink && d.steamId) {
-        viewPublicProfileLink.href  = `/profile.html?id=${d.steamId}`;
-        viewPublicProfileLink.style.display = "inline-flex";
-        }
  // Кнопка «Просмотр профиля» → публичная страница
     const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
     if (viewPublicProfileLink && d.steamId) {

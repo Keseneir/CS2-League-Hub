@@ -58,15 +58,13 @@
 
         <div id="publicContent" style="display:none;">
 
-            <!-- ── FIX: обложка для публичного профиля (cosmetic profileBg) ── -->
+            <!-- ── Обложка публичного профиля (прозрачная, только если надет cosmetic profileBg) ── -->
             <div id="pubCoverArea" style="
                 height:130px;margin:-20px -20px 0;
-                background:linear-gradient(135deg,rgba(230,176,34,0.08) 0%,rgba(18,23,29,0) 100%);
-                border-bottom:1px solid var(--border);border-radius:0;
+                background:transparent;border:none;border-radius:0;
                 position:relative;overflow:hidden;transition:all .3s;
             ">
-                <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.01) 0,rgba(255,255,255,0.01) 1px,transparent 0,transparent 12px);"></div>
-                <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none;"></div>
             </div>
 
             <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
@@ -135,15 +133,13 @@
     <div id="profileContent" style="display:none;">
         <div class="container">
 
-            <!-- ── Обложка профиля (cosmetic profile_bg) ───────────── -->
+            <!-- ── Обложка профиля (прозрачная, оживает только при надетом cosmetic profileBg) ── -->
             <div id="profileCoverArea" style="
                 height:130px;margin:-20px -20px 0;
-                background:linear-gradient(135deg,rgba(230,176,34,0.08) 0%,rgba(18,23,29,0) 100%);
-                border-bottom:1px solid var(--border);border-radius:0;
+                background:transparent;border:none;border-radius:0;
                 position:relative;overflow:hidden;transition:all .3s;
             ">
-                <div style="position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.01) 0,rgba(255,255,255,0.01) 1px,transparent 0,transparent 12px);"></div>
-                <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to bottom,transparent,var(--bg));"></div>
+                <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none;"></div>
             </div>
 
             <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
@@ -308,14 +304,53 @@
                         </button>
                     </div>
 
-                    <!-- Кастомизация -->
-                    <div id="cosmeticsSection" class="pform-card" style="display:none;">
-                        <div class="pform-card-title" style="justify-content:space-between;margin-bottom:14px;">
+                    <!-- Кастомизация + Инвентарь -->
+                    <div id="cosmeticsSection" class="pform-card">
+                        <div class="pform-card-title" style="justify-content:space-between;margin-bottom:16px;">
                             🎨 Кастомизация
-                            <a href="/shop.html" style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:6px;background:var(--accent);color:#000;font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-decoration:none;transition:background .2s;"
-                               onmouseover="this.style.background='#ffc933'" onmouseout="this.style.background='var(--accent)'">🛒 Магазин</a>
+                            <a href="/shop.html" class="pform-shop-link">🛒 Магазин</a>
                         </div>
-                        <div id="equippedCosmeticsList" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+
+                        <!-- Слоты "Сейчас надето" -->
+                        <div class="cosmetic-slots-grid">
+                            <div class="cosmetic-slot" id="slotAvatarFrame">
+                                <div class="cslot-header">
+                                    <span class="cslot-icon">🖼️</span>
+                                    <span class="cslot-type">Рамка аватара</span>
+                                </div>
+                                <div class="cslot-body">
+                                    <span id="slotAvatarFrameName" class="cslot-empty">Не надета</span>
+                                </div>
+                                <button class="cslot-remove-btn" id="unequipAvatarFrameBtn"
+                                        onclick="unequipCosmetic('avatarFrame')" style="display:none;">
+                                    ✕ Снять
+                                </button>
+                            </div>
+                            <div class="cosmetic-slot" id="slotProfileBg">
+                                <div class="cslot-header">
+                                    <span class="cslot-icon">🎨</span>
+                                    <span class="cslot-type">Фон профиля</span>
+                                </div>
+                                <div class="cslot-body">
+                                    <span id="slotProfileBgName" class="cslot-empty">Не надет</span>
+                                </div>
+                                <button class="cslot-remove-btn" id="unequipProfileBgBtn"
+                                        onclick="unequipCosmetic('profileBg')" style="display:none;">
+                                    ✕ Снять
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Инвентарь -->
+                        <div id="inventoryWrap">
+                            <div class="pform-cosmetics-sep">Инвентарь</div>
+                            <div id="inventoryItemsGrid" class="cosmetic-inv-grid"></div>
+                            <div id="inventoryEmptyNote"
+                                 style="font-size:12px;color:#5c6b7f;padding:10px 0;display:none;">
+                                Инвентарь пуст —
+                                <a href="/shop.html" style="color:var(--accent);text-decoration:none;">зайди в магазин</a>
+                            </div>
+                        </div>
                     </div>
 
                 </div>

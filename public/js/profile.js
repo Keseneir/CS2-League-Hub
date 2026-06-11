@@ -395,7 +395,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         viewPublicProfileLink.href  = `/profile.html?id=${d.steamId}`;
         viewPublicProfileLink.style.display = "inline-flex";
         }
-
+ // Кнопка «Просмотр профиля» → публичная страница
+    const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
+    if (viewPublicProfileLink && d.steamId) {
+        viewPublicProfileLink.href  = `/profile.html?id=${d.steamId}`;
+        viewPublicProfileLink.style.display = "inline-flex";
+     }
     }
 
     // ── Инъекция CSS косметики ─────────────────────────────────────────────
@@ -406,6 +411,16 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             return prop.trim() + " !important" + (end || "");
         });
     }
+
+    function extractKeyframes(css) {
+    let keyframes = "";
+    const kfRegex = /@keyframes\s+[\w\-]+\s*\{(?:[^{}]+|\{[^{}]*\})*\}/g;
+    const cleanCss = css.replace(kfRegex, function(match) {
+        keyframes += match + "\n";
+        return "";
+    });
+    return { keyframes, cleanCss: cleanCss.trim() };
+}
 
     function extractKeyframes(css) {
      let keyframes = "";
@@ -424,9 +439,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         // ── Рамка аватарки ────────────────────────────────────────────────
         const frame = cosmetics.avatarFrame;
         if (frame?.css) {
-            // тоже защищаем от встроенных keyframes
             const extracted = extractKeyframes(frame.css);
-            if (frame.keyframes)    styles += frame.keyframes + "\n";
+            if (frame.keyframes)     styles += frame.keyframes + "\n";
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
             const css = addImportant(extracted.cleanCss);
             styles += `#profileAvatar { ${css} }\n`;
@@ -436,28 +450,18 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         // ── Фон профиля ───────────────────────────────────────────────────
         const bg = cosmetics.profileBg;
         if (bg?.css) {
-            // 1. Keyframes из поля keyframes (если есть)
-            if (bg.keyframes) styles += bg.keyframes + "\n";
- 
-            // 2. Keyframes, которые могут быть встроены прямо в поле css
             const extracted = extractKeyframes(bg.css);
+            if (bg.keyframes)        styles += bg.keyframes + "\n";
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
- 
             const css = addImportant(extracted.cleanCss);
  
-            // 3. Применяем ФОН НА ВЕСЬ ЭКРАН через body.page-profile
+            // Весь экран между хедером и футером
             styles += `body.page-profile { ${css} }\n`;
  
-            // 4. Делаем cover-области прозрачными — фон body просвечивает
+            // Cover-области прозрачны — фон body просвечивает
             styles += `
-#profileCoverArea {
-    background: transparent !important;
-    border-bottom-color: transparent !important;
-}
-#pubCoverArea {
-    background: transparent !important;
-    border-bottom-color: transparent !important;
-}
+#profileCoverArea { background: transparent !important; border-color: transparent !important; }
+#pubCoverArea     { background: transparent !important; border-color: transparent !important; }
 `;
         }
  
@@ -536,33 +540,74 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         renderCosmeticsSection(d);
     }
 
-    function renderCosmeticsSection(d) {
-        const section = document.getElementById("cosmeticsSection");
-        const list    = document.getElementById("equippedCosmeticsList");
-        if (!section || !list) return;
-        section.style.display = "";
-
-        const c = d.equippedCosmetics || {};
-        const items = [];
-        if (c.avatarFrame) items.push({ label: "Рамка аватарки", item: c.avatarFrame });
-        if (c.profileBg)   items.push({ label: "Фон профиля",   item: c.profileBg  });
-
-        if (!items.length) {
-            list.innerHTML = `<span style="font-size:13px;color:var(--text-gray);">Ничего не надето — купите косметику в магазине</span>`;
+     function renderCosmeticsSection(d) {
+        const cosmetics  = d.equippedCosmetics  || {};
+        const inventory  = d.personalInventory  || [];
+ 
+        // ─ Слоты "надето" ─────────────────────────────────────────────────
+        const slotCfg = {
+            avatarFrame: { nameId: "slotAvatarFrameName", btnId: "unequipAvatarFrameBtn" },
+            profileBg:   { nameId: "slotProfileBgName",   btnId: "unequipProfileBgBtn"   },
+        };
+ 
+        for (const [slot, cfg] of Object.entries(slotCfg)) {
+            const item  = cosmetics[slot];
+            const nameEl = document.getElementById(cfg.nameId);
+            const btnEl  = document.getElementById(cfg.btnId);
+            if (!nameEl) continue;
+ 
+            if (item && item.name) {
+                nameEl.textContent = item.name;
+                nameEl.className = "cslot-filled";
+                if (btnEl) btnEl.style.display = "";
+            } else {
+                nameEl.textContent = slot === "avatarFrame" ? "Не надета" : "Не надет";
+                nameEl.className = "cslot-empty";
+                if (btnEl) btnEl.style.display = "none";
+            }
+        }
+ 
+        // ─ Инвентарь ──────────────────────────────────────────────────────
+        const grid      = document.getElementById("inventoryItemsGrid");
+        const emptyNote = document.getElementById("inventoryEmptyNote");
+        if (!grid) return;
+ 
+        grid.innerHTML = "";
+        const items = inventory.filter(e => e && e.itemId);
+ 
+        if (items.length === 0) {
+            if (emptyNote) emptyNote.style.display = "";
             return;
         }
-        list.innerHTML = items.map(({ label, item }) => `
-            <div style="display:inline-flex;align-items:center;gap:8px;
-                        padding:7px 14px;border-radius:8px;
-                        background:rgba(230,176,34,0.08);border:1px solid rgba(230,176,34,0.25);">
-                <span style="font-size:16px;">${item.icon || "🎨"}</span>
-                <div>
-                    <div style="font-size:12px;font-weight:700;color:#e6b022;">${item.name || label}</div>
-                    <div style="font-size:11px;color:#5c6b7f;">${label}</div>
+        if (emptyNote) emptyNote.style.display = "none";
+ 
+        items.forEach(({ itemId }) => {
+            const slot = itemId.cosmeticType === "avatarFrame" ? "avatarFrame" : "profileBg";
+            const equipped = cosmetics[slot];
+            const isEquipped = equipped && equipped._id &&
+                equipped._id.toString() === itemId._id.toString();
+ 
+            const typeLabel = slot === "avatarFrame" ? "Рамка" : "Фон";
+            const icon      = itemId.icon || (slot === "avatarFrame" ? "🖼️" : "🎨");
+ 
+            const card = document.createElement("div");
+            card.className = "cosmetic-inv-card" + (isEquipped ? " is-equipped" : "");
+            card.innerHTML = `
+                <div class="cic-icon">${icon}</div>
+                <div class="cic-meta">
+                    <div class="cic-name">${itemId.name}</div>
+                    <div class="cic-type">${typeLabel}</div>
                 </div>
-            </div>
-        `).join("");
-    }   // ← конец renderCosmeticsSection
+                <button class="cic-btn ${isEquipped ? "cic-btn-off" : "cic-btn-on"}"
+                    onclick="${isEquipped
+                        ? `unequipCosmetic('${slot}')`
+                        : `equipCosmetic('${itemId._id}', '${slot}', this)`}">
+                    ${isEquipped ? "Снять" : "Надеть"}
+                </button>
+            `;
+            grid.appendChild(card);
+        });
+    }
 
     window.selectFaceit = function(level) {
         const hiddenInput = document.getElementById("statFaceit");
@@ -631,6 +676,43 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; }
         }
     };
+
+     async function equipCosmetic(itemId, slot, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = "..."; }
+        try {
+            const r = await fetch("/api/profile/equip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ itemId, slot }),
+            });
+            const data = await r.json();
+            if (!r.ok) {
+                alert(data.error || "Ошибка");
+                if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
+                return;
+            }
+            // Перезагрузить профиль чтобы обновить слоты + применить CSS
+            if (typeof loadOwnProfile === "function") loadOwnProfile();
+        } catch (e) {
+            console.error("equipCosmetic:", e);
+            if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
+        }
+    }
+ 
+    async function unequipCosmetic(slot) {
+        try {
+            const r = await fetch("/api/profile/unequip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ slot }),
+            });
+            const data = await r.json();
+            if (!r.ok) { alert(data.error || "Ошибка"); return; }
+            if (typeof loadOwnProfile === "function") loadOwnProfile();
+        } catch (e) {
+            console.error("unequipCosmetic:", e);
+        }
+    }
 
 
     window.syncSteamHours = async function() {

@@ -37,6 +37,7 @@ router.get("/profile", requireAuth, async (req, res) => {
       .populate({ path: "teamInvites.from",   select: "displayName avatar" })
       .populate({ path: "equippedCosmetics.avatarFrame", select: "name css keyframes cosmeticType" })
       .populate({ path: "equippedCosmetics.profileBg",   select: "name css keyframes cosmeticType" })
+      .populate({ path: "personalInventory.itemId", select: "name icon css keyframes cosmeticType" })
       .lean();
 
     let team      = null;
@@ -77,6 +78,7 @@ router.get("/profile", requireAuth, async (req, res) => {
       adminNotices:     (user.adminNotices    || []).filter(n => !n.read),
       isAdmin:          user.steamId === ADMIN_STEAM_ID,
       equippedCosmetics: user.equippedCosmetics || {},
+      personalInventory: user.personalInventory || [],
     });
   } catch (err) {
     console.error(err);
@@ -267,6 +269,59 @@ router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
+});
+
+// POST /api/profile/equip — надеть предмет из инвентаря
+router.post("/profile/equip", requireAuth, async (req, res) => {
+    try {
+        const { itemId, slot } = req.body;
+ 
+        if (!itemId || !["avatarFrame", "profileBg"].includes(slot)) {
+            return res.status(400).json({ error: "Неверные параметры" });
+        }
+ 
+        // Проверяем, что предмет есть в инвентаре игрока
+        const user = await User.findById(req.user._id)
+            .select("personalInventory")
+            .lean();
+ 
+        const owns = (user.personalInventory || []).some(
+            i => i.itemId && i.itemId.toString() === itemId
+        );
+ 
+        if (!owns) {
+            return res.status(403).json({ error: "Предмет не найден в инвентаре" });
+        }
+ 
+        await User.findByIdAndUpdate(req.user._id, {
+            $set: { [`equippedCosmetics.${slot}`]: itemId },
+        });
+ 
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Ошибка сервера" });
+    }
+});
+ 
+// POST /api/profile/unequip — снять предмет
+router.post("/profile/unequip", requireAuth, async (req, res) => {
+    try {
+        const { slot } = req.body;
+ 
+        if (!["avatarFrame", "profileBg"].includes(slot)) {
+            return res.status(400).json({ error: "Неверный слот" });
+        }
+ 
+        await User.findByIdAndUpdate(req.user._id, {
+            $set: { [`equippedCosmetics.${slot}`]: null },
+        });
+ 
+        res.json({ ok: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Ошибка сервера" });
+    }
 });
 
 module.exports = router;

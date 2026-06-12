@@ -1749,8 +1749,6 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
  
 /* ── Footer всегда внизу (flex-колонка на body) ────────────────── */
 body.page-profile {
-    display: flex;
-    flex-direction: column;
     min-height: 100vh;
     /* background-attachment:fixed removed — causes full-page repaint every frame */
 }
@@ -1767,9 +1765,12 @@ body.page-profile {
 }
 #_cosmetic_bg_layer.active { opacity: 1; }
 
-/* Content sits above the bg layer */
-body.page-profile > header,
-body.page-profile > .container,
+/* Header: preserve sticky, but lift above the bg layer */
+body.page-profile > header {
+    z-index: 101;
+}
+
+/* Other page sections sit above bg layer too */
 body.page-profile > #ownProfileWrap,
 body.page-profile > #publicProfileWrap,
 body.page-profile > footer,
@@ -1779,7 +1780,7 @@ body.page-profile > button {
 }
 body.page-profile > #publicProfileWrap,
 body.page-profile > #ownProfileWrap {
-    flex: 1;
+    min-height: calc(100vh - 170px);
 }
  
 /* ── Адаптив ───────────────────────────────────────────────────── */

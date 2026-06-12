@@ -700,7 +700,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 return;
             }
             // Перезагрузить профиль чтобы обновить слоты + применить CSS
-            if (typeof loadOwnProfile === "function") loadOwnProfile();
+            await refreshProfile();
         } catch (e) {
             console.error("equipCosmetic:", e);
             if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
@@ -716,7 +716,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             });
             const data = await r.json();
             if (!r.ok) { alert(data.error || "Ошибка"); return; }
-            if (typeof loadOwnProfile === "function") loadOwnProfile();
+            await refreshProfile();
         } catch (e) {
             console.error("unequipCosmetic:", e);
         }

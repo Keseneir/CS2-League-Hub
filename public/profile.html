@@ -1,792 +1,679 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Профиль</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<!-- Keyframes инжектируются ОДИН РАЗ сюда — не трогать -->
-<style id="cosmetic-kf"></style>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#090b0f;
-  --s0:#0e1118;
-  --s1:#141820;
-  --s2:#1c2230;
-  --border:#1e2538;
-  --bh:#2e3a52;
-  --accent:#f59e0b;
-  --as:rgba(245,158,11,.12);
-  --ag:rgba(245,158,11,.25);
-  --danger:#ef4444;
-  --ds:rgba(239,68,68,.12);
-  --text:#e2e8f0;
-  --muted:#4e5a72;
-  --r:10px;--r2:7px;
-  font-family:'Inter',system-ui,sans-serif;
-}
-html,body{min-height:100vh;background:var(--bg);color:var(--text)}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
-
-/* ── LAYOUT ── */
-.page{max-width:1080px;margin:0 auto;padding:28px 16px 60px}
-
-/* ── HEADER ── */
-.pf-hdr{
-  position:relative;overflow:hidden;
-  border-radius:var(--r);border:1px solid var(--border);
-  background:var(--s1);padding:28px 24px 22px;
-  display:flex;gap:20px;align-items:flex-start;
-  margin-bottom:20px;
-}
-/* фон-косметика — строгая изоляция, не вылезает за пределы */
-.pf-hdr-bg{
-  position:absolute;inset:0;z-index:0;opacity:.35;
-  pointer-events:none;
-  /* ключевое: анимация НЕ перерисовывает родителей */
-  contain:strict;
-  will-change:transform;
-  transform:translateZ(0);
-}
-.pf-hdr>*:not(.pf-hdr-bg){position:relative;z-index:1}
-
-/* аватар + рамка */
-.pf-av-wrap{
-  position:relative;flex-shrink:0;
-  width:88px;height:88px;
-  isolation:isolate;
-}
-.pf-av-wrap img{
-  width:88px;height:88px;border-radius:50%;
-  display:block;object-fit:cover;
-}
-.pf-av-frame{
-  position:absolute;inset:-7px;border-radius:50%;
-  pointer-events:none;
-  /* GPU слой — анимация не влияет на layout */
-  will-change:transform,opacity;
-  contain:layout paint;
-  transform:translateZ(0);
-}
-
-.pf-info{flex:1;min-width:0}
-.pf-name{
-  font-size:22px;font-weight:800;letter-spacing:-.01em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  margin-bottom:5px;
-}
-.pf-rank{
-  display:inline-flex;align-items:center;gap:5px;
-  font-size:12px;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:8px;
-}
-.pf-rank-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
-.pf-badges{display:flex;flex-wrap:wrap;gap:6px}
-.badge{
-  display:inline-flex;align-items:center;gap:4px;
-  padding:3px 9px;border-radius:100px;
-  font-size:11px;font-weight:600;letter-spacing:.04em;
-  border:1px solid var(--border);background:var(--s0);color:var(--muted);
-}
-.badge-team{color:var(--accent);border-color:var(--as);background:var(--as)}
-.badge-admin{color:#a78bfa;border-color:rgba(167,139,250,.2);background:rgba(167,139,250,.1)}
-.pf-stats{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.pf-stat{
-  background:var(--s0);border:1px solid var(--border);
-  border-radius:var(--r2);padding:6px 12px;
-  display:flex;gap:6px;align-items:center;
-}
-.pf-stat-val{font-size:14px;font-weight:700}
-.pf-stat-lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.faceit-lv{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:22px;height:22px;border-radius:4px;
-  font-size:12px;font-weight:800;color:#fff;flex-shrink:0;
-}
-
-/* ── TABS ── */
-.tabs-nav{
-  display:flex;gap:2px;
-  border-bottom:1px solid var(--border);
-  margin-bottom:22px;
-}
-.tab-btn{
-  padding:9px 16px;background:none;border:none;
-  border-bottom:2px solid transparent;margin-bottom:-1px;
-  cursor:pointer;
-  font:600 12px/1 'Inter',sans-serif;
-  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
-  transition:color .15s,border-color .15s;
-  display:flex;align-items:center;gap:6px;
-}
-.tab-btn:hover{color:var(--text)}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-badge{
-  background:var(--danger);color:#fff;
-  border-radius:100px;padding:1px 5px;
-  font-size:10px;font-weight:700;
-}
-.tab-pane{display:none}
-.tab-pane.active{display:block}
-
-/* ── UTILITY ── */
-.sec-lbl{
-  font-size:10px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:12px;
-}
-.row-btwn{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px}
-.sec-gap{margin-bottom:24px}
-.empty{text-align:center;padding:36px 20px;color:var(--muted);font-size:14px;line-height:1.7}
-.loading{text-align:center;padding:36px;color:var(--muted);font-size:13px}
-
-/* ── BUTTONS ── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:5px;
-  padding:6px 14px;border-radius:6px;
-  font:700 11px/1 'Inter',sans-serif;
-  letter-spacing:.05em;text-transform:uppercase;
-  cursor:pointer;border:1px solid transparent;
-  transition:background .12s,transform .1s;white-space:nowrap;
-}
-.btn:active{transform:scale(.96)}
-.btn:disabled{opacity:.4;pointer-events:none}
-.btn-full{width:100%}
-.btn-eq{background:var(--as);border-color:rgba(245,158,11,.2);color:var(--accent)}
-.btn-eq:hover{background:var(--ag)}
-.btn-uneq{background:var(--ds);border-color:rgba(239,68,68,.2);color:var(--danger)}
-.btn-uneq:hover{background:rgba(239,68,68,.22)}
-.btn-shop{background:var(--accent);color:#000;font-weight:800;padding:8px 18px}
-.btn-shop:hover{opacity:.88}
-
-/* ── EQUIPPED ROW ── */
-.eq-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px}
-@media(max-width:520px){.eq-row{grid-template-columns:1fr}}
-.eq-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px}
-.eq-card-lbl{
-  font-size:10px;font-weight:700;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--muted);margin-bottom:10px;
-}
-.eq-card-body{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-/* мини-превью рамки в eq-card */
-.eq-prev-av{
-  position:relative;flex-shrink:0;
-  width:44px;height:44px;isolation:isolate;
-}
-.eq-prev-av img{width:44px;height:44px;border-radius:50%;object-fit:cover;display:block;background:var(--s2)}
-.eq-prev-av-frame{
-  position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
-  will-change:transform,opacity;contain:layout paint;transform:translateZ(0);
-}
-/* мини-превью фона в eq-card */
-.eq-prev-bg{
-  width:48px;height:32px;border-radius:6px;flex-shrink:0;
-  will-change:transform,opacity;contain:layout paint;transform:translateZ(0);
-}
-.eq-item-name{font-size:14px;font-weight:600;color:var(--text)}
-.eq-item-empty{font-size:13px;color:var(--muted);font-style:italic}
-
-/* ── INVENTORY GRID ── */
-.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
-.inv-card{
-  background:var(--s1);border:1px solid var(--border);
-  border-radius:var(--r);padding:14px 12px 12px;
-  display:flex;flex-direction:column;align-items:center;gap:7px;
-  transition:border-color .15s,background .15s;
-}
-.inv-card:hover{border-color:var(--bh);background:var(--s2)}
-.inv-card.inv-eq{
-  border-color:rgba(245,158,11,.38);
-  background:linear-gradient(160deg,rgba(245,158,11,.07) 0%,var(--s1) 100%);
-}
-/* превью внутри карточки — GPU layer, строгая изоляция */
-.inv-thumb{
-  position:relative;width:54px;height:54px;
-  display:flex;align-items:center;justify-content:center;
-  isolation:isolate;will-change:transform;
-}
-.inv-thumb-circle{
-  width:54px;height:54px;border-radius:50%;
-  background:var(--s2);display:flex;align-items:center;
-  justify-content:center;font-size:24px;
-}
-.inv-thumb-frame{
-  position:absolute;inset:-5px;border-radius:50%;pointer-events:none;
-  will-change:transform,opacity;contain:layout paint;transform:translateZ(0);
-}
-.inv-thumb-rect{
-  width:54px;height:36px;border-radius:6px;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;font-size:20px;
-  will-change:transform,opacity;contain:layout paint;transform:translateZ(0);
-}
-.inv-card-name{font-size:12px;font-weight:600;text-align:center;color:var(--text);line-height:1.3}
-.inv-card-type{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
-
-/* ── FRIENDS / USER ROWS ── */
-.user-row{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 0;border-bottom:1px solid var(--border);
-}
-.user-row:last-child{border-bottom:none}
-.user-row img{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0}
-.user-row-name{font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* ── NOTICES ── */
-.notice{
-  background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);
-  border-radius:var(--r);padding:12px 16px;margin-bottom:10px;
-  display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.4;
-}
-.notice-msg{flex:1}
-</style>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="page">
+<body class="page-profile">
 
-  <!-- ════════════════ PROFILE HEADER ════════════════ -->
-  <div class="pf-hdr" id="pf-hdr">
-    <div class="pf-hdr-bg" id="pf-bg"></div>
-
-    <div class="pf-av-wrap">
-      <img id="pf-av" src="" alt="avatar"/>
-      <div class="pf-av-frame" id="pf-av-frame"></div>
-    </div>
-
-    <div class="pf-info">
-      <div class="pf-name" id="pf-name">—</div>
-      <div class="pf-rank" id="pf-rank" style="display:none">
-        <span class="pf-rank-dot"></span>
-        <span id="pf-rank-txt"></span>
-      </div>
-      <div class="pf-badges" id="pf-badges"></div>
-      <div class="pf-stats" id="pf-stats"></div>
-    </div>
-
-    <div style="position:relative;z-index:1;flex-shrink:0">
-      <a href="/shop.html" class="btn btn-shop">🛒 Магазин</a>
-    </div>
-  </div>
-
-  <!-- ════════════════ TABS ════════════════ -->
-  <div class="tabs-nav">
-    <button class="tab-btn active" data-tab="cosmetics">🎨 Кастомизация</button>
-    <button class="tab-btn" data-tab="overview">👤 Профиль</button>
-    <button class="tab-btn" data-tab="friends">
-      👥 Друзья
-      <span class="tab-badge" id="badge-fr" style="display:none"></span>
-    </button>
-    <button class="tab-btn" data-tab="team">
-      🏅 Команда
-      <span class="tab-badge" id="badge-ti" style="display:none"></span>
-    </button>
-  </div>
-
-  <!-- ════════════════ TAB: КАСТОМИЗАЦИЯ ════════════════ -->
-  <div class="tab-pane active" id="tab-cosmetics">
-
-    <div class="row-btwn sec-gap" style="margin-bottom:12px">
-      <p class="sec-lbl" style="margin-bottom:0">Надето сейчас</p>
-    </div>
-
-    <div class="eq-row sec-gap">
-      <!-- Рамка аватара -->
-      <div class="eq-card">
-        <div class="eq-card-lbl">🖼 Рамка аватара</div>
-        <div class="eq-card-body">
-          <div class="eq-prev-av" id="eq-frame-prev">
-            <img id="eq-frame-img" src="" alt="" style="display:none"/>
-            <div class="eq-prev-av-frame" id="eq-frame-css"></div>
-          </div>
-          <span id="eq-frame-name" class="eq-item-empty">Не выбрана</span>
+<header>
+    <a href="index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank">Discord</a>
         </div>
-        <button class="btn btn-uneq btn-full" id="btn-uneq-frame" style="display:none"
-                onclick="doUnequip('avatarFrame')">✕ Снять</button>
-      </div>
 
-      <!-- Фон профиля -->
-      <div class="eq-card">
-        <div class="eq-card-lbl">🎨 Фон профиля</div>
-        <div class="eq-card-body">
-          <div class="eq-prev-bg" id="eq-bg-css"></div>
-          <span id="eq-bg-name" class="eq-item-empty">Не выбран</span>
+        <a href="/auth/steam?redirect=/profile.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+                <span id="headerPoints" class="header-points"></span>
+            </div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
         </div>
-        <button class="btn btn-uneq btn-full" id="btn-uneq-bg" style="display:none"
-                onclick="doUnequip('profileBg')">✕ Снять</button>
-      </div>
+        <a href="join.html" id="btnApply" class="btn-apply">ТУРНИРЫ</a>
     </div>
+</header>
 
-    <div class="row-btwn" style="margin-bottom:12px">
-      <p class="sec-lbl" style="margin-bottom:0">Инвентарь</p>
-    </div>
-    <div class="inv-grid" id="inv-grid">
-      <div class="loading" style="grid-column:1/-1">Загрузка…</div>
-    </div>
 
-  </div>
+<!-- ══════════════════════════════════════════════════════
+     ПУБЛИЧНЫЙ ПРОФИЛЬ (при ?id=...)
+     ══════════════════════════════════════════════════════ -->
+<div id="publicProfileWrap" style="display:none;">
+    <div class="container" style="max-width:820px;">
 
-  <!-- ════════════════ TAB: ПРОФИЛЬ ════════════════ -->
-  <div class="tab-pane" id="tab-overview">
-    <div class="card sec-gap">
-      <p class="sec-lbl">О себе</p>
-      <p id="bio-txt" style="font-size:14px;line-height:1.7;color:var(--muted);font-style:italic">Не заполнено</p>
-    </div>
-    <div class="card" id="links-card" style="display:none">
-      <p class="sec-lbl">Контакты</p>
-      <div id="links-list" style="display:flex;flex-direction:column;gap:8px;font-size:14px"></div>
-    </div>
-  </div>
-
-  <!-- ════════════════ TAB: ДРУЗЬЯ ════════════════ -->
-  <div class="tab-pane" id="tab-friends">
-    <div id="reqs-block"></div>
-    <div class="card">
-      <p class="sec-lbl">Друзья</p>
-      <div id="friends-list"><div class="loading">Загрузка…</div></div>
-    </div>
-  </div>
-
-  <!-- ════════════════ TAB: КОМАНДА ════════════════ -->
-  <div class="tab-pane" id="tab-team">
-    <div id="tinvites-block"></div>
-    <div id="team-block"><div class="loading">Загрузка…</div></div>
-  </div>
-
-</div><!-- /page -->
-
-<script>
-// ─────────────────────────────────────────────────────────────────────────────
-//  СОСТОЯНИЕ
-// ─────────────────────────────────────────────────────────────────────────────
-const _kfStyle   = document.getElementById('cosmetic-kf');
-const _kfSeen    = new Set();   // id предметов, чьи keyframes уже вшиты
-let   _kfBuf     = '';          // буфер — пишем в DOM ОДИН РАЗ
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ПРАВИЛЬНЫЕ МЕТКИ ТИПОВ
-//  Именно здесь была ошибка — всё показывалось как «ФОН»
-// ─────────────────────────────────────────────────────────────────────────────
-const TYPE_LABEL = { avatarFrame: 'Рамка', profileBg: 'Фон' };
-const typeLabel  = t => TYPE_LABEL[t] ?? 'Предмет';
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ВШИВКА KEYFRAMES — только если ещё не вшито, только батчем
-//
-//  Проблема производительности: если делать _kfStyle.textContent += каждый раз,
-//  браузер пересчитывает ВСЕ стили на каждой итерации.
-//  Решение: буферизуем все @keyframes, пишем в DOM один раз через flushKF().
-// ─────────────────────────────────────────────────────────────────────────────
-function bufferKF(item) {
-  if (!item?._id || !item.keyframes || _kfSeen.has(String(item._id))) return;
-  _kfBuf += '\n' + item.keyframes;
-  _kfSeen.add(String(item._id));
-}
-function flushKF() {
-  // Одна запись в DOM → одна перестройка стилей
-  if (_kfBuf !== _kfStyle.textContent) _kfStyle.textContent = _kfBuf;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ПРИМЕНЕНИЕ CSS к элементу
-//  Используем style.cssText, а не setAttribute — это безопаснее для CSS строк
-//  с кавычками (font-family и т.п.)
-// ─────────────────────────────────────────────────────────────────────────────
-function applyCSS(el, css) {
-  if (!el) return;
-  el.style.cssText = css || '';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  FACEIT цвета
-// ─────────────────────────────────────────────────────────────────────────────
-function faceitColor(l) {
-  if (!l) return '#666';
-  if (l <= 3) return '#f59e0b';
-  if (l <= 6) return '#f97316';
-  if (l <= 8) return '#ef4444';
-  if (l <= 9) return '#a855f7';
-  return '#ec4899';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  XSS защита
-// ─────────────────────────────────────────────────────────────────────────────
-const esc = s => String(s ?? '')
-  .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  HEADER
-// ─────────────────────────────────────────────────────────────────────────────
-function renderHeader(d) {
-  const ec = d.equippedCosmetics || {};
-
-  // Аватар
-  const avEl = document.getElementById('pf-av');
-  if (d.avatar) avEl.src = d.avatar;
-
-  // Имя
-  document.getElementById('pf-name').textContent = d.displayName || '—';
-
-  // Ранг
-  if (d.rank && d.rank !== 'Unranked') {
-    document.getElementById('pf-rank-txt').textContent = d.rank;
-    document.getElementById('pf-rank').style.display = '';
-  }
-
-  // Бейджи
-  const badges = [];
-  if (d.team) badges.push(`<span class="badge badge-team">⚔ [${esc(d.team.tag)}] ${esc(d.team.name)}</span>`);
-  if (d.isAdmin) badges.push(`<span class="badge badge-admin">⚡ Администратор</span>`);
-  document.getElementById('pf-badges').innerHTML = badges.join('');
-
-  // Статистика
-  const stats = [];
-  if (d.faceitLevel != null) {
-    const c = faceitColor(d.faceitLevel);
-    stats.push(`<div class="pf-stat">
-      <span class="faceit-lv" style="background:${c}">${d.faceitLevel}</span>
-      <span class="pf-stat-lbl">FACEIT</span></div>`);
-  }
-  if (d.hoursInCS2 != null) {
-    stats.push(`<div class="pf-stat">
-      <span class="pf-stat-val">${Number(d.hoursInCS2).toLocaleString('ru')}</span>
-      <span class="pf-stat-lbl">часов в CS2</span></div>`);
-  }
-  document.getElementById('pf-stats').innerHTML = stats.join('');
-
-  // ── Рамка аватара в шапке
-  const frameEl = document.getElementById('pf-av-frame');
-  if (ec.avatarFrame?._id) {
-    bufferKF(ec.avatarFrame);
-    flushKF();
-    applyCSS(frameEl, ec.avatarFrame.css);
-  } else {
-    applyCSS(frameEl, '');
-  }
-
-  // ── Фон профиля в шапке
-  const bgEl = document.getElementById('pf-bg');
-  if (ec.profileBg?._id) {
-    bufferKF(ec.profileBg);
-    flushKF();
-    applyCSS(bgEl, ec.profileBg.css);
-    bgEl.style.display = '';
-  } else {
-    bgEl.style.display = 'none';
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  EQUIPPED SECTION
-// ─────────────────────────────────────────────────────────────────────────────
-function renderEquipped(d) {
-  const ec  = d.equippedCosmetics || {};
-  const av  = d.avatar || '';
-
-  // Рамка
-  const fName  = document.getElementById('eq-frame-name');
-  const fImg   = document.getElementById('eq-frame-img');
-  const fCss   = document.getElementById('eq-frame-css');
-  const fBtn   = document.getElementById('btn-uneq-frame');
-  if (ec.avatarFrame?._id) {
-    fName.textContent = ec.avatarFrame.name;
-    fName.className   = 'eq-item-name';
-    fImg.src          = av;
-    fImg.style.display = '';
-    applyCSS(fCss, ec.avatarFrame.css);
-    fBtn.style.display = '';
-  } else {
-    fName.textContent  = 'Не выбрана';
-    fName.className    = 'eq-item-empty';
-    fImg.style.display = 'none';
-    applyCSS(fCss, '');
-    fBtn.style.display = 'none';
-  }
-
-  // Фон
-  const bName  = document.getElementById('eq-bg-name');
-  const bCss   = document.getElementById('eq-bg-css');
-  const bBtn   = document.getElementById('btn-uneq-bg');
-  if (ec.profileBg?._id) {
-    bName.textContent = ec.profileBg.name;
-    bName.className   = 'eq-item-name';
-    applyCSS(bCss, ec.profileBg.css);
-    bBtn.style.display = '';
-  } else {
-    bName.textContent  = 'Не выбран';
-    bName.className    = 'eq-item-empty';
-    applyCSS(bCss, '');
-    bBtn.style.display = 'none';
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  INVENTORY GRID
-//
-//  Ключевые исправления:
-//  1. Сначала буферизуем ВСЕ keyframes, потом один flushKF()
-//  2. innerHTML пишется ОДИН РАЗ (не append в цикле)
-//  3. После innerHTML, CSS применяется через style.cssText (не атрибут в HTML)
-//     → нет проблем с HTML-экранированием кавычек в CSS-значениях
-// ─────────────────────────────────────────────────────────────────────────────
-function renderInventory(d) {
-  const grid = document.getElementById('inv-grid');
-  const inv  = (d.personalInventory || []).filter(e => e.itemId);
-  const ec   = d.equippedCosmetics || {};
-
-  const eqFrameId = String(ec.avatarFrame?._id ?? '');
-  const eqBgId    = String(ec.profileBg?._id   ?? '');
-
-  // ШАГ 1 — вшиваем ВСЕ keyframes разом
-  inv.forEach(e => bufferKF(e.itemId));
-  flushKF();  // единственный вызов — единственный пересчёт стилей
-
-  if (!inv.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
-      Инвентарь пуст.<br>
-      <a href="/shop.html">Зайди в магазин</a> и купи что-нибудь!
-    </div>`;
-    return;
-  }
-
-  // ШАГ 2 — строим HTML один раз, БЕЗ CSS в атрибутах
-  //         (CSS будем ставить через style.cssText после вставки)
-  const cssMap = {};   // itemId → { frameEl: css, bgEl: css }
-
-  const html = inv.map(entry => {
-    const item    = entry.itemId;
-    const itemId  = String(item._id);
-    const isFrame = item.cosmeticType === 'avatarFrame';
-    const slot    = isFrame ? 'avatarFrame' : 'profileBg';
-    const equipped= (isFrame ? eqFrameId : eqBgId) === itemId;
-    const label   = typeLabel(item.cosmeticType);
-    const icon    = esc(item.icon || (isFrame ? '🖼' : '🎨'));
-    const name    = esc(item.name);
-
-    // Сохраняем CSS для применения после innerHTML
-    if (item.css) cssMap[itemId] = item.css;
-
-    const thumbHtml = isFrame
-      ? `<div class="inv-thumb">
-           <div class="inv-thumb-circle">${icon}</div>
-           <div class="inv-thumb-frame" data-css-id="${itemId}"></div>
-         </div>`
-      : `<div class="inv-thumb">
-           <div class="inv-thumb-rect" data-css-id="${itemId}">${icon}</div>
-         </div>`;
-
-    const btnHtml = equipped
-      ? `<button class="btn btn-uneq btn-full" data-slot="${slot}" data-action="uneq">Снять</button>`
-      : `<button class="btn btn-eq  btn-full" data-id="${itemId}" data-slot="${slot}" data-action="eq">Надеть</button>`;
-
-    return `<div class="inv-card${equipped ? ' inv-eq' : ''}">
-      ${thumbHtml}
-      <div class="inv-card-name">${name}</div>
-      <div class="inv-card-type">${label}</div>
-      ${btnHtml}
-    </div>`;
-  }).join('');
-
-  // ШАГ 3 — один вызов innerHTML
-  grid.innerHTML = html;
-
-  // ШАГ 4 — применяем CSS через style.cssText (безопасно для кавычек в CSS)
-  grid.querySelectorAll('[data-css-id]').forEach(el => {
-    const css = cssMap[el.dataset.cssId];
-    if (css) el.style.cssText = css;
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  OVERVIEW TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function renderOverview(d) {
-  const bioEl = document.getElementById('bio-txt');
-  if (d.bio) {
-    bioEl.textContent   = d.bio;
-    bioEl.style.fontStyle = '';
-    bioEl.style.color   = '';
-  }
-  const links = [];
-  if (d.telegramUsername) links.push(`Telegram: <a href="https://t.me/${esc(d.telegramUsername)}" target="_blank">@${esc(d.telegramUsername)}</a>`);
-  if (d.discordUsername)  links.push(`Discord: <strong>${esc(d.discordUsername)}</strong>`);
-  if (links.length) {
-    document.getElementById('links-list').innerHTML = links.map(l=>`<div>${l}</div>`).join('');
-    document.getElementById('links-card').style.display = '';
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  FRIENDS TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function renderFriends(d) {
-  const reqsBlock = document.getElementById('reqs-block');
-  const listEl    = document.getElementById('friends-list');
-  const badge     = document.getElementById('badge-fr');
-  const reqs      = d.friendRequests || [];
-  const friends   = d.friends        || [];
-
-  badge.textContent    = reqs.length || '';
-  badge.style.display  = reqs.length ? '' : 'none';
-
-  if (reqs.length) {
-    reqsBlock.innerHTML = `<div class="card sec-gap" style="margin-bottom:14px">
-      <p class="sec-lbl">Входящие заявки в друзья</p>
-      ${reqs.map(r=>`<div class="user-row">
-        <img src="${esc(r.from?.avatar||'')}" alt=""/>
-        <span class="user-row-name">${esc(r.from?.displayName||'—')}</span>
-        <button class="btn btn-eq"   data-fid="${r.from?._id}" data-faction="accept">✓ Принять</button>
-        <button class="btn btn-uneq" data-fid="${r.from?._id}" data-faction="decline" style="margin-left:4px">✕</button>
-      </div>`).join('')}
-    </div>`;
-  } else reqsBlock.innerHTML = '';
-
-  listEl.innerHTML = friends.length
-    ? friends.map(f=>`<div class="user-row">
-        <img src="${esc(f.avatar||'')}" alt=""/>
-        <span class="user-row-name"><a href="/player.html?steamId=${esc(f.steamId)}">${esc(f.displayName||'—')}</a></span>
-      </div>`).join('')
-    : '<div class="empty">Пока нет друзей</div>';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  TEAM TAB
-// ─────────────────────────────────────────────────────────────────────────────
-function renderTeam(d) {
-  const invBlock = document.getElementById('tinvites-block');
-  const block    = document.getElementById('team-block');
-  const badge    = document.getElementById('badge-ti');
-  const invites  = d.teamInvites || [];
-
-  badge.textContent   = invites.length || '';
-  badge.style.display = invites.length ? '' : 'none';
-
-  if (invites.length) {
-    invBlock.innerHTML = `<div class="card sec-gap" style="margin-bottom:14px">
-      <p class="sec-lbl">Приглашения в команду</p>
-      ${invites.map((inv,i)=>`<div class="user-row">
-        ${inv.teamId?.logo?`<img src="${esc(inv.teamId.logo)}" alt=""/>`:''}
-        <span class="user-row-name">[${esc(inv.teamId?.tag||'')}] ${esc(inv.teamId?.name||'—')}</span>
-        <button class="btn btn-eq"   data-ti="${i}" data-taction="accept">Принять</button>
-        <button class="btn btn-uneq" data-ti="${i}" data-taction="decline" style="margin-left:4px">✕</button>
-      </div>`).join('')}
-    </div>`;
-  } else invBlock.innerHTML = '';
-
-  if (!d.team) {
-    block.innerHTML = `<div class="empty">Вы не в команде.<br><a href="/teams.html">Найти команду</a></div>`;
-    return;
-  }
-  const t = d.team;
-  const members = [...(t.members||[]), ...(t.subs||[])];
-  block.innerHTML = `<div class="card">
-    <div class="row-btwn" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px">
-        ${t.logo?`<img src="${esc(t.logo)}" style="width:40px;height:40px;border-radius:8px;object-fit:cover"/>`:''}
-        <div>
-          <div style="font-size:16px;font-weight:700">[${esc(t.tag)}] ${esc(t.name)}</div>
-          ${d.isCaptain?'<div style="font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.06em;text-transform:uppercase">Капитан</div>':''}
+        <div id="publicLoading" style="text-align:center;padding:100px 20px;">
+            <div class="spinner"></div>
+            <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
         </div>
-      </div>
-      <a href="/team.html" class="btn btn-eq">Страница команды →</a>
+
+        <div id="publicHidden" style="display:none;text-align:center;padding:100px 20px;">
+            <div style="font-size:56px;margin-bottom:20px;">🔒</div>
+            <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px;text-transform:uppercase;">Профиль скрыт</h2>
+            <p style="color:var(--text-gray);">Этот игрок скрыл свой профиль</p>
+        </div>
+
+        <div id="publicContent" style="display:none;">
+
+            <!-- ── Обложка публичного профиля (прозрачная, только если надет cosmetic profileBg) ── -->
+            <div id="pubCoverArea" style="
+                opacity: 0; pointer-events: none;
+                height:130px;margin:-20px -20px 0;
+                background:transparent;border:none;border-radius:0;
+                position:relative;overflow:hidden;transition:all .3s;
+            ">
+                <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none;"></div>
+            </div>
+
+            <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
+                <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                <div style="flex:1;min-width:0;">
+                    <div class="profile-display-name" id="pubName">—</div>
+                    <div class="profile-stats-row">
+                        <span class="profile-stat-badge" id="pubRank">Unranked</span>
+                        <span class="profile-team-tag" id="pubTeamTag" style="display:none;"></span>
+                    </div>
+                    <div id="pubFriendBtnWrap" style="margin-top:12px;display:none;">
+                        <button id="pubFriendBtn" onclick="pubAddFriend()" style="
+                            padding:8px 18px;border-radius:6px;cursor:pointer;
+                            font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
+                            background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.35);
+                            color:#5b8de8;transition:all 0.2s;letter-spacing:0.5px;
+                        ">+ Добавить в друзья</button>
+                    </div>
+                </div>
+                <div id="pubStatsBadges" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
+                    <div id="pubFaceitBadge" style="display:none;"></div>
+                    <div id="pubHoursBadge"  style="display:none;"></div>
+                </div>
+            </div>
+
+            <div id="pubSocialsBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 24px;margin-top:4px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Контакты</div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;" id="pubSocialsRow"></div>
+            </div>
+
+            <div id="pubBioBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:4px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">О себе</div>
+                <div id="pubBioText" style="font-size:14px;color:var(--text-gray);line-height:1.7;white-space:pre-wrap;"></div>
+            </div>
+
+            <div id="pubTeamBlock" style="display:none;margin-top:14px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Команда</div>
+                <div class="team-card-header" id="pubTeamCard"></div>
+            </div>
+        </div>
+
     </div>
-    <p class="sec-lbl">Состав</p>
-    ${members.map(m=>`<div class="user-row">
-      <img src="${esc(m.avatar||'')}" alt=""/>
-      <span class="user-row-name"><a href="/player.html?steamId=${esc(m.steamId)}">${esc(m.displayName||'—')}</a></span>
-    </div>`).join('')}
-  </div>`;
-}
+</div>
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ADMIN NOTICES
-// ─────────────────────────────────────────────────────────────────────────────
-function renderNotices(d) {
-  document.querySelectorAll('.notice').forEach(el=>el.remove());
-  const page = document.querySelector('.page');
-  (d.adminNotices||[]).forEach((n,i)=>{
-    const div = document.createElement('div');
-    div.className = 'notice';
-    div.innerHTML = `<span>⚡</span><span class="notice-msg">${esc(n.message)}</span>
-      <button class="btn btn-uneq" data-notice="${i}">✕</button>`;
-    page.prepend(div);
-  });
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ДЕЛЕГИРОВАНИЕ СОБЫТИЙ (один обработчик вместо onclick в каждой карточке)
-// ─────────────────────────────────────────────────────────────────────────────
-document.addEventListener('click', async e => {
-  const btn = e.target.closest('button[data-action],button[data-faction],button[data-taction],button[data-notice]');
-  if (!btn) return;
-  btn.disabled = true;
+<!-- ══════════════════════════════════════════════════════
+     ЛИЧНЫЙ КАБИНЕТ (без ?id)
+     ══════════════════════════════════════════════════════ -->
+<div id="ownProfileWrap" style="display:none;">
 
-  try {
-    // Инвентарь: надеть / снять
-    if (btn.dataset.action === 'eq')   await doEquip(btn.dataset.id,   btn.dataset.slot);
-    if (btn.dataset.action === 'uneq') await doUnequip(btn.dataset.slot);
+    <div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
+        <div style="font-size:56px; margin-bottom:20px;">🔒</div>
+        <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
+        <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam, чтобы открыть личный кабинет</p>
+        <a href="/auth/steam?redirect=/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+    </div>
 
-    // Друзья
-    if (btn.dataset.faction) await api(`/api/friends/${btn.dataset.faction}`, 'POST', { fromId: btn.dataset.fid });
+    <div id="profileLoading" style="text-align:center;padding:100px 20px;">
+        <div class="spinner"></div>
+        <p style="color:var(--text-gray);margin-top:8px;">Загрузка профиля...</p>
+    </div>
 
-    // Команда
-    if (btn.dataset.taction) await api(`/api/teams/invite/${btn.dataset.taction}`, 'POST', { idx: +btn.dataset.ti });
+    <div id="profileContent" style="display:none;">
+        <div class="container">
 
-    // Уведомление
-    if (btn.dataset.notice !== undefined) await api('/api/profile/dismiss-notice','POST',{idx:+btn.dataset.notice});
+            <!-- ── Обложка профиля (прозрачная, оживает только при надетом cosmetic profileBg) ── -->
+            <div id="profileCoverArea" style="
+                height:130px;margin:-20px -20px 0;
+                background:transparent;border:none;border-radius:0;
+                position:relative;overflow:hidden;transition:all .3s;
+            ">
+                <div style="position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to bottom,transparent,var(--bg));pointer-events:none;"></div>
+            </div>
 
-    await loadProfile();
-  } catch(err) {
-    console.error(err);
-    btn.disabled = false;
-  }
-});
+            <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
+                <div style="position:relative;">
+                    <img id="profileAvatar" src="" alt="" class="profile-avatar-large"
+                         style="border:3px solid var(--bg);transition:box-shadow .3s;"
+                         onerror="this.style.display='none'">
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div class="profile-display-name" id="profileDisplayName">—</div>
+                    <div class="profile-stats-row">
+                        <span class="profile-stat-badge" id="profileRankBadge">Unranked</span>
+                        <span class="profile-team-tag" id="profileTeamTagBadge" style="display:none;"></span>
+                    </div>
+                    <!-- Балансы (монеты) -->
+                    <div id="profileBalanceRow" style="display:none;margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <span id="profilePersonalBalance" style="display:inline-flex;align-items:center;gap:5px;background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);color:#e6b022;border-radius:6px;padding:4px 10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;"></span>
+                    </div>
+                    <!-- Кнопка "Просмотр профиля" -->
+                    <a id="viewPublicProfileLink" href="#" target="_blank" rel="noopener"
+                       class="view-profile-btn"
+                       style="display:none;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Просмотр профиля
+                    </a>
+                </div>
+                <img id="profileMascot"
+                     src="assets/molotov-sleep.png"
+                     alt="mascot"
+                     style="width:170px;pointer-events:none;user-select:none;
+                            mix-blend-mode:screen;position:absolute;bottom:0px;right:24px;
+                            filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));transition:all 0.3s ease;">
+            </div>
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  API
-// ─────────────────────────────────────────────────────────────────────────────
-async function api(url, method='GET', body) {
-  const r = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-async function doEquip(itemId, slot)  { await api('/api/profile/equip',   'POST', { itemId, slot }) }
-async function doUnequip(slot)        { await api('/api/profile/unequip', 'POST', { slot })         }
+            <div class="profile-tabs">
+                <button class="profile-tab-btn active" data-tab="myprofile">
+                    🎮 Мой профиль
+                    <span class="tab-badge" id="profileIncompleteBadge" style="display:none;">!</span>
+                </button>
+                <button class="profile-tab-btn" data-tab="team">⚔️ Команда</button>
+                <button class="profile-tab-btn" data-tab="friends">
+                    👥 Друзья
+                    <span class="tab-badge" id="friendReqBadge" style="display:none;"></span>
+                </button>
+                <button class="profile-tab-btn" data-tab="notifs">
+                    🔔 Уведомления
+                    <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
+                </button>
+            </div>
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  TABS
-// ─────────────────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-  });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ЗАГРУЗКА — один fetch, без setInterval, без polling
-// ─────────────────────────────────────────────────────────────────────────────
-async function loadProfile() {
-  const d = await api('/api/profile');
-  renderHeader(d);
-  renderEquipped(d);
-  renderInventory(d);
-  renderOverview(d);
-  renderFriends(d);
-  renderTeam(d);
-  renderNotices(d);
-}
+            <!-- ══ ТАБ: МОЙ ПРОФИЛЬ — REDESIGNED ══ -->
+            <div class="profile-tab-content active" id="tab-myprofile">
 
-loadProfile();
-</script>
+                <div id="profileIncompleteWarning" class="pform-warning-banner" style="display:none;">
+                    ⚠️ <strong>Профиль не заполнен.</strong>
+                    Укажите FACEIT уровень и количество часов — без этого нельзя создать команду или принять приглашение.
+                </div>
+
+                <div class="pform-grid">
+
+                    <!-- Игровые данные -->
+                    <div class="pform-card">
+                        <div class="pform-card-title">🎮 Игровые данные</div>
+
+                        <div class="pform-field">
+                            <label class="p-field-label">
+                                FACEIT Уровень <span class="pform-req">*</span>
+                            </label>
+                            <div id="faceitBtnGroup" class="faceit-btn-row"></div>
+                            <input type="hidden" id="statFaceit">
+                        </div>
+
+                        <div class="pform-field" style="margin-bottom:0;">
+                            <label class="p-field-label" for="statHours">
+                                Часов в CS2 <span class="pform-req">*</span>
+                            </label>
+                            <div class="pform-row">
+                                <input
+                                    type="number"
+                                    id="statHours"
+                                    class="p-field-input"
+                                    placeholder="Например: 3500"
+                                    min="0" max="99999"
+                                    style="max-width:180px;"
+                                >
+                                <button type="button" id="syncSteamBtn" onclick="syncSteamHours()" class="btn-steam-sync">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+                                    Синхронизировать со Steam
+                                </button>
+                            </div>
+                            <div id="syncSteamStatus" class="pform-status-hint" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- О себе -->
+                    <div class="pform-card">
+                        <div class="pform-card-title">
+                            📝 О себе
+                            <span class="pform-optional">— необязательно, макс. 300 символов</span>
+                        </div>
+                        <div class="pform-field" style="margin-bottom:0;">
+                            <textarea
+                                id="statBio"
+                                class="p-field-input"
+                                placeholder="Расскажи о себе: роль, опыт, удобное время для игры..."
+                                maxlength="300"
+                                rows="4"
+                                style="resize:vertical;font-family:inherit;"
+                            ></textarea>
+                            <div class="pform-bio-counter"><span id="bioCharCount">0</span>/300</div>
+                        </div>
+                    </div>
+
+                    <!-- Контакты -->
+                    <div class="pform-card">
+                        <div class="pform-card-title">
+                            📡 Контакты
+                            <span class="pform-optional">— необязательно</span>
+                        </div>
+                        <div class="pform-contacts">
+                            <div class="pform-field" style="margin-bottom:0;">
+                                <label class="p-field-label" for="statTelegram">
+                                    Telegram <span class="pform-hint">(без @)</span>
+                                </label>
+                                <div class="pform-input-icon">
+                                    <svg class="pform-icon pform-icon-tg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+                                    <input type="text" id="statTelegram" class="p-field-input" placeholder="username" maxlength="64">
+                                </div>
+                            </div>
+                            <div class="pform-field" style="margin-bottom:0;">
+                                <label class="p-field-label" for="statDiscord">Discord</label>
+                                <div class="pform-input-icon">
+                                    <svg class="pform-icon pform-icon-dc" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+                                    <input type="text" id="statDiscord" class="p-field-input" placeholder="username или username#1234" maxlength="64">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Приватность + Сохранить -->
+                    <div class="pform-card">
+                        <div class="pform-privacy-row">
+                            <div>
+                                <div class="pform-privacy-label">🔒 Скрыть профиль</div>
+                                <div class="pform-privacy-desc">Другие игроки не смогут видеть ваш FACEIT, часы и bio</div>
+                            </div>
+                            <label class="toggle-switch" title="Скрыть профиль от других">
+                                <input type="checkbox" id="statPrivate">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div id="statsError" class="p-modal-error" style="display:none;"></div>
+                        <div id="statsSuccess" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.25);border-radius:8px;padding:10px 14px;color:#4caf82;font-size:13px;font-weight:600;margin-bottom:4px;">✅ Данные сохранены!</div>
+
+                        <button id="statsSaveBtn" class="p-btn-save pform-save-btn" onclick="saveProfileStats()">
+                            Сохранить изменения
+                        </button>
+                    </div>
+
+                    <!-- Кастомизация + Инвентарь -->
+                    <div id="cosmeticsSection" class="pform-card">
+                        <div class="pform-card-title" style="justify-content:space-between;margin-bottom:16px;">
+                            🎨 Кастомизация
+                            <a href="/shop.html" class="pform-shop-link">🛒 Магазин</a>
+                        </div>
+
+                        <!-- Слоты "Сейчас надето" -->
+                        <div class="cosmetic-slots-grid">
+                            <div class="cosmetic-slot" id="slotAvatarFrame">
+                                <div class="cslot-header">
+                                    <span class="cslot-icon">🖼️</span>
+                                    <span class="cslot-type">Рамка аватара</span>
+                                </div>
+                                <div class="cslot-body">
+                                    <span id="slotAvatarFrameName" class="cslot-empty">Не надета</span>
+                                </div>
+                                <button class="cslot-remove-btn" id="unequipAvatarFrameBtn"
+                                        onclick="unequipCosmetic('avatarFrame')" style="display:none;">
+                                    ✕ Снять
+                                </button>
+                            </div>
+                            <div class="cosmetic-slot" id="slotProfileBg">
+                                <div class="cslot-header">
+                                    <span class="cslot-icon">🎨</span>
+                                    <span class="cslot-type">Фон профиля</span>
+                                </div>
+                                <div class="cslot-body">
+                                    <span id="slotProfileBgName" class="cslot-empty">Не надет</span>
+                                </div>
+                                <button class="cslot-remove-btn" id="unequipProfileBgBtn"
+                                        onclick="unequipCosmetic('profileBg')" style="display:none;">
+                                    ✕ Снять
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Инвентарь -->
+                        <div id="inventoryWrap">
+                            <div class="pform-cosmetics-sep">Инвентарь</div>
+                            <div id="inventoryItemsGrid" class="cosmetic-inv-grid"></div>
+                            <div id="inventoryEmptyNote"
+                                 style="font-size:12px;color:#5c6b7f;padding:10px 0;display:none;">
+                                Инвентарь пуст —
+                                <a href="/shop.html" style="color:var(--accent);text-decoration:none;">зайди в магазин</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div><!-- /tab-myprofile -->
+
+
+            <!-- ══ ТАБ: КОМАНДА ══ -->
+            <div class="profile-tab-content" id="tab-team">
+
+                <div id="teamTabBlocker" style="display:none;text-align:center;padding:60px 20px;background:rgba(224,92,92,0.05);border:1px solid rgba(224,92,92,0.2);border-radius:14px;">
+                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
+                    <h3 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;text-transform:uppercase;margin-bottom:10px;color:white;">Профиль не заполнен</h3>
+                    <p style="color:var(--text-gray);font-size:14px;margin-bottom:20px;">Чтобы создать команду или вступить в неё, укажите FACEIT уровень и количество часов в CS2.</p>
+                    <button
+                        class="btn-apply"
+                        style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;"
+                        onclick="switchToMyProfileTab()"
+                    >🎮 Заполнить профиль</button>
+                </div>
+
+                <div id="teamTabContent" style="display:none;">
+                    <div id="noTeamState" class="no-team-state" style="display:none;">
+                        <div class="no-team-icon">🎯</div>
+                        <p>Вы пока не состоите в команде</p>
+                        <button onclick="openCreateTeamModal()" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;border:none;cursor:pointer;">+ Создать команду</button>
+                    </div>
+
+                    <div id="teamContent" style="display:none;">
+                        <div class="team-card-header">
+                            <div class="team-logo-circle" id="teamLogoEl"></div>
+                            <div>
+                                <div class="team-card-name" id="teamNameEl">—</div>
+                                <div class="team-card-tag"  id="teamTagEl">—</div>
+                            </div>
+                        </div>
+
+                        <div class="roster-block">
+                            <div class="roster-block-title">
+                                <span>⚔️ Основной состав</span>
+                                <span class="roster-count" id="mainCountLabel">0/5</span>
+                            </div>
+                            <div id="mainRosterList"></div>
+                        </div>
+
+                        <div class="roster-block">
+                            <div class="roster-block-title">
+                                <span>🔄 Замены</span>
+                                <span class="roster-count" id="subCountLabel">0/5</span>
+                            </div>
+                            <div id="subRosterList"></div>
+                        </div>
+
+                        <div id="captainActions" class="team-action-bar" style="display:none;">
+                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🛡️ Страница команды</a>
+                            <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
+                        </div>
+
+                        <div id="memberActions" class="team-action-bar" style="display:none;">
+                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🛡️ Страница команды</a>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /tab-team -->
+
+
+            <!-- ══ ТАБ: ДРУЗЬЯ ══ -->
+            <div class="profile-tab-content" id="tab-friends">
+                <div class="friend-search-bar">
+                    <input type="text" id="friendSearchInput" placeholder="Поиск игрока по нику..." autocomplete="off"
+                        onkeydown="if(event.key==='Enter') searchFriendsHandler()">
+                    <button onclick="searchFriendsHandler()">Найти</button>
+                </div>
+                <div id="searchResultsBox" style="display:none;" class="search-results-box"></div>
+                <div id="friendsList"></div>
+            </div>
+
+
+            <!-- ══ ТАБ: УВЕДОМЛЕНИЯ ══ -->
+            <div class="profile-tab-content" id="tab-notifs">
+                <div id="notifsList"></div>
+            </div>
+
+        </div>
+    </div>
+
+</div><!-- /ownProfileWrap -->
+
+
+
+
+<!-- ══════════════════════════════════════════════════════
+     КНОПКА ИНСТРУКЦИЯ
+     ══════════════════════════════════════════════════════ -->
+<button
+    id="profileHelpBtn"
+    onclick="document.getElementById('profileHelpModal').classList.remove('p-modal-hidden');document.body.style.overflow='hidden';"
+    style="
+        position:fixed;bottom:28px;right:28px;z-index:300;
+        background:#e6b022;color:#000;border:none;border-radius:50px;
+        padding:12px 20px;font-family:'Montserrat',sans-serif;font-weight:800;
+        font-size:13px;cursor:pointer;box-shadow:0 4px 20px rgba(230,176,34,0.4);
+        display:none;align-items:center;gap:8px;transition:all 0.2s;letter-spacing:0.5px;
+    "
+    onmouseover="this.style.background='#ffc933';this.style.transform='scale(1.05)'"
+    onmouseout="this.style.background='#e6b022';this.style.transform='scale(1)'"
+>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Инструкция
+</button>
+
+
+<!-- ══════════════════════════════════════════════════════
+     МОДАЛКИ
+     ══════════════════════════════════════════════════════ -->
+
+<div id="profileHelpModal" class="p-modal-overlay p-modal-hidden">
+    <div style="position:relative; display:flex; align-items:flex-end;">
+        <img src="assets/smoke-mascot.png" alt="Smoke Mascot" style="position:absolute;top:10px;left:-285px;width:500px;z-index:0;pointer-events:none;user-select:none;filter:drop-shadow(-4px 0 12px rgba(0,0,0,0.6));animation:modalIn 0.25s ease;">
+        <div class="p-modal-panel" style="max-width:560px;max-height:90vh;overflow-y:auto;position:relative;z-index:1;">
+            <div class="p-modal-header">
+                <span class="p-modal-title">📖 Инструкция для игроков</span>
+                <button class="p-modal-close" onclick="document.getElementById('profileHelpModal').classList.add('p-modal-hidden');document.body.style.overflow='';">✕</button>
+            </div>
+            <div class="p-modal-body" style="gap:20px;">
+                <div style="background:rgba(91,141,232,0.07);border:1px solid rgba(91,141,232,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎮 Шаг 0 — Заполни профиль</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Перейди во вкладку <strong style="color:white;">«Мой профиль»</strong> и укажи FACEIT уровень и количество часов в CS2. Без этого нельзя создать команду или принять приглашение.</p>
+                </div>
+                <div style="background:rgba(230,176,34,0.07);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚔️ Шаг 1 — Создание команды</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан команды регистрируется через Steam и в личном кабинете создаёт команду: указывает название, тег и логотип.</p>
+                </div>
+                <div style="background:rgba(76,175,130,0.07);border:1px solid rgba(76,175,130,0.2);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#4caf82;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">👥 Шаг 2 — Набор игроков</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан находит игроков через поиск во вкладке <strong style="color:white;">«Друзья»</strong>, добавляет их в друзья и приглашает в команду с указанием роли.</p>
+                    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+                        <div style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#e6b022;">⚔️ Основной состав — 5 игроков</div>
+                        <div style="background:rgba(92,107,127,0.15);border:1px solid rgba(92,107,127,0.3);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#aebbc7;">🔄 Замены — до 5 игроков</div>
+                    </div>
+                </div>
+                <div style="background:rgba(92,107,127,0.08);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#aebbc7;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🔔 Статус заявки</div>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">После вступления в команду ваши данные автоматически отправляются администраторам. Статус отображается во вкладке <strong style="color:white;">«Уведомления»</strong>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="createTeamModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">⚔️ Создать команду</span>
+            <button class="p-modal-close" onclick="closeCreateTeamModal()">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <div id="ctError" class="p-modal-error"></div>
+            <div>
+                <label class="p-field-label" for="ctName">Название команды</label>
+                <input type="text" id="ctName" class="p-field-input" placeholder="Название" maxlength="64">
+            </div>
+            <div>
+                <label class="p-field-label" for="ctTag">Тег <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(до 8 символов)</span></label>
+                <input type="text" id="ctTag" class="p-field-input" placeholder="TAG" maxlength="8" style="text-transform:uppercase;">
+            </div>
+            <div>
+                <label class="p-field-label" for="ctTelegram">Telegram команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
+                <input type="text" id="ctTelegram" class="p-field-input" placeholder="@myteam или https://t.me/myteam">
+            </div>
+           
+            <div>
+                <label class="p-field-label">Логотип команды <span style="color:#5c6b7f;font-weight:400;text-transform:none;letter-spacing:0;">(необязательно)</span></label>
+                
+                <input type="hidden" id="ctLogo">
+                <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+                    
+                    <div id="ctLogoPreview" style="
+                        width:56px;height:56px;border-radius:10px;
+                        background:#1f252c;border:1px solid #2a3340;
+                        display:flex;align-items:center;justify-content:center;
+                        overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
+                    <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <label for="ctLogoFile" style="
+                                display:inline-block;cursor:pointer;
+                                background:#1f252c;border:1px solid #2a3340;
+                                border-radius:7px;padding:8px 16px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#aebbc7;
+                                transition:border-color 0.2s,color 0.2s;">
+                                📁 Выбрать файл
+                            </label>
+                            <button type="button" id="ctLogoDeleteBtn" onclick="clearCreateTeamLogo()" style="
+                                display:none;cursor:pointer;
+                                background:none;border:1px solid rgba(224,92,92,0.35);
+                                border-radius:7px;padding:8px 14px;
+                                font-size:12px;font-family:'Montserrat',sans-serif;
+                                font-weight:700;letter-spacing:0.5px;color:#e05c5c;
+                                transition:border-color 0.2s,background 0.2s;">
+                                🗑 Удалить лого
+                            </button>
+                        </div>
+                        <input type="file" id="ctLogoFile" accept="image/*" style="display:none;">
+                        <div id="ctLogoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">
+                            Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP
+                        </div>
+                        <div id="ctLogoUploadError" style="margin-top:4px;font-size:11px;color:#e05c5c;display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeCreateTeamModal()">Отмена</button>
+            <button class="p-btn-save" id="ctSubmitBtn" onclick="submitCreateTeam()">Создать команду</button>
+        </div>
+    </div>
+</div>
+
+
+<div id="inviteModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">Пригласить в команду</span>
+            <button class="p-modal-close" onclick="closeInviteModal()">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <div id="inviteError" class="p-modal-error"></div>
+            <p style="color:var(--text-gray);font-size:14px;margin-bottom:8px;">
+                Выберите роль для <strong id="inviteTargetName" style="color:white;"></strong>:
+            </p>
+            <div style="display:flex;gap:12px;margin-top:4px;">
+                <button class="btn-team-settings" style="flex:1;" onclick="sendTeamInvite('main')">⚔️ Основной состав</button>
+                <button class="p-btn-cancel"      style="flex:1;padding:10px;" onclick="sendTeamInvite('sub')">🔄 Замена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="confirmDeleteModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title" style="color:#e05c5c;">⚠️ Распустить команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmDeleteModal')">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">
+                Команда будет <strong style="color:#e05c5c;">расформирована навсегда</strong>.<br>
+                Все участники автоматически покинут её.
+            </p>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeModal('confirmDeleteModal')">Отмена</button>
+            <button class="btn-team-danger" id="confirmDeleteBtn" onclick="doDeleteTeam()">💀 Распустить</button>
+        </div>
+    </div>
+</div>
+
+<div id="memberModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">👤 <span id="memberModalName"></span></span>
+            <button class="p-modal-close" onclick="closeMemberModal()">✕</button>
+        </div>
+        <div class="p-modal-body" style="gap:10px;">
+            <button onclick="memberModalKick()"    class="btn-team-danger"    style="width:100%;justify-content:center;">🚫 Исключить из команды</button>
+            <button onclick="memberModalCaptain()" id="memberModalCapBtn" class="btn-team-settings" style="width:100%;justify-content:center;">👑 Назначить капитаном</button>
+            <button onclick="memberModalRole()"    class="p-btn-cancel"       style="width:100%;padding:10px;text-align:center;">🔄 Сменить роль (замена ↔ основа)</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmLeaveModal" class="p-modal-overlay p-modal-hidden">
+    <div class="p-modal-panel">
+        <div class="p-modal-header">
+            <span class="p-modal-title" style="color:#e05c5c;">🚪 Покинуть команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmLeaveModal')">✕</button>
+        </div>
+        <div class="p-modal-body">
+            <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">Вы уверены, что хотите покинуть команду?</p>
+        </div>
+        <div class="p-modal-footer">
+            <button class="p-btn-cancel" onclick="closeModal('confirmLeaveModal')">Отмена</button>
+            <button class="btn-team-danger" onclick="doLeaveTeam()">Покинуть</button>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<script src="js/common.js" defer></script>
+<script src="js/profile.js" defer></script>
+
 </body>
 </html>

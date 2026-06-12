@@ -141,21 +141,21 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         async function pollNotifications() {
             try {
-                const res = await fetch("/api/profile");
+                const res = await fetch("/api/notifications/count");
                 if (!res.ok) return;
                 const d = await res.json();
 
-                const frCount  = (d.friendRequests || []).length;
-                const tiCount  = (d.teamInvites    || []).length;
-                const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
-                const anCount  = (d.adminNotices   || []).length;
-                const total    = frCount + tiCount + appCount + anCount;
+                const total = d.total || 0;
 
                 if (_prevNotifCount >= 0 && total > _prevNotifCount) {
                     await refreshProfile();
                 }
                 _prevNotifCount = total;
-                updateBadges(d);
+                // Update badges from lightweight response
+                const frBadge = document.getElementById("friendReqBadge");
+                const nfBadge = document.getElementById("notifsBadge");
+                if (frBadge) { frBadge.textContent = d.friendRequests || 0; frBadge.style.display = d.friendRequests > 0 ? "inline-flex" : "none"; }
+                if (nfBadge) { const n = (d.teamInvites||0) + (d.adminNotices||0); nfBadge.textContent = n; nfBadge.style.display = n > 0 ? "inline-flex" : "none"; }
             } catch {}
         }
 
@@ -417,49 +417,40 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     return { keyframes, cleanCss: cleanCss.trim() };
 }
 
-    function extractKeyframes(css) {
-     let keyframes = "";
-        // Матчим @keyframes name { ... }, включая вложенные {} внутри правил
-        const kfRegex = /@keyframes\s+[\w\-]+\s*\{(?:[^{}]+|\{[^{}]*\})*\}/g;
-        const cleanCss = css.replace(kfRegex, function(match) {
-            keyframes += match + "\n";
-         return "";
-    });
-          return { keyframes, cleanCss: cleanCss.trim() };
-}
 
-  function applyCosmeticCSS(cosmetics) {
+
+    function applyCosmeticCSS(cosmetics) {
         let styles = "";
- 
+
         // ── Рамка аватарки ────────────────────────────────────────────────
         const frame = cosmetics.avatarFrame;
-        if (frame?.css) {
-            const extracted = extractKeyframes(frame.css);
-            if (frame.keyframes)     styles += frame.keyframes + "\n";
+        if (frame && (frame.css || frame.keyframes)) {
+            const src = (frame.keyframes || "") + "\n" + (frame.css || "");
+            const extracted = extractKeyframes(src);
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
-            const css = addImportant(extracted.cleanCss);
-            styles += `#profileAvatar { ${css} }\n`;
-            styles += `#pubAvatar     { ${css} }\n`;
+            const cleanCss = extracted.cleanCss;
+            if (cleanCss) {
+                const css = addImportant(cleanCss);
+                styles += `#profileAvatar { ${css} }\n`;
+                styles += `#pubAvatar     { ${css} }\n`;
+            }
         }
- 
+
         // ── Фон профиля ───────────────────────────────────────────────────
         const bg = cosmetics.profileBg;
-        if (bg?.css) {
-            const extracted = extractKeyframes(bg.css);
-            if (bg.keyframes)        styles += bg.keyframes + "\n";
+        if (bg && (bg.css || bg.keyframes)) {
+            const src = (bg.keyframes || "") + "\n" + (bg.css || "");
+            const extracted = extractKeyframes(src);
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
-            const css = addImportant(extracted.cleanCss);
- 
-            // Весь экран между хедером и футером
-            styles += `body.page-profile { ${css} }\n`;
- 
-            // Cover-области прозрачны — фон body просвечивает
-            styles += `
-#profileCoverArea { background: transparent !important; border-color: transparent !important; }
-#pubCoverArea     { background: transparent !important; border-color: transparent !important; }
-`;
+            const cleanCss = extracted.cleanCss;
+            if (cleanCss) {
+                const css = addImportant(cleanCss);
+                styles += `body.page-profile { ${css} }\n`;
+                styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
+                styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
+            }
         }
- 
+
         let el = document.getElementById("_cosmetic_styles");
         if (!el) {
             el = document.createElement("style");
@@ -551,14 +542,17 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             const btnEl  = document.getElementById(cfg.btnId);
             if (!nameEl) continue;
  
+            const slotEl = document.getElementById(slot === "avatarFrame" ? "slotAvatarFrame" : "slotProfileBg");
             if (item && item.name) {
                 nameEl.textContent = item.name;
                 nameEl.className = "cslot-filled";
                 if (btnEl) btnEl.style.display = "";
+                if (slotEl) slotEl.classList.add("has-item");
             } else {
                 nameEl.textContent = slot === "avatarFrame" ? "Не надета" : "Не надет";
                 nameEl.className = "cslot-empty";
                 if (btnEl) btnEl.style.display = "none";
+                if (slotEl) slotEl.classList.remove("has-item");
             }
         }
  
@@ -582,7 +576,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             const isEquipped = equipped && equipped._id &&
                 equipped._id.toString() === itemId._id.toString();
  
-            const typeLabel = slot === "avatarFrame" ? "Рамка" : "Фон";
+            const cosmeticLabels = { avatarFrame: "Рамка аватара", profileBg: "Фон профиля" };
+            const typeLabel = cosmeticLabels[itemId.cosmeticType] || cosmeticLabels[slot] || itemId.cosmeticType || "Предмет";
             const icon      = itemId.icon || (slot === "avatarFrame" ? "🖼️" : "🎨");
  
             const card = document.createElement("div");

@@ -1508,401 +1508,6 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .hamburger-btn { display: flex; }
 }
 
-/* ================================================
-   PROFILE FORM REDESIGN (tab-myprofile)
-   Добавить в конец style.css
-   ================================================ */
-
-/* Баннер "профиль не заполнен" */
-.pform-warning-banner {
-    background: rgba(224,92,92,0.1);
-    border: 1px solid rgba(224,92,92,0.3);
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: #e05c5c;
-    line-height: 1.6;
-}
-
-/* Сетка карточек */
-.pform-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* Карточка-секция */
-.pform-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 22px;
-    transition: border-color 0.2s;
-}
-.pform-card:focus-within {
-    border-color: rgba(230,176,34,0.2);
-}
-
-/* Заголовок карточки */
-.pform-card-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 800;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: white;
-    margin-bottom: 16px;
-}
-
-.pform-optional {
-    font-size: 11px;
-    font-weight: 400;
-    color: #5c6b7f;
-    text-transform: none;
-    letter-spacing: 0;
-}
-
-.pform-req { color: #e05c5c; }
-
-.pform-hint {
-    font-weight: 400;
-    font-size: 11px;
-    color: #5c6b7f;
-    text-transform: none;
-    letter-spacing: 0;
-    margin-left: 3px;
-}
-
-/* Поля внутри карточки */
-.pform-field { margin-bottom: 14px; }
-.pform-field:last-child { margin-bottom: 0; }
-
-/* Строка: инпут + кнопка рядом */
-.pform-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-/* Кнопка синхронизации со Steam */
-.btn-steam-sync {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    background: rgba(91,141,232,0.1);
-    border: 1px solid rgba(91,141,232,0.3);
-    color: #5b8de8;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    transition: background 0.2s, border-color 0.2s;
-    white-space: nowrap;
-}
-.btn-steam-sync:hover { background: rgba(91,141,232,0.18); border-color: rgba(91,141,232,0.5); }
-.btn-steam-sync:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Подсказка под полем (статус синка) */
-.pform-status-hint { font-size: 11px; margin-top: 5px; }
-
-/* FACEIT кнопки */
-.faceit-btn-row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 2px;
-}
-
-/* Счётчик символов bio */
-.pform-bio-counter {
-    font-size: 11px;
-    color: #5c6b7f;
-    text-align: right;
-    margin-top: 5px;
-}
-
-/* Контакты — двухколоночная сетка */
-.pform-contacts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-}
-
-/* Инпут с иконкой внутри */
-.pform-input-icon {
-    position: relative;
-}
-.pform-input-icon .p-field-input {
-    padding-left: 36px;
-}
-.pform-icon {
-    position: absolute;
-    left: 11px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-}
-.pform-icon-tg { color: #26a5e4; opacity: 0.75; }
-.pform-icon-dc { color: #7289da; opacity: 0.75; }
-
-/* Блок приватности */
-.pform-privacy-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding-bottom: 16px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-}
-.pform-privacy-label {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    color: white;
-    margin-bottom: 3px;
-}
-.pform-privacy-desc {
-    font-size: 12px;
-    color: #5c6b7f;
-    line-height: 1.5;
-}
-
-/* Кнопка сохранить */
-.pform-save-btn {
-    width: 100%;
-    padding: 12px;
-    font-size: 13px;
-    letter-spacing: 1px;
-    margin-top: 4px;
-}
-
-
-@media (max-width: 600px) {
-    .pform-contacts { grid-template-columns: 1fr; }
-    .pform-card { padding: 16px 16px; }
-    .pform-row { gap: 8px; }
-}
-
-/* Баннер "профиль не заполнен" */
-.pform-warning-banner {
-    background: rgba(224,92,92,0.1);
-    border: 1px solid rgba(224,92,92,0.3);
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 16px;
-    font-size: 13px;
-    color: #e05c5c;
-    line-height: 1.6;
-}
- 
-/* Сетка карточек */
-.pform-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
- 
-/* Карточка-секция */
-.pform-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 22px;
-    transition: border-color 0.2s;
-}
-.pform-card:focus-within {
-    border-color: rgba(230,176,34,0.2);
-}
- 
-/* Заголовок карточки */
-.pform-card-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 800;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: white;
-    margin-bottom: 16px;
-}
- 
-.pform-optional {
-    font-size: 11px;
-    font-weight: 400;
-    color: #5c6b7f;
-    text-transform: none;
-    letter-spacing: 0;
-}
- 
-.pform-req { color: #e05c5c; }
- 
-.pform-hint {
-    font-weight: 400;
-    font-size: 11px;
-    color: #5c6b7f;
-    text-transform: none;
-    letter-spacing: 0;
-    margin-left: 3px;
-}
- 
-/* Поля внутри карточки */
-.pform-field { margin-bottom: 14px; }
-.pform-field:last-child { margin-bottom: 0; }
- 
-/* Строка: инпут + кнопка рядом */
-.pform-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
- 
-/* Кнопка синхронизации со Steam */
-.btn-steam-sync {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    background: rgba(91,141,232,0.1);
-    border: 1px solid rgba(91,141,232,0.3);
-    color: #5b8de8;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    transition: background 0.2s, border-color 0.2s;
-    white-space: nowrap;
-}
-.btn-steam-sync:hover { background: rgba(91,141,232,0.18); border-color: rgba(91,141,232,0.5); }
-.btn-steam-sync:disabled { opacity: 0.5; cursor: not-allowed; }
- 
-/* Подсказка под полем (статус синка) */
-.pform-status-hint { font-size: 11px; margin-top: 5px; }
- 
-/* FACEIT кнопки */
-.faceit-btn-row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 2px;
-}
- 
-/* Счётчик символов bio */
-.pform-bio-counter {
-    font-size: 11px;
-    color: #5c6b7f;
-    text-align: right;
-    margin-top: 5px;
-}
- 
-/* Контакты — двухколоночная сетка */
-.pform-contacts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-}
- 
-/* Инпут с иконкой внутри */
-.pform-input-icon {
-    position: relative;
-}
-.pform-input-icon .p-field-input {
-    padding-left: 36px;
-}
-.pform-icon {
-    position: absolute;
-    left: 11px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-}
-.pform-icon-tg { color: #26a5e4; opacity: 0.75; }
-.pform-icon-dc { color: #7289da; opacity: 0.75; }
- 
-/* Блок приватности */
-.pform-privacy-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    padding-bottom: 16px;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-}
-.pform-privacy-label {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    color: white;
-    margin-bottom: 3px;
-}
-.pform-privacy-desc {
-    font-size: 12px;
-    color: #5c6b7f;
-    line-height: 1.5;
-}
- 
-/* Кнопка сохранить */
-.pform-save-btn {
-    width: 100%;
-    padding: 12px;
-    font-size: 13px;
-    letter-spacing: 1px;
-    margin-top: 4px;
-}
- 
-/* Адаптив */
-@media (max-width: 600px) {
-    .pform-contacts { grid-template-columns: 1fr; }
-    .pform-card { padding: 16px 16px; }
-    .pform-row { gap: 8px; }
-}
- 
-/* ── Кнопка «Просмотр профиля» в личном кабинете ─────────────── */
-.view-profile-btn {
-    display: none; /* показывается через JS */
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text-gray);
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    text-decoration: none;
-    transition: background 0.2s, border-color 0.2s, color 0.2s;
-    width: fit-content;
-}
-.view-profile-btn:hover {
-    background: rgba(230,176,34,0.1);
-    border-color: rgba(230,176,34,0.35);
-    color: var(--accent);
-}
- 
-/* ── Body подхватывает анимированный фон (не скроллится) ─────── */
-body.page-profile {
-    background-attachment: fixed;
-    transition: background 0.4s ease;
-}
-
 /* ── Баннер "профиль не заполнен" ─────────────────────────────── */
 .pform-warning-banner {
     background: rgba(224,92,92,0.1);
@@ -2015,73 +1620,132 @@ body.page-profile {
 }
 .pform-shop-link:hover { background:#ffc933; }
  
-/* ── Слоты "Сейчас надето" ─────────────────────────────────────── */
+/* ── Слоты «Сейчас надето» ──────────────────────────────────────── */
 .cosmetic-slots-grid {
-    display:grid; grid-template-columns:1fr 1fr;
-    gap:10px; margin-bottom:18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
 }
 .cosmetic-slot {
-    background:rgba(255,255,255,0.03);
-    border:1px solid var(--border);
-    border-radius:10px; padding:12px 14px;
-    display:flex; flex-direction:column; gap:6px;
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color .2s;
+    overflow: hidden;
 }
-.cslot-header { display:flex; align-items:center; gap:6px; }
-.cslot-icon   { font-size:14px; }
-.cslot-type   { font-family:'Montserrat',sans-serif; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#5c6b7f; }
-.cslot-body   { flex:1; }
-.cslot-empty  { font-size:12px; color:#3d4e5f; font-style:italic; }
-.cslot-filled { font-size:13px; color:white; font-weight:600; }
+/* Тонкая золотая черта сверху, если есть предмет */
+.cosmetic-slot.has-item {
+    border-color: rgba(230,176,34,0.35);
+    background: rgba(230,176,34,0.03);
+}
+.cosmetic-slot.has-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.cslot-header { display: flex; align-items: center; gap: 6px; }
+.cslot-icon   { font-size: 14px; }
+.cslot-type   {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 1.2px; color: #5c6b7f;
+}
+.cslot-body   { flex: 1; }
+.cslot-empty  { font-size: 12px; color: #3d4e5f; font-style: italic; }
+.cslot-filled { font-size: 13px; color: var(--accent); font-weight: 700; font-family: 'Montserrat', sans-serif; }
 .cslot-remove-btn {
-    align-self:flex-start;
-    padding:4px 10px; border-radius:5px;
-    background:rgba(224,92,92,0.08); border:1px solid rgba(224,92,92,0.25);
-    color:#e05c5c; font-family:'Montserrat',sans-serif;
-    font-weight:700; font-size:10px; cursor:pointer;
-    transition:background .2s;
+    align-self: flex-start;
+    padding: 4px 11px;
+    border-radius: 5px;
+    background: rgba(224,92,92,0.08);
+    border: 1px solid rgba(224,92,92,0.25);
+    color: #e05c5c;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700; font-size: 10px;
+    cursor: pointer;
+    transition: background .2s;
 }
-.cslot-remove-btn:hover { background:rgba(224,92,92,0.18); }
- 
-/* ── Разделитель "Инвентарь" ───────────────────────────────────── */
+.cslot-remove-btn:hover { background: rgba(224,92,92,0.18); }
+
+/* ── Разделитель «Инвентарь» ─────────────────────────────────────── */
 .pform-cosmetics-sep {
-    font-family:'Montserrat',sans-serif; font-weight:700;
-    font-size:10px; text-transform:uppercase; letter-spacing:1.5px;
-    color:#5c6b7f; margin-bottom:10px;
-    padding-top:4px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: #5c6b7f;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
 }
- 
-/* ── Сетка предметов инвентаря ─────────────────────────────────── */
+
+/* ── Сетка предметов инвентаря ──────────────────────────────────── */
 .cosmetic-inv-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
-    gap:8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 10px;
 }
 .cosmetic-inv-card {
-    background:rgba(255,255,255,0.03);
-    border:1px solid var(--border);
-    border-radius:10px; padding:12px;
-    display:flex; flex-direction:column;
-    align-items:center; gap:6px;
-    text-align:center; transition:border-color .2s;
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    transition: border-color .2s, background .2s, transform .15s;
+    overflow: hidden;
 }
-.cosmetic-inv-card:hover       { border-color:rgba(230,176,34,0.2); }
-.cosmetic-inv-card.is-equipped { border-color:rgba(230,176,34,0.4); background:rgba(230,176,34,0.05); }
- 
-.cic-icon { font-size:24px; line-height:1; }
-.cic-meta { flex:1; width:100%; }
-.cic-name { font-size:12px; font-weight:600; color:white; line-height:1.3; margin-bottom:2px; }
-.cic-type { font-size:10px; color:#5c6b7f; text-transform:uppercase; letter-spacing:0.5px; }
- 
+.cosmetic-inv-card:hover {
+    border-color: rgba(230,176,34,0.4);
+    transform: translateY(-1px);
+}
+.cosmetic-inv-card.is-equipped {
+    border-color: rgba(230,176,34,0.55);
+    background: rgba(230,176,34,0.05);
+}
+.cosmetic-inv-card.is-equipped::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.cic-icon { font-size: 28px; line-height: 1; }
+.cic-meta { flex: 1; width: 100%; }
+.cic-name {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700; font-size: 12px;
+    color: white; line-height: 1.3; margin-bottom: 3px;
+}
+.cic-type {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px; color: #5c6b7f;
+    text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;
+}
+
 .cic-btn {
-    width:100%; padding:6px 0; border-radius:6px;
-    font-family:'Montserrat',sans-serif; font-weight:700; font-size:11px;
-    cursor:pointer; transition:background .2s, opacity .15s;
+    width: 100%; padding: 7px 0; border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700; font-size: 11px; letter-spacing: 0.5px;
+    cursor: pointer; transition: background .2s, opacity .15s;
 }
-.cic-btn:disabled { opacity:0.4; cursor:not-allowed; }
-.cic-btn-on  { background:rgba(230,176,34,0.15); border:1px solid rgba(230,176,34,0.35); color:var(--accent); }
-.cic-btn-on:hover  { background:rgba(230,176,34,0.25); }
-.cic-btn-off { background:rgba(224,92,92,0.08); border:1px solid rgba(224,92,92,0.25); color:#e05c5c; }
-.cic-btn-off:hover { background:rgba(224,92,92,0.16); }
+.cic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cic-btn-on  { background: rgba(230,176,34,0.15); border: 1px solid rgba(230,176,34,0.4); color: var(--accent); }
+.cic-btn-on:hover  { background: rgba(230,176,34,0.28); }
+.cic-btn-off { background: rgba(224,92,92,0.08); border: 1px solid rgba(224,92,92,0.3); color: #e05c5c; }
+.cic-btn-off:hover { background: rgba(224,92,92,0.18); }
  
 /* ── Footer всегда внизу (flex-колонка на body) ────────────────── */
 body.page-profile {

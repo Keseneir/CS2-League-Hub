@@ -1752,8 +1752,30 @@ body.page-profile {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background-attachment: fixed;
-    transition: background 0.4s ease;
+    /* background-attachment:fixed removed — causes full-page repaint every frame */
+}
+
+/* GPU-composited overlay для анимированных фонов косметики */
+#_cosmetic_bg_layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    will-change: transform;
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+#_cosmetic_bg_layer.active { opacity: 1; }
+
+/* Content sits above the bg layer */
+body.page-profile > header,
+body.page-profile > .container,
+body.page-profile > #ownProfileWrap,
+body.page-profile > #publicProfileWrap,
+body.page-profile > footer,
+body.page-profile > button {
+    position: relative;
+    z-index: 1;
 }
 body.page-profile > #publicProfileWrap,
 body.page-profile > #ownProfileWrap {

@@ -437,18 +437,29 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
 
         // ── Фон профиля ───────────────────────────────────────────────────
+        // ВАЖНО: применяем к #_cosmetic_bg_layer (position:fixed, will-change:transform),
+        // а не к body — иначе браузер перерисовывает всю страницу на каждом кадре анимации (15fps!)
         const bg = cosmetics.profileBg;
+        let bgLayer = document.getElementById("_cosmetic_bg_layer");
+        if (!bgLayer) {
+            bgLayer = document.createElement("div");
+            bgLayer.id = "_cosmetic_bg_layer";
+            document.body.insertBefore(bgLayer, document.body.firstChild);
+        }
         if (bg && (bg.css || bg.keyframes)) {
             const src = (bg.keyframes || "") + "\n" + (bg.css || "");
             const extracted = extractKeyframes(src);
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
             const cleanCss = extracted.cleanCss;
             if (cleanCss) {
-                const css = addImportant(cleanCss);
-                styles += `body.page-profile { ${css} }\n`;
-                styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
-                styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
+                // Применяем к изолированному слою, не к body
+                styles += `#_cosmetic_bg_layer { ${cleanCss} }\n`;
+                bgLayer.classList.add("active");
             }
+            styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
+            styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
+        } else {
+            bgLayer.classList.remove("active");
         }
 
         let el = document.getElementById("_cosmetic_styles");
@@ -576,8 +587,15 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             const isEquipped = equipped && equipped._id &&
                 equipped._id.toString() === itemId._id.toString();
  
-            const cosmeticLabels = { avatarFrame: "Рамка аватара", profileBg: "Фон профиля" };
-            const typeLabel = cosmeticLabels[itemId.cosmeticType] || cosmeticLabels[slot] || itemId.cosmeticType || "Предмет";
+            const cosmeticLabels = {
+                avatarFrame: "Рамка аватара",
+                profileBg:   "Фон профиля",
+                teamBg:      "Фон команды",
+            };
+            // Показываем реальный тип из базы, а не просто "Фон" для всех
+            const rawType = itemId.cosmeticType;
+            const typeLabel = cosmeticLabels[rawType]
+                || (rawType ? rawType.replace(/([A-Z])/g, " $1").trim() : "Предмет");
             const icon      = itemId.icon || (slot === "avatarFrame" ? "🖼️" : "🎨");
  
             const card = document.createElement("div");
@@ -667,7 +685,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-     async function equipCosmetic(itemId, slot, btn) {
+    window.equipCosmetic = async function equipCosmetic(itemId, slot, btn) {
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
         try {
             const r = await fetch("/api/profile/equip", {
@@ -689,7 +707,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     }
  
-    async function unequipCosmetic(slot) {
+    window.unequipCosmetic = async function unequipCosmetic(slot) {
         try {
             const r = await fetch("/api/profile/unequip", {
                 method: "POST",

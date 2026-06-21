@@ -97,10 +97,6 @@ router.post("/team/invite/:userId", requireAuth, async (req, res) => {
     if (role === "sub"  && subCount  >= 5) return res.status(400).json({ error: "Состав замен заполнен (5/5)" });
 
     const targetId = req.params.userId;
-    const meUser   = await User.findById(req.user._id).select("friends").lean();
-    if (!(meUser.friends || []).some(f => f.toString() === targetId))
-      return res.status(400).json({ error: "Можно приглашать только друзей" });
-
     const target = await User.findById(targetId);
     if (!target)       return res.status(404).json({ error: "Пользователь не найден" });
     if (target.teamId) return res.status(400).json({ error: "Игрок уже состоит в команде" });
@@ -452,6 +448,187 @@ router.get("/teams/:teamId/public", async (req, res) => {
       equippedCosmetics: team.equippedCosmetics || {},
     });
   } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Invite-ссылки ───────────────────────────────────────────────────────────
+
+// POST /api/team/invite-link — капитан создаёт invite-ссылку
+// body: { role?: "main"|"sub", expiresInHours?: number, maxUses?: number }
+router.post("/team/invite-link", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+    const team = await Team.findById(req.user.teamId);
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан может создавать ссылки" });
+
+    const role           = req.body.role === "sub" ? "sub" : "main";
+    const expiresInHours = Number(req.body.expiresInHours) || null;
+    const maxUses        = Number(req.body.maxUses)        || null;
+
+    // Генерируем крипто-безопасный токен без внешних зависимостей
+    const { randomBytes } = require("crypto");
+    const token = randomBytes(9).toString("base64url"); // 12 символов URL-safe
+
+    const link = {
+      token,
+      role,
+      createdBy: req.user._id,
+      expiresAt: expiresInHours ? new Date(Date.now() + expiresInHours * 3600_000) : null,
+      maxUses:   maxUses || null,
+      usedCount: 0,
+      active:    true,
+    };
+
+    team.inviteLinks.push(link);
+    await team.save();
+
+    const inviteUrl = `${process.env.DOMAIN}/invite.html?token=${token}`;
+    res.json({ ok: true, token, inviteUrl, link });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/team/invite-link — список активных ссылок команды (только капитан)
+router.get("/team/invite-link", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+    const team = await Team.findById(req.user.teamId).lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан" });
+
+    const links = (team.inviteLinks || []).map(l => ({
+      _id:       l._id,
+      token:     l.token,
+      role:      l.role,
+      active:    l.active,
+      expiresAt: l.expiresAt,
+      maxUses:   l.maxUses,
+      usedCount: l.usedCount,
+      createdAt: l.createdAt,
+      inviteUrl: `${process.env.DOMAIN}/invite.html?token=${l.token}`,
+    }));
+
+    res.json(links);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// DELETE /api/team/invite-link/:token — деактивировать ссылку (только капитан)
+router.delete("/team/invite-link/:token", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+    const team = await Team.findById(req.user.teamId);
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+    if (team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан" });
+
+    const link = (team.inviteLinks || []).find(l => l.token === req.params.token);
+    if (!link) return res.status(404).json({ error: "Ссылка не найдена" });
+    link.active = false;
+    await team.save();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/team/join/preview/:token — предпросмотр ссылки (публичный, без авторизации)
+// Возвращает имя/лого команды и роль — для страницы invite.html до нажатия кнопки
+router.get("/team/join/preview/:token", async (req, res) => {
+  try {
+    const team = await Team.findOne({ "inviteLinks.token": req.params.token })
+      .select("name tag logo inviteLinks")
+      .lean();
+    if (!team) return res.status(404).json({ error: "Ссылка недействительна" });
+
+    const link = team.inviteLinks.find(l => l.token === req.params.token);
+    if (!link || !link.active)
+      return res.status(410).json({ error: "Ссылка деактивирована" });
+    if (link.expiresAt && new Date() > new Date(link.expiresAt))
+      return res.status(410).json({ error: "Срок действия ссылки истёк" });
+    if (link.maxUses && link.usedCount >= link.maxUses)
+      return res.status(410).json({ error: "Лимит использований исчерпан" });
+
+    res.json({
+      teamName: team.name,
+      teamTag:  team.tag,
+      teamLogo: team.logo,
+      role:     link.role,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// POST /api/team/join/:token — принять приглашение по ссылке (требует авторизации)
+router.post("/team/join/:token", requireAuth, async (req, res) => {
+  try {
+    if (req.user.teamId)
+      return res.status(400).json({ error: "Вы уже состоите в команде" });
+
+    const me = await User.findById(req.user._id);
+    if (me.faceitLevel === null || me.faceitLevel === undefined ||
+        me.hoursInCS2  === null || me.hoursInCS2  === undefined) {
+      return res.status(400).json({
+        error: "Заполните профиль (FACEIT уровень и часы в CS2) перед вступлением в команду.",
+        code:  "PROFILE_INCOMPLETE",
+      });
+    }
+
+    const team = await Team.findOne({ "inviteLinks.token": req.params.token });
+    if (!team) return res.status(404).json({ error: "Ссылка недействительна" });
+
+    const link = team.inviteLinks.find(l => l.token === req.params.token);
+    if (!link || !link.active)
+      return res.status(410).json({ error: "Ссылка деактивирована" });
+    if (link.expiresAt && new Date() > new Date(link.expiresAt))
+      return res.status(410).json({ error: "Срок действия ссылки истёк" });
+    if (link.maxUses && link.usedCount >= link.maxUses)
+      return res.status(410).json({ error: "Лимит использований исчерпан" });
+
+    const role = link.role;
+    if (role === "main" && (team.members || []).length >= 5)
+      return res.status(400).json({ error: "Основной состав уже заполнен (5/5)" });
+    if (role === "sub" && (team.subs || []).length >= 5)
+      return res.status(400).json({ error: "Состав замен уже заполнен (5/5)" });
+
+    const alreadyIn = (team.members || []).some(m => m.toString() === req.user._id.toString())
+                   || (team.subs    || []).some(s => s.toString() === req.user._id.toString());
+    if (alreadyIn) return res.status(400).json({ error: "Вы уже в этой команде" });
+
+    // Вступаем
+    if (role === "sub") team.subs.push(req.user._id);
+    else                team.members.push(req.user._id);
+    link.usedCount += 1;
+
+    me.teamId = team._id;
+    await Promise.all([team.save(), me.save()]);
+
+    // Автоматически создаём заявку для истории
+    try {
+      const Application = require("../models/Application");
+      const existingApp = await Application.findOne({ userId: req.user._id, teamId: team._id });
+      if (!existingApp) {
+        await Application.create({
+          userId: req.user._id, teamId: team._id,
+          hoursInCS2: me.hoursInCS2, faceitLevel: String(me.faceitLevel),
+          experience: "", contacts: "", role, status: "pending", autoCreated: true,
+        });
+      }
+    } catch (appErr) {
+      console.error("Auto-application (invite link) error:", appErr);
+    }
+
+    res.json({ ok: true, teamName: team.name, teamTag: team.tag, role });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

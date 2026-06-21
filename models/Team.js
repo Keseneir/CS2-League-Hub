@@ -50,6 +50,22 @@ const teamSchema = new mongoose.Schema(
       },
     ],
 
+    // ── Invite-ссылки ─────────────────────────────────────────────────────
+    // Капитан генерирует ссылку; любой авторизованный игрок переходит по ней
+    // и вступает в команду без системы друзей.
+    inviteLinks: [
+      {
+        token:     { type: String, required: true },          // nanoid(12)
+        role:      { type: String, enum: ["main","sub"], default: "main" },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        createdAt: { type: Date, default: Date.now },
+        expiresAt: { type: Date, default: null },             // null = бессрочная
+        maxUses:   { type: Number, default: null },           // null = безлимит
+        usedCount: { type: Number, default: 0 },
+        active:    { type: Boolean, default: true },          // можно деактивировать
+      },
+    ],
+
     // ── Надетая косметика ─────────────────────────────────────────────────
     equippedCosmetics: {
       teamBg: { type: mongoose.Schema.Types.ObjectId, ref: "ShopItem", default: null },

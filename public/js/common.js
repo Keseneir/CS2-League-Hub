@@ -320,7 +320,6 @@ document.addEventListener("DOMContentLoaded", function () {
             const d = await res.json();
 
             const total =
-                (d.friendRequests || []).length +
                 (d.teamInvites    || []).length +
                 (d.applications   || []).filter(a => a.status !== "pending").length +
                 (d.adminNotices   || []).length;

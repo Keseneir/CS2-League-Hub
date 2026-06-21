@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Приглашение в команду — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .invite-wrap {
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        .invite-card {
+            background: #12171d;
+            border: 1px solid #1f252c;
+            border-radius: 16px;
+            padding: 40px 36px;
+            max-width: 440px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+        }
+        .invite-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid #1f252c;
+        }
+        .invite-logo-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            background: #1a2030;
+            border: 2px solid #1f252c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        .invite-tag {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            color: #e6b022;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .invite-team-name {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            margin: 0;
+        }
+        .invite-role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            letter-spacing: 0.5px;
+        }
+        .invite-role-badge.main {
+            background: rgba(230,176,34,0.12);
+            color: #e6b022;
+            border: 1px solid rgba(230,176,34,0.3);
+        }
+        .invite-role-badge.sub {
+            background: rgba(100,149,200,0.12);
+            color: #6495c8;
+            border: 1px solid rgba(100,149,200,0.3);
+        }
+        .invite-desc {
+            font-size: 13px;
+            color: #aebbc7;
+            line-height: 1.6;
+        }
+        .invite-btn {
+            width: 100%;
+            background: #e6b022;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 20px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+        }
+        .invite-btn:hover:not(:disabled) { background: #ffc933; }
+        .invite-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .invite-btn.loading  { opacity: 0.7; cursor: wait; }
+
+        .invite-login-btn {
+            display: block;
+            width: 100%;
+            background: #1a2030;
+            color: #fff;
+            border: 1px solid #1f252c;
+            border-radius: 8px;
+            padding: 14px 20px;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            text-align: center;
+            text-decoration: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .invite-login-btn:hover { border-color: #e6b022; background: #1f2738; }
+
+        .invite-error {
+            width: 100%;
+            background: rgba(224,92,92,0.1);
+            border: 1px solid rgba(224,92,92,0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #e05c5c;
+            text-align: center;
+        }
+        .invite-success {
+            width: 100%;
+            background: rgba(76,175,130,0.1);
+            border: 1px solid rgba(76,175,130,0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #4caf82;
+            text-align: center;
+        }
+
+        #stateLoading, #stateInvalid, #stateReady, #stateNoAuth,
+        #stateAlreadyInTeam, #stateProfileIncomplete, #stateSuccess {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #1f252c;
+            border-top-color: #e6b022;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/index.html" class="logo">CS2 <span>League Hub</span></a>
+    <div class="header-right">
+        <div class="social-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+        </div>
+        <a href="/auth/steam?redirect=/" id="btnSteamLogin" class="btn-steam-login" style="display:none;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+            </div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+    </div>
+</header>
+
+<div class="invite-wrap">
+    <div class="invite-card">
+
+        <!-- Загрузка -->
+        <div id="stateLoading" style="display:flex;">
+            <div class="spinner"></div>
+            <div class="invite-desc">Проверяем ссылку...</div>
+        </div>
+
+        <!-- Ссылка недействительна / истекла -->
+        <div id="stateInvalid">
+            <div class="invite-logo-placeholder">⛔</div>
+            <div class="invite-error" id="invalidMsg">Ссылка недействительна или истёк срок действия.</div>
+            <a href="/join.html" class="invite-login-btn">Смотреть турниры</a>
+        </div>
+
+        <!-- Не авторизован -->
+        <div id="stateNoAuth">
+            <div class="invite-logo-placeholder">🔐</div>
+            <div class="invite-team-name" id="noAuthTeamName"></div>
+            <div class="invite-desc">Войди через Steam, чтобы принять приглашение в команду.</div>
+            <a id="steamLoginBtn" href="#" class="invite-btn">Войти через Steam</a>
+        </div>
+
+        <!-- Уже в команде -->
+        <div id="stateAlreadyInTeam">
+            <div class="invite-logo-placeholder">🛡️</div>
+            <div class="invite-error">Вы уже состоите в команде. Покиньте текущую команду, чтобы принять приглашение.</div>
+            <a href="/team.html" class="invite-login-btn">Моя команда</a>
+        </div>
+
+        <!-- Профиль не заполнен -->
+        <div id="stateProfileIncomplete">
+            <div class="invite-logo-placeholder">📋</div>
+            <div class="invite-error">Заполните профиль (FACEIT уровень и часы в CS2), чтобы вступить в команду.</div>
+            <a href="/profile.html" class="invite-btn">Заполнить профиль</a>
+        </div>
+
+        <!-- Готов вступить -->
+        <div id="stateReady">
+            <div id="teamLogoWrap"></div>
+            <div class="invite-tag" id="readyTeamTag"></div>
+            <div class="invite-team-name" id="readyTeamName"></div>
+            <div id="readyRoleBadge"></div>
+            <div class="invite-desc">
+                Ты получил приглашение вступить в команду.
+                Нажми кнопку ниже, чтобы подтвердить.
+            </div>
+            <button class="invite-btn" id="joinBtn" onclick="joinTeam()">Вступить в команду</button>
+            <div id="joinError" style="display:none;" class="invite-error"></div>
+        </div>
+
+        <!-- Успех -->
+        <div id="stateSuccess">
+            <div class="invite-logo-placeholder">🎉</div>
+            <div class="invite-team-name" id="successTeamName"></div>
+            <div class="invite-success" id="successMsg"></div>
+            <a href="/team.html" class="invite-btn">Перейти в команду</a>
+        </div>
+
+    </div>
+</div>
+
+<script src="js/common.js" defer></script>
+<script>
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get("token");
+
+    const states = ["stateLoading","stateInvalid","stateNoAuth","stateAlreadyInTeam",
+                    "stateProfileIncomplete","stateReady","stateSuccess"];
+
+    function show(id) {
+        states.forEach(s => document.getElementById(s).style.display = "none");
+        document.getElementById(id).style.display = "flex";
+    }
+
+    async function init() {
+        show("stateLoading");
+
+        if (!token) {
+            document.getElementById("invalidMsg").textContent = "Токен приглашения не указан.";
+            return show("stateInvalid");
+        }
+
+        // Предпросмотр ссылки (без авторизации)
+        let preview = null;
+        try {
+            const r = await fetch(`/api/team/join/preview/${token}`);
+            if (!r.ok) {
+                const d = await r.json();
+                document.getElementById("invalidMsg").textContent = d.error || "Ссылка недействительна.";
+                return show("stateInvalid");
+            }
+            preview = await r.json();
+        } catch {
+            document.getElementById("invalidMsg").textContent = "Ошибка соединения. Попробуйте позже.";
+            return show("stateInvalid");
+        }
+
+        // Проверяем авторизацию
+        let user = null;
+        try {
+            const r = await fetch("/api/user");
+            if (r.ok) user = await r.json();
+        } catch {}
+
+        if (!user) {
+            document.getElementById("noAuthTeamName").textContent = preview.teamName;
+            const redirect = encodeURIComponent(`/invite.html?token=${token}`);
+            document.getElementById("steamLoginBtn").href = `/auth/steam?redirect=${redirect}`;
+            return show("stateNoAuth");
+        }
+
+        if (user.team) return show("stateAlreadyInTeam");
+
+        // Проверяем профиль (нужны faceitLevel и hoursInCS2)
+        let profile = null;
+        try {
+            const r = await fetch("/api/profile");
+            if (r.ok) profile = await r.json();
+        } catch {}
+
+        const profileOk = profile &&
+            profile.faceitLevel !== null && profile.faceitLevel !== undefined &&
+            profile.hoursInCS2  !== null && profile.hoursInCS2  !== undefined;
+
+        if (!profileOk) return show("stateProfileIncomplete");
+
+        // Показываем карточку команды
+        const logoWrap = document.getElementById("teamLogoWrap");
+        if (preview.teamLogo) {
+            const img = document.createElement("img");
+            img.src       = preview.teamLogo;
+            img.className = "invite-logo";
+            img.alt       = preview.teamName;
+            img.onerror   = () => img.replaceWith(placeholder());
+            logoWrap.appendChild(img);
+        } else {
+            logoWrap.appendChild(placeholder());
+        }
+
+        document.getElementById("readyTeamTag").textContent  = `[${preview.teamTag}]`;
+        document.getElementById("readyTeamName").textContent = preview.teamName;
+
+        const badge = document.getElementById("readyRoleBadge");
+        badge.innerHTML = preview.role === "sub"
+            ? `<span class="invite-role-badge sub">Запасной</span>`
+            : `<span class="invite-role-badge main">Основной состав</span>`;
+
+        show("stateReady");
+    }
+
+    function placeholder() {
+        const d = document.createElement("div");
+        d.className = "invite-logo-placeholder";
+        d.textContent = "🛡️";
+        return d;
+    }
+
+    window.joinTeam = async function() {
+        const btn = document.getElementById("joinBtn");
+        const err = document.getElementById("joinError");
+        btn.disabled = true;
+        btn.classList.add("loading");
+        btn.textContent = "Вступаем...";
+        err.style.display = "none";
+
+        try {
+            const r = await fetch(`/api/team/join/${token}`, { method: "POST" });
+            const d = await r.json();
+            if (!r.ok) {
+                if (d.code === "PROFILE_INCOMPLETE") return show("stateProfileIncomplete");
+                err.textContent   = d.error || "Ошибка при вступлении.";
+                err.style.display = "block";
+                btn.disabled      = false;
+                btn.classList.remove("loading");
+                btn.textContent   = "Вступить в команду";
+                return;
+            }
+            const roleLabel = d.role === "sub" ? "запасным игроком" : "игроком основного состава";
+            document.getElementById("successTeamName").textContent = d.teamName;
+            document.getElementById("successMsg").textContent =
+                `Добро пожаловать в [${d.teamTag}]! Ты стал ${roleLabel}.`;
+            show("stateSuccess");
+        } catch {
+            err.textContent   = "Ошибка соединения. Попробуйте ещё раз.";
+            err.style.display = "block";
+            btn.disabled      = false;
+            btn.classList.remove("loading");
+            btn.textContent   = "Вступить в команду";
+        }
+    };
+
+    document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>

@@ -114,7 +114,6 @@ app.use(passport.session());
 app.use("/auth",             require("./routes/auth"));
 app.get("/logout",           (req, res) => res.redirect("/auth/logout"));
 app.use("/api",              require("./routes/users"));
-app.use("/api/friends",      require("./routes/friends"));
 app.use("/api",              require("./routes/teams"));
 app.use("/api/applications", require("./routes/applications"));
 app.use("/api/leaderboard",  require("./routes/leaderboard"));

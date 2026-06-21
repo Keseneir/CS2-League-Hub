@@ -31,8 +31,6 @@ router.get("/user", async (req, res) => {
 router.get("/profile", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .populate("friends",             "displayName avatar steamId teamId")
-      .populate("friendRequests.from", "displayName avatar steamId")
       .populate({ path: "teamInvites.teamId", select: "name tag logo" })
       .populate({ path: "teamInvites.from",   select: "displayName avatar" })
       .populate({ path: "equippedCosmetics.avatarFrame", select: "name css keyframes cosmeticType" })
@@ -71,8 +69,6 @@ router.get("/profile", requireAuth, async (req, res) => {
       discordUsername:  user.discordUsername  || "",
       team,
       isCaptain,
-      friends:          user.friends          || [],
-      friendRequests:   user.friendRequests   || [],
       teamInvites:      user.teamInvites      || [],
       applications,
       adminNotices:     (user.adminNotices    || []).filter(n => !n.read),
@@ -156,41 +152,11 @@ router.post("/profile/dismiss-notice", requireAuth, async (req, res) => {
 router.get("/notifications/count", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select("friendRequests teamInvites adminNotices").lean();
-    const fr = (user.friendRequests || []).length;
+      .select("teamInvites adminNotices").lean();
     const ti = (user.teamInvites    || []).length;
     const an = (user.adminNotices   || []).length;
-    res.json({ friendRequests: fr, teamInvites: ti, adminNotices: an, total: fr + ti + an });
+    res.json({ teamInvites: ti, adminNotices: an, total: ti + an });
   } catch (err) {
-    res.status(500).json({ error: "Ошибка сервера" });
-  }
-});
-
-// GET /api/users/search  ← ВАЖНО: должен быть ВЫШЕ /users/:steamId/public
-router.get("/users/search", requireAuth, async (req, res) => {
-  const q = (req.query.q || "").trim();
-  if (q.length < 2) return res.json([]);
-  try {
-    const meUser = await User.findById(req.user._id).select("friends friendRequests").lean();
-    const myFriendIds     = (meUser.friends        || []).map(f => f.toString());
-    const theyRequestedMe = (meUser.friendRequests || []).map(r => r.from.toString());
-
-    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const users   = await User.find({
-      displayName: { $regex: escaped, $options: "i" },
-      _id:         { $ne: req.user._id }
-    }).select("displayName avatar steamId _id friendRequests").limit(10).lean();
-
-    const results = users.map(u => {
-      const uid         = u._id.toString();
-      const isFriend    = myFriendIds.includes(uid);
-      const requestedMe = theyRequestedMe.includes(uid);
-      const iRequested  = (u.friendRequests || []).some(r => r.from.toString() === req.user._id.toString());
-      return { _id: u._id, displayName: u.displayName, avatar: u.avatar, steamId: u.steamId, isFriend, requestedMe, iRequestedThem: iRequested };
-    });
-    res.json(results);
-  } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

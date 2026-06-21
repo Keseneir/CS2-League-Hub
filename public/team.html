@@ -359,8 +359,23 @@
 
         <!-- ── Управление составом (только капитан) ── -->
         <div id="memberMgmtSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label">👥 Управление составом</div>
+            <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <span>👥 Управление составом</span>
+                <button onclick="openInviteModal()"
+                    style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.35);color:#e6b022;border-radius:7px;padding:8px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.5px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;text-transform:none;"
+                    onmouseover="this.style.background='rgba(230,176,34,0.18)'"
+                    onmouseout="this.style.background='rgba(230,176,34,0.1)'">
+                    🔗 Пригласить по ссылке
+                </button>
+            </div>
             <div id="memberMgmtList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <!-- Активные invite-ссылки -->
+            <div id="inviteLinksSection" style="display:none;margin-top:16px;">
+                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border);">
+                    Активные ссылки
+                </div>
+                <div id="inviteLinksList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            </div>
         </div>
 
         <!-- ── Выбор лейаута (капитан / менеджер) ── -->
@@ -661,6 +676,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadCloudinaryConfig();
         initLogoPreview(_team.logo);
         renderMemberManagement(_team);
+        loadInviteLinks();
     }
 
     // Зона опасных действий — видна всем участникам команды
@@ -1148,6 +1164,181 @@ async function saveTeamSettings() {
     } catch {
         showToast("Ошибка сети", "err");
     }
+}
+</script>
+
+<!-- ── Invite-modal (капитан генерирует ссылку) ─────────────────────────── -->
+<div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--bg2,#12171d);border:1px solid #1f252c;border-radius:14px;padding:28px;max-width:420px;width:100%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;">🔗 Пригласить в команду</div>
+            <button onclick="closeInviteModal()" style="background:none;border:none;color:var(--text-gray);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">✕</button>
+        </div>
+
+        <p style="font-size:13px;color:var(--text-gray);line-height:1.6;margin-bottom:18px;">
+            Выберите роль — система создаст ссылку. Отправьте её игроку в Telegram, Discord или Steam. Игрок вступит в один клик.
+        </p>
+
+        <div id="inviteModalError" style="display:none;background:rgba(224,92,92,0.1);border:1px solid rgba(224,92,92,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#e05c5c;margin-bottom:14px;"></div>
+
+        <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <button onclick="generateInviteLink('main')"
+                style="flex:1;background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.35);color:#e6b022;border-radius:8px;padding:11px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.background='rgba(230,176,34,0.18)'" onmouseout="this.style.background='rgba(230,176,34,0.1)'">
+                ⚔️ Основной состав
+            </button>
+            <button onclick="generateInviteLink('sub')"
+                style="flex:1;background:var(--input-bg);border:1px solid var(--border);color:var(--text-gray);border-radius:8px;padding:11px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.borderColor='rgba(230,176,34,0.35)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
+                🔄 Замена
+            </button>
+        </div>
+
+        <div id="inviteLinkResult" style="display:none;">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#5c6b7f;margin-bottom:8px;">Ссылка готова:</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input id="inviteLinkInput" type="text" readonly
+                    onclick="this.select()"
+                    style="flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;outline:none;min-width:0;cursor:text;">
+                <button onclick="copyInviteLink()" id="copyInviteLinkBtn"
+                    style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;color:var(--text-gray);cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;"
+                    onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
+                    📋 Копировать
+                </button>
+            </div>
+            <div id="inviteLinkMeta" style="margin-top:8px;font-size:11px;color:#5c6b7f;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Invite-ссылки ─────────────────────────────────────────────────────────
+
+function openInviteModal() {
+    const m = document.getElementById("inviteModal");
+    document.getElementById("inviteModalError").style.display = "none";
+    document.getElementById("inviteLinkResult").style.display = "none";
+    document.getElementById("inviteLinkInput").value = "";
+    document.getElementById("inviteLinkMeta").textContent = "";
+    m.style.display = "flex";
+    document.body.style.overflow = "hidden";
+}
+
+function closeInviteModal() {
+    document.getElementById("inviteModal").style.display = "none";
+    document.body.style.overflow = "";
+    // Обновляем список активных ссылок после закрытия
+    loadInviteLinks();
+}
+
+// Закрыть по клику на фон
+document.getElementById("inviteModal").addEventListener("click", function(e) {
+    if (e.target === this) closeInviteModal();
+});
+
+async function generateInviteLink(role) {
+    const errEl = document.getElementById("inviteModalError");
+    errEl.style.display = "none";
+    try {
+        const r = await fetch("/api/team/invite-link", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ role, expiresInHours: 72 }),
+        });
+        const d = await r.json();
+        if (!r.ok) {
+            errEl.textContent   = d.error || "Ошибка генерации ссылки";
+            errEl.style.display = "block";
+            return;
+        }
+        document.getElementById("inviteLinkInput").value = d.inviteUrl;
+        document.getElementById("inviteLinkMeta").textContent =
+            (role === "sub" ? "Роль: Запасной · " : "Роль: Основной состав · ") +
+            "Действует 72 часа";
+        document.getElementById("inviteLinkResult").style.display = "";
+    } catch {
+        errEl.textContent   = "Ошибка соединения";
+        errEl.style.display = "block";
+    }
+}
+
+function copyInviteLink() {
+    const input = document.getElementById("inviteLinkInput");
+    const btn   = document.getElementById("copyInviteLinkBtn");
+    if (!input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "✅ Скопировано!";
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+    }).catch(() => { input.select(); document.execCommand("copy"); });
+}
+
+// ── Список активных ссылок под составом ──────────────────────────────────
+async function loadInviteLinks() {
+    const section = document.getElementById("inviteLinksSection");
+    const list    = document.getElementById("inviteLinksList");
+    if (!section || !list || !_isCaptain) return;
+
+    try {
+        const r = await fetch("/api/team/invite-link");
+        if (!r.ok) return;
+        const links = await r.json();
+        const active = links.filter(l => l.active);
+        if (!active.length) { section.style.display = "none"; return; }
+
+        section.style.display = "";
+        list.innerHTML = "";
+        active.forEach(link => {
+            const roleLabel = link.role === "sub" ? "Запасной" : "Основной состав";
+            const expiry    = link.expiresAt
+                ? "до " + new Date(link.expiresAt).toLocaleDateString("ru-RU", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })
+                : "бессрочная";
+
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;";
+            row.innerHTML = `
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:12px;font-weight:700;font-family:'Montserrat',sans-serif;margin-bottom:2px;">${roleLabel}</div>
+                    <div style="font-size:11px;color:var(--text-gray);">${expiry} · Использований: ${link.usedCount}${link.maxUses ? "/" + link.maxUses : ""}</div>
+                </div>
+                <button onclick="copyActiveLinkUrl('${link.inviteUrl}', this)"
+                    style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--text-gray);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;"
+                    onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
+                    📋 Копировать
+                </button>
+                <button onclick="deactivateInviteLink('${link.token}', this)"
+                    style="background:transparent;border:1px solid rgba(224,92,92,.3);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--red);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;"
+                    onmouseover="this.style.background='rgba(224,92,92,0.1)'" onmouseout="this.style.background='transparent'">
+                    Отозвать
+                </button>
+            `;
+            list.appendChild(row);
+        });
+    } catch { section.style.display = "none"; }
+}
+
+function copyActiveLinkUrl(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = "✅";
+        setTimeout(() => { btn.textContent = orig; }, 1800);
+    }).catch(() => {});
+}
+
+async function deactivateInviteLink(token, btn) {
+    if (!confirm("Отозвать ссылку? По ней больше нельзя будет вступить.")) return;
+    btn.disabled = true;
+    try {
+        const r = await fetch(`/api/team/invite-link/${token}`, { method: "DELETE" });
+        if (r.ok) {
+            showToast("Ссылка отозвана", "ok");
+            loadInviteLinks();
+        } else {
+            const d = await r.json();
+            showToast(d.error || "Ошибка", "err");
+            btn.disabled = false;
+        }
+    } catch { showToast("Ошибка сети", "err"); btn.disabled = false; }
 }
 </script>
 </body>

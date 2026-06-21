@@ -155,6 +155,15 @@ const userSchema = new mongoose.Schema(
           type:    Date,
           default: Date.now,
         },
+        // Для расходников (буст монет и т.п.)
+        consumed: {
+          type:    Boolean,
+          default: false,
+        },
+        consumedAt: {
+          type:    Date,
+          default: null,
+        },
       },
     ],
 

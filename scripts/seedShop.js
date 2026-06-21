@@ -1,7 +1,7 @@
 /**
  * scripts/seedShop.js — запустить один раз: node scripts/seedShop.js
- * Создаёт косметические предметы магазина (фоны + рамки аватарок).
- * Повторный запуск безопасен — дубли пропускаются.
+ * Создаёт косметические предметы магазина (фоны + рамки аватарок) и расходники.
+ * Повторный запуск безопасен — дубли пропускаются, CSS обновляется.
  */
 require("dotenv").config();
 const mongoose = require("mongoose");
@@ -177,19 +177,27 @@ const ITEMS = [
     order: 24,
   },
 
-  // ── Турнирный билет (нет CSS, это функциональный расходник) ──────────────
+  // ════════════════════════════════════════════════
+  // РАСХОДНИКИ
+  // ════════════════════════════════════════════════
+
+  // ── Буст монет ─────────────────────────────────
+  // Срабатывает один раз при записи ЛЮБОГО матча (победа или поражение).
+  // Игрок получает x2 личных монет вместо базовых 5.
+  // После срабатывания: consumed = true, consumedAt = дата матча.
+  // Можно купить несколько — каждый даст x2 на один матч.
   {
-    name:         "Турнирный билет",
-    description:  "Пропуск на финальный платный турнир сезона.",
-    icon:         "🎟️",
-    price:        800,
-    category:     "team",
-    type:         "ticket",
+    name:         "Буст монет",
+    description:  "Следующий матч принесёт x2 личных монет (10 вместо 5). Одноразовый.",
+    icon:         "💰",
+    price:        50,
+    category:     "personal",
+    type:         "boost",
     cosmeticType: null,
     css:          "",
     keyframes:    "",
     isConsumable: true,
-    order:        99,
+    order:        50,
   },
 ];
 
@@ -200,7 +208,6 @@ async function main() {
   for (const item of ITEMS) {
     const existing = await ShopItem.findOne({ name: item.name });
     if (existing) {
-      // Обновить CSS если изменился
       await ShopItem.findByIdAndUpdate(existing._id, { $set: item });
       console.log(`  ↺  Обновлён:  ${item.icon} ${item.name}`);
       updated++;
@@ -213,4 +220,5 @@ async function main() {
   console.log(`\nГотово: создано ${created}, обновлено ${updated}`);
   await mongoose.disconnect();
 }
+
 main().catch((e) => { console.error(e); process.exit(1); });

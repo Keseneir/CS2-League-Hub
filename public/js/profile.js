@@ -154,7 +154,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 // Update badges from lightweight response
                 const frBadge = document.getElementById("friendReqBadge");
                 const nfBadge = document.getElementById("notifsBadge");
-                if (frBadge) { frBadge.textContent = d.friendRequests || 0; frBadge.style.display = d.friendRequests > 0 ? "inline-flex" : "none"; }
+                if (frBadge) frBadge.style.display = "none";
                 if (nfBadge) { const n = (d.teamInvites||0) + (d.adminNotices||0); nfBadge.textContent = n; nfBadge.style.display = n > 0 ? "inline-flex" : "none"; }
             } catch {}
         }
@@ -302,36 +302,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     }
 
-    window.pubAddFriend = async function() {
-        const btn     = document.getElementById("pubFriendBtn");
-        const steamId = btn?.dataset.steamId;
-        if (!steamId) return;
-        if (btn) { btn.disabled = true; btn.textContent = "..."; }
-        try {
-            const searchRes = await fetch("/api/users/search?q=" + encodeURIComponent(steamId));
-            const results   = searchRes.ok ? await searchRes.json() : [];
-            const target    = results.find(u => u.steamId === steamId);
-            if (!target) {
-                if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
-                alert("Не удалось найти игрока");
-                return;
-            }
-            const res = await fetch(`/api/friends/request/${target._id}`, { method: "POST" });
-            const d   = await res.json();
-            if (!res.ok) {
-                if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
-                alert(d.error || "Ошибка");
-                return;
-            }
-            if (d.autoAccepted) {
-                if (btn) { btn.textContent = "✓ Уже в друзьях"; btn.style.color = "#4caf82"; btn.style.borderColor = "rgba(76,175,130,0.35)"; }
-            } else {
-                if (btn) { btn.textContent = "Заявка отправлена"; btn.style.color = "#e6b022"; btn.style.borderColor = "rgba(230,176,34,0.35)"; }
-            }
-        } catch {
-            if (btn) { btn.disabled = false; btn.textContent = "+ Добавить в друзья"; }
-        }
-    };
 
     //свой профиль
 
@@ -581,9 +551,51 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
         if (emptyNote) emptyNote.style.display = "none";
  
-        items.forEach(({ itemId }) => {
-            const slot = itemId.cosmeticType === "avatarFrame" ? "avatarFrame" : "profileBg";
-            const equipped = cosmetics[slot];
+        items.forEach(({ itemId, consumed }) => {
+            // ── Буст монет: расходник, не надевается ─────────────────────
+            if (itemId.type === "boost") {
+                const card = document.createElement("div");
+                card.className = "cosmetic-inv-card" + (consumed ? " is-equipped" : "");
+                card.innerHTML = `
+                    <div class="cic-icon">${itemId.icon || "💰"}</div>
+                    <div class="cic-meta">
+                        <div class="cic-name">${itemId.name}</div>
+                        <div class="cic-type">${consumed ? "✅ Использован" : "⚡ Активен — сработает в следующем матче"}</div>
+                    </div>
+                    <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;border:none;font-size:11px;color:var(--text-gray);">
+                        ${consumed ? "Использован" : "Авто"}
+                    </div>
+                `;
+                grid.appendChild(card);
+                return;
+            }
+
+            // ── Косметика: рамки и фоны ───────────────────────────────────
+            // cosmeticType из базы: "avatar_frame" | "profile_bg" | "team_bg"
+            // slot для equip-эндпоинта:             "avatarFrame" | "profileBg"
+            const ctMap = {
+                "avatar_frame": "avatarFrame",
+                "profile_bg":   "profileBg",
+                "team_bg":      null,          // командная косметика — не надевается здесь
+            };
+            const slot = ctMap[itemId.cosmeticType];
+            if (!slot) {
+                // team_bg или неизвестный тип — просто показываем без кнопки надеть
+                const card = document.createElement("div");
+                card.className = "cosmetic-inv-card";
+                card.innerHTML = `
+                    <div class="cic-icon">${itemId.icon || "🎁"}</div>
+                    <div class="cic-meta">
+                        <div class="cic-name">${itemId.name}</div>
+                        <div class="cic-type">Командный предмет</div>
+                    </div>
+                    <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;border:none;font-size:11px;color:var(--text-gray);">Команда</div>
+                `;
+                grid.appendChild(card);
+                return;
+            }
+
+            const equipped   = cosmetics[slot];
             const isEquipped = equipped && equipped._id &&
                 equipped._id.toString() === itemId._id.toString();
  
@@ -688,7 +700,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     window.equipCosmetic = async function equipCosmetic(itemId, slot, btn) {
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
         try {
-            const r = await fetch("/api/profile/equip", {
+            const r = await fetch("/api/shop/equip/personal", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ itemId, slot }),
@@ -699,7 +711,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
                 return;
             }
-            // Перезагрузить профиль чтобы обновить слоты + применить CSS
             await refreshProfile();
         } catch (e) {
             console.error("equipCosmetic:", e);
@@ -709,10 +720,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
  
     window.unequipCosmetic = async function unequipCosmetic(slot) {
         try {
-            const r = await fetch("/api/profile/unequip", {
+            const r = await fetch("/api/shop/equip/personal", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ slot }),
+                body: JSON.stringify({ itemId: null, slot }),
             });
             const data = await r.json();
             if (!r.ok) { alert(data.error || "Ошибка"); return; }
@@ -856,61 +867,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     //таб др
 
-    function renderFriendsTab(d) {
-        const friends  = d.friends        || [];
-        const requests = d.friendRequests || [];
-        const el       = document.getElementById("friendsList");
-        if (!el) return;
-        let html = "";
-
-        if (requests.length > 0) {
-            html += `<div class="section-label-sm">Заявки в друзья</div>`;
-            html += `<div class="search-results-box">${requests.map(r => renderFriendRequestRow(r)).join("")}</div>`;
-        }
-
-        if (friends.length > 0) {
-            html += `<div class="section-label-sm">Друзья (${friends.length})</div>`;
-            html += `<div class="search-results-box">${friends.map(f => renderFriendRow(f, d)).join("")}</div>`;
-        } else if (requests.length === 0) {
-            html = `<div class="notif-empty">👥 У вас пока нет друзей. Найдите игрока выше!</div>`;
-        }
-
-        el.innerHTML = html;
-    }
-
-    function renderFriendRequestRow(r) {
-        const from = r.from;
-        if (!from) return "";
-        return `<div class="friend-row">
-            ${avatarEl(from.avatar, from.displayName, "friend-avatar")}
-            <div class="friend-info">
-                <div class="friend-name">${from.displayName}</div>
-                <div class="friend-sub">Хочет добавить вас в друзья</div>
-            </div>
-            <div class="friend-actions">
-                <button class="btn-fr btn-fr-accept" onclick="acceptFriend('${from._id}')">✓ Принять</button>
-                <button class="btn-fr btn-fr-reject" onclick="rejectFriend('${from._id}')">✕</button>
-            </div>
-        </div>`;
-    }
-
-    function renderFriendRow(f, d) {
-        const fId      = f._id?.toString();
-        const canInvite = d.isCaptain && !f.teamId;
-        return `<div class="friend-row">
-            ${avatarEl(f.avatar, f.displayName, "friend-avatar")}
-            <div class="friend-info">
-                <div class="friend-name">${f.displayName}</div>
-                <div class="friend-sub">${f.teamId ? "Уже в команде" : "Свободен"}</div>
-            </div>
-            <div class="friend-actions">
-                <a href="/profile.html?id=${f.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤</a>
-                ${canInvite ? `<button class="btn-fr btn-fr-invite" onclick="openInviteModal('${fId}','${f.displayName.replace(/'/g,"\\'")}')">⚔️ Пригласить</button>` : ""}
-                <button class="btn-fr btn-fr-remove" onclick="removeFriend('${fId}','${f.displayName.replace(/'/g,"\\'")}')">Удалить</button>
-            </div>
-        </div>`;
-    }
-
     //таб уведы
 
     function appStatusIcon(status)  { return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳"; }
@@ -920,7 +876,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     function renderNotifsTab(d) {
         const el       = document.getElementById("notifsList");
         if (!el) return;
-        const requests = d.friendRequests || [];
         const invites  = d.teamInvites    || [];
         const apps     = d.applications   || [];
         const notices  = d.adminNotices   || [];
@@ -950,13 +905,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                         <div class="friend-sub">${a.faceitLevel ? `FACEIT: ${a.faceitLevel} · ` : ""}${new Date(a.createdAt).toLocaleDateString("ru-RU")}</div>
                     </div>
                 </div>`).join("")}
-            </div>`;
-        }
-
-        if (requests.length > 0) {
-            html += `<div class="notif-block">
-                <div class="notif-block-title">📩 Заявки в друзья</div>
-                ${requests.map(r => renderFriendRequestRow(r)).join("")}
             </div>`;
         }
 
@@ -992,14 +940,13 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     //значки
 
     function updateBadges(d) {
-        const frCount  = (d.friendRequests || []).length;
         const tiCount  = (d.teamInvites    || []).length;
         const appCount = (d.applications   || []).filter(a => a.status !== "pending").length;
         const anCount  = (d.adminNotices   || []).length;
-        const total    = frCount + tiCount + appCount + anCount;
+        const total    = tiCount + appCount + anCount;
 
         const frBadge = document.getElementById("friendReqBadge");
-        if (frBadge) { frBadge.textContent = frCount; frBadge.style.display = frCount > 0 ? "inline-flex" : "none"; }
+        if (frBadge) frBadge.style.display = "none";
 
         const nBadge = document.getElementById("notifsBadge");
         if (nBadge)  { nBadge.textContent = total; nBadge.style.display = total > 0 ? "inline-flex" : "none"; }
@@ -1015,103 +962,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     //поиск др
 
-    window.searchFriendsHandler = async function() {
-        const q = (document.getElementById("friendSearchInput")?.value || "").trim();
-        if (q.length < 2) { showToast("Введите минимум 2 символа", "err"); return; }
-        const box = document.getElementById("searchResultsBox");
-        if (!box) return;
-        box.style.display = "block";
-        box.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-gray);font-size:14px;">Поиск...</div>`;
-        try {
-            const res     = await fetch("/api/users/search?q=" + encodeURIComponent(q));
-            const results = await res.json();
-            if (!results.length) { box.innerHTML = `<div style="padding:20px;text-align:center;color:#5c6b7f;font-size:14px;">Игрок не найден</div>`; return; }
-            box.innerHTML = results.map(u => renderSearchResult(u)).join("");
-        } catch { box.innerHTML = `<div style="padding:20px;text-align:center;color:#e05c5c;">Ошибка поиска</div>`; }
-    };
-
-    function renderSearchResult(u) {
-        let btn = "";
-        if (u.isFriend)            btn = `<span class="btn-fr btn-fr-pending">✓ Друг</span>`;
-        else if (u.iRequestedThem) btn = `<span class="btn-fr btn-fr-pending">Отправлено</span>`;
-        else if (u.requestedMe)    btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">✓ Принять</button>`;
-        else                       btn = `<button class="btn-fr btn-fr-add" onclick="addFriend('${u._id}', this)">+ Добавить</button>`;
-
-        return `<div class="friend-row">
-            ${avatarEl(u.avatar, u.displayName, "friend-avatar")}
-            <div class="friend-info">
-                <div class="friend-name">${u.displayName}</div>
-                <div class="friend-sub">Steam ID: ${u.steamId}</div>
-            </div>
-            <div class="friend-actions">
-                <a href="/profile.html?id=${u.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤 Профиль</a>
-                ${btn}
-            </div>
-        </div>`;
-    }
-
-    //действия с др
-
-    window.addFriend = async function(userId, btn) {
-        if (btn) { btn.disabled = true; btn.textContent = "..."; }
-        try {
-            const res = await fetch(`/api/friends/request/${userId}`, { method: "POST" });
-            const d   = await res.json();
-            if (!res.ok) { showToast(d.error || "Ошибка", "err"); if (btn) { btn.disabled = false; btn.textContent = "+ Добавить"; } return; }
-            if (d.autoAccepted) { showToast("Теперь вы друзья!", "ok"); await refreshProfile(); }
-            else { showToast("Заявка отправлена!", "ok"); if (btn) { btn.disabled = true; btn.textContent = "Отправлено"; btn.className = "btn-fr btn-fr-pending"; } }
-        } catch { showToast("Ошибка соединения", "err"); if (btn) { btn.disabled = false; btn.textContent = "+ Добавить"; } }
-    };
-
-    window.acceptFriend = async function(userId) {
-        try {
-            const res = await fetch(`/api/friends/accept/${userId}`, { method: "PATCH" });
-            if (!res.ok) { const d = await res.json(); showToast(d.error || "Ошибка", "err"); return; }
-            showToast("Друг добавлен!", "ok");
-            await refreshProfile();
-        } catch { showToast("Ошибка соединения", "err"); }
-    };
-
-    window.rejectFriend = async function(userId) {
-        try {
-            await fetch(`/api/friends/reject/${userId}`, { method: "PATCH" });
-            showToast("Заявка отклонена", "ok");
-            await refreshProfile();
-        } catch { showToast("Ошибка соединения", "err"); }
-    };
-
-    window.removeFriend = async function(userId, name) {
-        if (!confirm(`Удалить ${name} из друзей?`)) return;
-        try {
-            const res = await fetch(`/api/friends/${userId}`, { method: "DELETE" });
-            if (!res.ok) { const d = await res.json(); showToast(d.error || "Ошибка", "err"); return; }
-            showToast("Удалено из друзей", "ok");
-            await refreshProfile();
-        } catch { showToast("Ошибка соединения", "err"); }
-    };
-
-    //уведы адм
-
-    window.dismissNotice = async function(idx) {
-        try {
-            await fetch("/api/profile/dismiss-notice", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ idx })
-            });
-            await refreshProfile();
-        } catch { showToast("Ошибка", "err"); }
-    };
-
-    //инвайт в тиму
-
-    window.openInviteModal = function(userId, name) {
-        _inviteTargetId = userId;
-        const tNameEl = document.getElementById("inviteTargetName");
-        if (tNameEl) tNameEl.textContent = name;
-        hideModalError("inviteError");
-        openModal("inviteModal");
-    };
     window.closeInviteModal = function() { closeModal("inviteModal"); _inviteTargetId = null; };
 
     window.sendTeamInvite = async function(role) {

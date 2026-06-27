@@ -63,14 +63,14 @@ router.post("/match", requireAdmin, async (req, res) => {
 
     await Promise.all([winner.save(), loser.save()]);
 
-    // ── Авто-начисление монет ─────────────────────────────────────────────────
-    // Победитель: +15 командных, проигравший: +5 командных
-    // Каждый игрок: +5 личных (или +10 если есть активный Буст монет)
+    // ── Авто-начисление монет магазина ────────────────────────────────────────
+    // Победитель: +15 в командный кошелёк, все участники: +5 лично
     try {
       await Promise.all([
         Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
         Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
       ]);
+      // Участникам обеих команд — по 5 личных монет за матч
       const [winTeam, loseTeam] = await Promise.all([
         Team.findById(winner.teamId).select("members subs captainId").lean(),
         Team.findById(loser.teamId).select("members subs captainId").lean(),
@@ -81,33 +81,14 @@ router.post("/match", requireAdmin, async (req, res) => {
       ].filter(Boolean).map(id => id.toString());
       const uniqueIds = [...new Set(allPlayerIds)];
       if (uniqueIds.length) {
-        const boostItem = await ShopItem.findOne({ type: "boost" }).select("_id").lean();
-        const players   = await User.find({ _id: { $in: uniqueIds } })
-          .select("personalInventory").lean();
-        await Promise.all(players.map(async player => {
-          const BASE_COINS = 5;
-          let activeBoostIdx = -1;
-          if (boostItem) {
-            activeBoostIdx = (player.personalInventory || []).findIndex(
-              i => i.itemId?.toString() === boostItem._id.toString() && !i.consumed
-            );
-          }
-          const coins = activeBoostIdx !== -1 ? BASE_COINS * 2 : BASE_COINS;
-          if (activeBoostIdx !== -1) {
-            await User.findByIdAndUpdate(player._id, {
-              $inc: { personalBalance: coins },
-              $set: {
-                [`personalInventory.${activeBoostIdx}.consumed`]:   true,
-                [`personalInventory.${activeBoostIdx}.consumedAt`]: new Date(),
-              },
-            });
-          } else {
-            await User.findByIdAndUpdate(player._id, { $inc: { personalBalance: coins } });
-          }
-        }));
+        await User.updateMany(
+          { _id: { $in: uniqueIds } },
+          { $inc: { personalBalance: 5 } }
+        );
       }
     } catch (balanceErr) {
       console.error("Ошибка авто-начисления монет:", balanceErr);
+      // Не прерываем ответ — матч уже записан
     }
 
     res.json({ ok: true, winner, loser });
@@ -190,7 +171,9 @@ router.delete("/users/:userId", requireAdmin, async (req, res) => {
 
     await User.updateMany({}, {
       $pull: {
-        teamInvites: { from: user._id },
+        friends:        user._id,
+        friendRequests: { from: user._id },
+        teamInvites:    { from: user._id },
       }
     });
 
@@ -632,103 +615,51 @@ router.post("/balance/team/:teamId", requireAdmin, async (req, res) => {
   }
 });
 
-// ─── Магазин: новые пути (используются admin.html) ───────────────────────────
-// GET/POST/PATCH/DELETE /api/admin/shop/items
-// POST /api/admin/shop/grant-coins
+// ─── Инвентарь игрока (для админа) ───────────────────────────────────────────
 
-router.get("/shop/items", requireAdmin, async (req, res) => {
+// GET /api/admin/inventory/:userId — баланс + инвентарь игрока
+router.get("/inventory/:userId", requireAdmin, async (req, res) => {
   try {
-    const items = await ShopItem.find().sort({ order: 1, createdAt: 1 }).lean();
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка сервера" });
-  }
-});
+    const user = await User.findById(req.params.userId)
+      .select("displayName personalBalance teamId personalInventory")
+      .populate("personalInventory.itemId", "name icon type cosmeticType isConsumable")
+      .lean();
+    if (!user) return res.status(404).json({ error: "Игрок не найден" });
 
-router.post("/shop/items", requireAdmin, async (req, res) => {
-  try {
-    const { name, price, category, cosmeticType, icon, css, keyframes, description, isActive } = req.body;
-    if (!name?.trim())
-      return res.status(400).json({ error: "Введите название предмета" });
-    if (!["personal","team"].includes(category))
-      return res.status(400).json({ error: "category: personal или team" });
-    if (!["avatar_frame","profile_bg","team_bg"].includes(cosmeticType) && cosmeticType !== null && cosmeticType !== undefined && cosmeticType !== "")
-      return res.status(400).json({ error: "Неверный тип косметики" });
-    if (Number(price) < 0)
-      return res.status(400).json({ error: "Цена не может быть отрицательной" });
+    let teamBalance = null;
+    let teamName    = null;
+    if (user.teamId) {
+      const team = await Team.findById(user.teamId).select("balance name").lean();
+      if (team) { teamBalance = team.balance; teamName = team.name; }
+    }
 
-    const item = await ShopItem.create({
-      name:         String(name).trim(),
-      price:        Number(price) || 0,
-      category,
-      cosmeticType: cosmeticType || null,
-      icon:         icon?.trim()        || "🎁",
-      css:          css?.trim()         || "",
-      keyframes:    keyframes?.trim()   || "",
-      description:  description?.trim() || "",
-      isActive:     isActive !== false,
+    res.json({
+      personalBalance:   user.personalBalance || 0,
+      teamBalance,
+      teamName,
+      personalInventory: user.personalInventory || [],
     });
-    res.json({ ok: true, item });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });
 
-router.patch("/shop/items/:id", requireAdmin, async (req, res) => {
+// DELETE /api/admin/inventory/:userId/item/:entryId — удалить предмет из инвентаря
+router.delete("/inventory/:userId/item/:entryId", requireAdmin, async (req, res) => {
   try {
-    const allowed = ["name","price","category","cosmeticType","icon","css","keyframes","description","isActive"];
-    const update  = {};
-    allowed.forEach(key => {
-      if (req.body[key] !== undefined) update[key] = req.body[key];
-    });
-    if (update.name  !== undefined) update.name  = String(update.name).trim();
-    if (update.price !== undefined) update.price = Number(update.price);
-
-    const item = await ShopItem.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
-    if (!item) return res.status(404).json({ error: "Предмет не найден" });
-    res.json({ ok: true, item });
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка сервера" });
-  }
-});
-
-router.delete("/shop/items/:id", requireAdmin, async (req, res) => {
-  try {
-    const item = await ShopItem.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ error: "Предмет не найден" });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Ошибка сервера" });
-  }
-});
-
-// POST /api/admin/shop/grant-coins
-// body: { userId, amount, wallet: "personal"|"team" }
-router.post("/shop/grant-coins", requireAdmin, async (req, res) => {
-  try {
-    const { userId, amount, wallet } = req.body;
-    if (!userId)   return res.status(400).json({ error: "Не указан игрок" });
-    const coins = parseInt(amount);
-    if (!coins || coins < 1) return res.status(400).json({ error: "Сумма должна быть >= 1" });
-    if (!["personal","team"].includes(wallet))
-      return res.status(400).json({ error: "wallet: personal или team" });
-
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ error: "Игрок не найден" });
 
-    if (wallet === "personal") {
-      await User.findByIdAndUpdate(userId, { $inc: { personalBalance: coins } });
-      return res.json({ ok: true, message: `+${coins} монет на личный баланс ${user.displayName}` });
-    }
+    const before = (user.personalInventory || []).length;
+    user.personalInventory = (user.personalInventory || []).filter(
+      e => e._id.toString() !== req.params.entryId
+    );
+    if (user.personalInventory.length === before)
+      return res.status(404).json({ error: "Предмет не найден в инвентаре" });
 
-    if (!user.teamId)
-      return res.status(400).json({ error: `Игрок ${user.displayName} не состоит в команде` });
-
-    await Team.findByIdAndUpdate(user.teamId, { $inc: { balance: coins } });
-    const team = await Team.findById(user.teamId).select("name").lean();
-    return res.json({ ok: true, message: `+${coins} монет на командный баланс [${team?.name || "?"}]` });
-
+    await user.save();
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

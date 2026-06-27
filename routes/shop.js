@@ -84,7 +84,12 @@ router.get("/inventory", requireAuth, async (req, res) => {
     }
 
     res.json({
-      personal:      user.personalInventory || [],
+      // Косметику показываем всю, consumed расходники (бусты) — скрываем
+      personal:      (user.personalInventory || []).filter(e => {
+        if (!e.itemId) return false;
+        if (e.itemId.isConsumable && e.consumed) return false;
+        return true;
+      }),
       team:          teamInventory,
       equippedUser:  user.equippedCosmetics || {},
       equippedTeam:  teamEquipped,

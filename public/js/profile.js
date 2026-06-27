@@ -351,14 +351,14 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 return;
             }
             _profileData = await res.json();
-            renderProfile(_profileData);
+            await renderProfile(_profileData);
         } catch {
             const loading = document.getElementById("profileLoading");
             if (loading) loading.innerHTML = '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
         }
     }
 
-    function renderProfile(d) {
+    async function renderProfile(d) {
         const loading = document.getElementById("profileLoading");
         const content = document.getElementById("profileContent");
         if (loading) loading.style.display = "none";
@@ -384,9 +384,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         // ── Применяем косметику ──────────────────────────────────────────
         applyCosmeticCSS(d.equippedCosmetics || {});
 
-        renderMyProfileTab(d);
+        await renderMyProfileTab(d);
         renderTeamTab(d);
-        renderFriendsTab(d);
         renderNotifsTab(d);
         updateBadges(d);
 
@@ -476,7 +475,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     //таб мой профиль
 
-    function renderMyProfileTab(d) {
+    async function renderMyProfileTab(d) {
         const faceit = d.faceitLevel ?? null;
         const hours  = d.hoursInCS2  ?? null;
         const bio    = d.bio         || "";
@@ -911,67 +910,6 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     //таб др
-
-    function renderFriendsTab(d) {
-        const friends  = d.friends        || [];
-        const requests = d.friendRequests || [];
-        const el       = document.getElementById("friendsList");
-        if (!el) return;
-        let html = "";
-
-        if (requests.length > 0) {
-            html += `<div class="section-label-sm">Заявки в друзья</div>`;
-            html += `<div class="search-results-box">${requests.map(r => renderFriendRequestRow(r)).join("")}</div>`;
-        }
-
-        if (friends.length > 0) {
-            html += `<div class="section-label-sm">Друзья (${friends.length})</div>`;
-            html += `<div class="search-results-box">${friends.map(f => renderFriendRow(f, d)).join("")}</div>`;
-        } else if (requests.length === 0) {
-            html = `<div class="notif-empty">👥 У вас пока нет друзей. Найдите игрока выше!</div>`;
-        }
-
-        el.innerHTML = html;
-    }
-
-    function renderFriendRequestRow(r) {
-        const from = r.from;
-        if (!from) return "";
-        return `<div class="friend-row">
-            ${avatarEl(from.avatar, from.displayName, "friend-avatar")}
-            <div class="friend-info">
-                <div class="friend-name">${from.displayName}</div>
-                <div class="friend-sub">Хочет добавить вас в друзья</div>
-            </div>
-            <div class="friend-actions">
-                <button class="btn-fr btn-fr-accept" onclick="acceptFriend('${from._id}')">✓ Принять</button>
-                <button class="btn-fr btn-fr-reject" onclick="rejectFriend('${from._id}')">✕</button>
-            </div>
-        </div>`;
-    }
-
-    function renderFriendRow(f, d) {
-        const fId      = f._id?.toString();
-        const canInvite = d.isCaptain && !f.teamId;
-        return `<div class="friend-row">
-            ${avatarEl(f.avatar, f.displayName, "friend-avatar")}
-            <div class="friend-info">
-                <div class="friend-name">${f.displayName}</div>
-                <div class="friend-sub">${f.teamId ? "Уже в команде" : "Свободен"}</div>
-            </div>
-            <div class="friend-actions">
-                <a href="/profile.html?id=${f.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤</a>
-                ${canInvite ? `<button class="btn-fr btn-fr-invite" onclick="openInviteModal('${fId}','${f.displayName.replace(/'/g,"\\'")}')">⚔️ Пригласить</button>` : ""}
-                <button class="btn-fr btn-fr-remove" onclick="removeFriend('${fId}','${f.displayName.replace(/'/g,"\\'")}')">Удалить</button>
-            </div>
-        </div>`;
-    }
-
-    //таб уведы
-
-    function appStatusIcon(status)  { return status === "accepted" ? "✅" : status === "rejected" ? "❌" : "⏳"; }
-    function appStatusLabel(status) { return status === "accepted" ? "Принята" : status === "rejected" ? "Отклонена" : "На рассмотрении"; }
-    function appStatusColor(status) { return status === "accepted" ? "#4caf82" : status === "rejected" ? "#e05c5c" : "#e6b022"; }
 
     function renderNotifsTab(d) {
         const el       = document.getElementById("notifsList");

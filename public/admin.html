@@ -330,7 +330,124 @@
 
     
     <div class="tab-panel" id="panel-shop">
-        <!-- содержимое вкладки магазина рендерится через JS -->
+
+        <!-- ── Создать предмет ── -->
+        <div class="cards-grid" style="max-width:680px;margin-bottom:28px;">
+            <div class="form-card">
+                <div class="form-card-header">➕ Добавить предмет в магазин</div>
+                <div class="form-card-body">
+                    <div id="shopCreateError" class="modal-error"></div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Название <span style="color:var(--red)">*</span></label>
+                            <input type="text" id="siName" class="field-input" placeholder="Золотая рамка" maxlength="64">
+                        </div>
+                        <div>
+                            <label class="field-label">Цена (монеты) <span style="color:var(--red)">*</span></label>
+                            <input type="number" id="siPrice" class="field-input" value="500" min="0">
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Категория <span style="color:var(--red)">*</span></label>
+                            <select id="siCategory" class="field-select">
+                                <option value="personal">👤 Личная (personal)</option>
+                                <option value="team">🛡️ Командная (team)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Тип косметики <span style="color:var(--red)">*</span></label>
+                            <select id="siCosmeticType" class="field-select">
+                                <option value="avatar_frame">🖼 Рамка аватара (avatar_frame)</option>
+                                <option value="profile_bg">🎨 Фон профиля (profile_bg)</option>
+                                <option value="team_bg">🏟 Фон страницы команды (team_bg)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label">Иконка (URL или эмодзи)</label>
+                        <input type="text" id="siIcon" class="field-input" placeholder="🎁 или https://...">
+                    </div>
+                    <div>
+                        <label class="field-label">CSS эффект</label>
+                        <textarea id="siCss" class="field-input" rows="3" style="resize:vertical;min-height:70px;font-family:monospace;font-size:12px;" placeholder="background: linear-gradient(135deg,#ff6b6b,#ffd93d);"></textarea>
+                    </div>
+                    <div>
+                        <label class="field-label">@keyframes (анимация, необязательно)</label>
+                        <textarea id="siKeyframes" class="field-input" rows="3" style="resize:vertical;min-height:60px;font-family:monospace;font-size:12px;" placeholder="@keyframes shimmer { 0%{opacity:1} 50%{opacity:0.6} 100%{opacity:1} }"></textarea>
+                    </div>
+                    <div>
+                        <label class="field-label">Описание</label>
+                        <input type="text" id="siDesc" class="field-input" placeholder="Краткое описание предмета..." maxlength="200">
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-primary" id="btnCreateShopItem" onclick="createShopItem()">Добавить предмет</button>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--gray);">
+                            <input type="checkbox" id="siActive" checked style="width:15px;height:15px;accent-color:var(--accent);">
+                            Активен (виден в магазине)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Список предметов ── -->
+        <div class="section-title">
+            Все предметы магазина
+            <span class="count" id="shopItemsCount"></span>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="shopSearchInput" class="field-input" placeholder="🔍 Поиск по названию..." oninput="filterShopTable()" style="max-width:300px;">
+            <select id="shopCategoryFilter" class="field-select" onchange="filterShopTable()" style="max-width:200px;">
+                <option value="">Все категории</option>
+                <option value="personal">👤 Личные</option>
+                <option value="team">🛡️ Командные</option>
+            </select>
+            <select id="shopTypeFilter" class="field-select" onchange="filterShopTable()" style="max-width:200px;">
+                <option value="">Все типы</option>
+                <option value="avatar_frame">🖼 Рамка аватара</option>
+                <option value="profile_bg">🎨 Фон профиля</option>
+                <option value="team_bg">🏟 Фон команды</option>
+            </select>
+        </div>
+        <div class="data-table-wrap" id="shopTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">🛒</div><p>Нажмите на вкладку чтобы загрузить</p></div>
+        </div>
+
+        <!-- ── Начисление монет ── -->
+        <div class="section-title" style="margin-top:32px;">💰 Начислить монеты</div>
+        <div class="cards-grid" style="max-width:540px;margin-bottom:4px;">
+            <div class="form-card">
+                <div class="form-card-header">Выдать монеты игроку вручную</div>
+                <div class="form-card-body">
+                    <div id="coinsGrantError" class="modal-error"></div>
+                    <div>
+                        <label class="field-label">Игрок</label>
+                        <select id="coinsPlayerSelect" class="field-select">
+                            <option value="">— выберите игрока —</option>
+                        </select>
+                    </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Монеты</label>
+                            <input type="number" id="coinsAmount" class="field-input" value="100" min="1" max="99999">
+                        </div>
+                        <div>
+                            <label class="field-label">Кошелёк</label>
+                            <select id="coinsWallet" class="field-select">
+                                <option value="personal">👤 Личный</option>
+                                <option value="team">🛡️ Командный</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btnGrantCoins" onclick="grantCoins()">💰 Начислить</button>
+                </div>
+            </div>
+        </div>
+        <div style="background:rgba(230,176,34,0.06);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--gray2);line-height:1.8;max-width:600px;margin-bottom:8px;">
+            💡 <strong style="color:var(--accent);">Командный кошелёк:</strong> монеты зачисляются на баланс команды игрока на момент начисления. Если игрок не в команде — операция будет отклонена.
+        </div>
+
     </div>
 
     

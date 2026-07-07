@@ -63,33 +63,62 @@ router.post("/match", requireAdmin, async (req, res) => {
 
     await Promise.all([winner.save(), loser.save()]);
 
-    // ── Авто-начисление монет магазина ────────────────────────────────────────
-    // Победитель: +15 в командный кошелёк, все участники: +5 лично
-    try {
-      await Promise.all([
-        Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
-        Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
-      ]);
-      // Участникам обеих команд — по 5 личных монет за матч
-      const [winTeam, loseTeam] = await Promise.all([
-        Team.findById(winner.teamId).select("members subs captainId").lean(),
-        Team.findById(loser.teamId).select("members subs captainId").lean(),
-      ]);
-      const allPlayerIds = [
-        ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
-        ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
-      ].filter(Boolean).map(id => id.toString());
-      const uniqueIds = [...new Set(allPlayerIds)];
-      if (uniqueIds.length) {
-        await User.updateMany(
-          { _id: { $in: uniqueIds } },
-          { $inc: { personalBalance: 5 } }
+   // ── Авто-начисление монет магазина ────────────────────────────────────────
+// Победитель: +15 в командный кошелёк, все участники: +5 лично (x2 при бусте)
+try {
+  await Promise.all([
+    Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
+    Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
+  ]);
+
+  const [winTeam, loseTeam] = await Promise.all([
+    Team.findById(winner.teamId).select("members subs captainId").lean(),
+    Team.findById(loser.teamId).select("members subs captainId").lean(),
+  ]);
+  const allPlayerIds = [
+    ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
+    ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
+  ].filter(Boolean).map(id => id.toString());
+  const uniqueIds = [...new Set(allPlayerIds)];
+
+  if (uniqueIds.length) {
+    const boostItem = await ShopItem.findOne({ type: "boost", isConsumable: true }).select("_id").lean();
+
+    let boostedIds = new Set();
+    if (boostItem) {
+      // Игроки, у которых есть неиспользованный буст
+      const usersWithBoost = await User.find({
+        _id: { $in: uniqueIds },
+        personalInventory: { $elemMatch: { itemId: boostItem._id, consumed: false } },
+      }).select("_id personalInventory").lean();
+
+      for (const u of usersWithBoost) {
+        const entry = u.personalInventory.find(
+          e => e.itemId?.toString() === boostItem._id.toString() && !e.consumed
+        );
+        if (!entry) continue;
+        boostedIds.add(u._id.toString());
+        await User.updateOne(
+          { _id: u._id, "personalInventory._id": entry._id },
+          {
+            $inc: { personalBalance: 10 }, // x2 вместо 5
+            $set: {
+              "personalInventory.$.consumed":   true,
+              "personalInventory.$.consumedAt": new Date(),
+            },
+          }
         );
       }
-    } catch (balanceErr) {
-      console.error("Ошибка авто-начисления монет:", balanceErr);
-      // Не прерываем ответ — матч уже записан
     }
+
+    const normalIds = uniqueIds.filter(id => !boostedIds.has(id));
+    if (normalIds.length) {
+      await User.updateMany({ _id: { $in: normalIds } }, { $inc: { personalBalance: 5 } });
+    }
+  }
+} catch (balanceErr) {
+  console.error("Ошибка авто-начисления монет:", balanceErr);
+}
 
     res.json({ ok: true, winner, loser });
   } catch (err) {

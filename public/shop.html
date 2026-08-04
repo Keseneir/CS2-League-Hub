@@ -795,19 +795,34 @@ function openPreview(raw) {
         // Показываем аватарку с рамкой
         const avatar = _me?.avatar || "";
         if (item.keyframes) pStyle.textContent = item.keyframes;
-        pStyle.textContent += `#previewAvatarEl { ${item.css} }`;
+
+        const isRaw = /\{/.test(item.css);
+        if (isRaw) {
+            // "Сырой" CSS с собственными селекторами/::before::after — подставляем
+            // плейсхолдер %SEL% на обёртку превью-аватарки (не на сам <img>,
+            // псевдоэлементы на replaced-элементах браузер не рисует).
+            pStyle.textContent += item.css.split("%SEL%").join("#previewAvatarWrap");
+        } else {
+            pStyle.textContent += `#previewAvatarEl { ${item.css} }`;
+        }
+
         area.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;">
-                <img id="previewAvatarEl" src="${avatar}" alt="avatar"
-                     style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;"
-                     onerror="this.src='';this.style.background='#1f252c'">
+                <div id="previewAvatarWrap" style="position:relative;">
+                    <img id="previewAvatarEl" src="${avatar}" alt="avatar"
+                         style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;"
+                         onerror="this.src='';this.style.background='#1f252c'">
+                </div>
                 <div style="font-size:12px;color:#5c6b7f;">Так будет выглядеть ваш аватар</div>
             </div>`;
 
     } else if ((item.cosmeticType === "profile_bg" || item.cosmeticType === "team_bg") && item.css) {
         // Показываем фон
         if (item.keyframes) pStyle.textContent = item.keyframes;
-        pStyle.textContent += `#previewBgEl { ${item.css} }`;
+        const isRawBg = /\{/.test(item.css);
+        pStyle.textContent += isRawBg
+            ? item.css.split("%SEL%").join("#previewBgEl")
+            : `#previewBgEl { ${item.css} }`;
         const label = item.cosmeticType === "profile_bg" ? "Фон страницы профиля" : "Фон страницы команды";
         area.innerHTML = `
             <div id="previewBgEl" style="width:100%;height:160px;display:flex;align-items:center;justify-content:center;position:relative;">

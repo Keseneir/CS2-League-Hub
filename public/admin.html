@@ -167,6 +167,10 @@
         .season-chip:hover:not(.active) { border-color: var(--gray2); color: var(--text); }
 
         .match-row { display: flex; align-items: center; gap: 12px; }
+        .mps-team-label { font-family:'Montserrat',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#7a8899; margin-bottom:6px; }
+        .mps-player-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+        .mps-player-name { flex:1; font-size:13px; color:#c9d3dc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .mps-kda-input { width:56px; text-align:center; padding:6px 4px; }
         .vs-badge { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--gray2); flex-shrink: 0; }
 
         .player-profile-cell { display: flex; align-items: flex-start; gap: 10px; }
@@ -296,18 +300,36 @@
                     <div class="match-row">
                         <div style="flex:1;">
                             <label class="field-label">Победитель</label>
-                            <select id="matchWinner" class="field-select"><option value="">—</option></select>
+                            <select id="matchWinner" class="field-select" onchange="renderMatchPlayerStatsForm()"><option value="">—</option></select>
                         </div>
                         <span class="vs-badge">VS</span>
                         <div style="flex:1;">
                             <label class="field-label">Проигравший</label>
-                            <select id="matchLoser" class="field-select"><option value="">—</option></select>
+                            <select id="matchLoser" class="field-select" onchange="renderMatchPlayerStatsForm()"><option value="">—</option></select>
+                        </div>
+                    </div>
+                    <div class="match-row">
+                        <div style="flex:1;">
+                            <label class="field-label">Карта <span style="opacity:.6;">(необязательно)</span></label>
+                            <input type="text" id="matchMap" class="field-input" placeholder="например: Mirage">
+                        </div>
+                        <div style="flex:1;">
+                            <label class="field-label">Счёт <span style="opacity:.6;">(необязательно)</span></label>
+                            <input type="text" id="matchScore" class="field-input" placeholder="например: 13:7">
                         </div>
                     </div>
                     <div>
                         <label class="field-label">Разница раундов (победителя)</label>
                         <input type="number" id="matchRD" class="field-input" value="0" min="-50" max="50" placeholder="например: 6">
                     </div>
+
+                    <div id="matchPlayerStatsWrap" style="display:none;margin-top:8px;">
+                        <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span>Личная стата игроков <span style="opacity:.6;">(необязательно, K / D / A)</span></span>
+                        </label>
+                        <div id="matchPlayerStatsBody" style="display:flex;flex-direction:column;gap:14px;"></div>
+                    </div>
+
                     <button class="btn btn-primary" onclick="recordMatch()">✔ Записать матч</button>
                 </div>
             </div>
@@ -1045,6 +1067,62 @@ function buildMatchSelects() {
     ).join("");
     document.getElementById("matchWinner").innerHTML = opts;
     document.getElementById("matchLoser").innerHTML  = opts;
+    document.getElementById("matchPlayerStatsWrap").style.display = "none";
+    document.getElementById("matchPlayerStatsBody").innerHTML = "";
+}
+
+// Находит реальный Team (с составом) по id соответствующего TeamStat
+function _teamByStatId(statId) {
+    const stat = _lbStats.find(s => s._id === statId);
+    if (!stat || !stat.teamId) return null;
+    return _allTeams.find(t => t._id === stat.teamId._id) || null;
+}
+
+function renderMatchPlayerStatsForm() {
+    const winnerStatId = document.getElementById("matchWinner").value;
+    const loserStatId  = document.getElementById("matchLoser").value;
+    const wrap = document.getElementById("matchPlayerStatsWrap");
+    const body = document.getElementById("matchPlayerStatsBody");
+
+    if (!winnerStatId || !loserStatId) { wrap.style.display = "none"; body.innerHTML = ""; return; }
+
+    const winnerTeam = _teamByStatId(winnerStatId);
+    const loserTeam  = _teamByStatId(loserStatId);
+    if (!winnerTeam || !loserTeam) { wrap.style.display = "none"; body.innerHTML = ""; return; }
+
+    const renderTeamBlock = (team, label) => {
+        const roster = [...(team.members || []), ...(team.subs || [])];
+        if (!roster.length) return "";
+        const rows = roster.map(p => `
+            <div class="mps-player-row" data-uid="${p._id}" data-team="${team._id}">
+                <span class="mps-player-name">${p.displayName || "—"}</span>
+                <input type="number" class="field-input mps-kda-input mps-kills"   min="0" placeholder="K">
+                <input type="number" class="field-input mps-kda-input mps-deaths"  min="0" placeholder="D">
+                <input type="number" class="field-input mps-kda-input mps-assists" min="0" placeholder="A">
+            </div>`).join("");
+        return `<div><div class="mps-team-label">${label}: ${team.name}</div>${rows}</div>`;
+    };
+
+    body.innerHTML = renderTeamBlock(winnerTeam, "Победитель") + renderTeamBlock(loserTeam, "Проигравший");
+    wrap.style.display = "block";
+}
+
+function collectMatchPlayerStats() {
+    const rows = document.querySelectorAll("#matchPlayerStatsBody .mps-player-row");
+    const result = [];
+    rows.forEach(row => {
+        const kills   = parseInt(row.querySelector(".mps-kills").value)   || 0;
+        const deaths  = parseInt(row.querySelector(".mps-deaths").value)  || 0;
+        const assists = parseInt(row.querySelector(".mps-assists").value) || 0;
+        if (kills || deaths || assists) {
+            result.push({
+                userId: row.dataset.uid,
+                teamId: row.dataset.team,
+                kills, deaths, assists,
+            });
+        }
+    });
+    return result;
 }
 
 async function recordMatch() {
@@ -1057,14 +1135,21 @@ async function recordMatch() {
     if (winnerId === loserId) { showError("matchError", "Победитель и проигравший не могут совпадать"); return; }
     const btn = document.querySelector('[onclick="recordMatch()"]');
     if (btn) { btn.disabled = true; btn.textContent = "Записываем..."; }
+    const map          = document.getElementById("matchMap").value.trim();
+    const score        = document.getElementById("matchScore").value.trim();
+    const playerStats  = collectMatchPlayerStats();
     try {
-        const res = await fetch("/api/admin/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seasonId: _activeSid, winnerId, loserId, winnerRoundDiff: rd }) });
+        const res = await fetch("/api/admin/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seasonId: _activeSid, winnerId, loserId, winnerRoundDiff: rd, map, score, playerStats }) });
         const d   = await res.json();
         if (!res.ok) { showError("matchError", d.error || "Ошибка"); return; }
         toast(`✅ Матч записан!`, "ok");
         document.getElementById("matchWinner").value = "";
         document.getElementById("matchLoser").value  = "";
         document.getElementById("matchRD").value     = "0";
+        document.getElementById("matchMap").value    = "";
+        document.getElementById("matchScore").value  = "";
+        document.getElementById("matchPlayerStatsWrap").style.display = "none";
+        document.getElementById("matchPlayerStatsBody").innerHTML = "";
         await loadLbStats();
         buildMatchSelects();
     } catch { showError("matchError", "Ошибка соединения"); }

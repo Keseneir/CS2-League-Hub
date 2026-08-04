@@ -199,6 +199,96 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     }
 
+    // ── Обзорная статистика (донаты FACEIT-уровня / винрейта сезона) ────────
+    // ids: { card, faceitDonut, faceitVal, winrateWrap, winrateDonut, winrateVal, winrateLabel, kd, matches }
+    function renderStatOverview(ids, data) {
+        const card = document.getElementById(ids.card);
+        if (!card) return;
+
+        const hasFaceit = data.faceitLevel !== null && data.faceitLevel !== undefined && data.faceitLevel > 0;
+        const stats      = data.stats || {};
+        const seasonStat = data.seasonStats || null;
+        const totalMatches = (stats.wins || 0) + (stats.losses || 0);
+
+        if (!hasFaceit && !seasonStat && !totalMatches) { card.style.display = "none"; return; }
+        card.style.display = "flex";
+
+        const faceitDonut = document.getElementById(ids.faceitDonut);
+        const faceitVal   = document.getElementById(ids.faceitVal);
+        if (faceitDonut && faceitVal) {
+            if (hasFaceit) {
+                faceitDonut.style.setProperty("--pct", (data.faceitLevel / 10) * 100);
+                faceitVal.textContent = data.faceitLevel;
+            } else {
+                faceitDonut.style.setProperty("--pct", 0);
+                faceitVal.textContent = "—";
+            }
+        }
+
+        const winrateWrap  = document.getElementById(ids.winrateWrap);
+        const winrateDonut = document.getElementById(ids.winrateDonut);
+        const winrateVal   = document.getElementById(ids.winrateVal);
+        const winrateLabel = document.getElementById(ids.winrateLabel);
+        if (winrateWrap && seasonStat && seasonStat.matches > 0) {
+            winrateWrap.style.display = "flex";
+            winrateDonut.style.setProperty("--pct", seasonStat.winPct);
+            winrateVal.textContent = seasonStat.winPct + "%";
+            if (winrateLabel) winrateLabel.textContent = `ВИНРЕЙТ · ${seasonStat.seasonName}`;
+        } else if (winrateWrap) {
+            winrateWrap.style.display = "none";
+        }
+
+        const kdEl = document.getElementById(ids.kd);
+        if (kdEl) {
+            kdEl.textContent = (stats.deaths || 0) > 0
+                ? (stats.kills / stats.deaths).toFixed(2)
+                : (stats.kills ? stats.kills.toFixed(2) : "—");
+        }
+
+        const matchesEl = document.getElementById(ids.matches);
+        if (matchesEl) matchesEl.textContent = totalMatches || "—";
+    }
+
+    // ── Таблица последних матчей ─────────────────────────────────────────
+    async function loadAndRenderMatches(steamId, blockId, wrapId) {
+        const block = document.getElementById(blockId);
+        const wrap  = document.getElementById(wrapId);
+        if (!block || !wrap) return;
+
+        try {
+            const res = await fetch(`/api/users/${steamId}/matches?limit=6`);
+            if (!res.ok) { block.style.display = "none"; return; }
+            const matches = await res.json();
+
+            if (!matches.length) { block.style.display = "none"; return; }
+            block.style.display = "block";
+
+            wrap.innerHTML = matches.map(m => {
+                const dateStr = m.playedAt
+                    ? new Date(m.playedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })
+                    : "";
+                const kdaStr = (m.kills !== null && m.kills !== undefined)
+                    ? `${m.kills}/${m.deaths}/${m.assists}`
+                    : "";
+                return `
+                    <div class="match-row-item">
+                        <span class="match-result-badge ${m.result === "win" ? "win" : "loss"}">${m.result === "win" ? "WIN" : "LOSS"}</span>
+                        <span class="match-map">${m.map ? esc(m.map) : "—"}</span>
+                        <span class="match-opponent">vs ${m.opponentTeam ? `[${esc(m.opponentTeam.tag)}] ${esc(m.opponentTeam.name)}` : "—"}</span>
+                        <span class="match-score">${m.score ? esc(m.score) : "—"}</span>
+                        <span class="match-kda">${kdaStr}</span>
+                        <span class="match-date">${dateStr}</span>
+                    </div>`;
+            }).join("");
+        } catch {
+            block.style.display = "none";
+        }
+    }
+
+    function esc(s) {
+        return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+    }
+
     function renderPublicProfile(data, me) {
         const pubContent = document.getElementById("publicContent");
         if (pubContent) pubContent.style.display = "block";
@@ -300,6 +390,22 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 teamCard.innerHTML = `${logoHtml}<div><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;">${data.team.name}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${data.team.tag}]</div></div>`;
             }
         }
+
+        renderStatOverview({
+            card:         "pubStatOverviewCard",
+            faceitDonut:  "pubFaceitDonut",
+            faceitVal:    "pubFaceitDonutVal",
+            winrateWrap:  "pubWinrateWrap",
+            winrateDonut: "pubWinrateDonut",
+            winrateVal:   "pubWinrateDonutVal",
+            winrateLabel: "pubWinrateLabel",
+            kd:           "pubStatKD",
+            matches:      "pubStatMatchesPlayed",
+        }, data);
+
+        if (data.steamId) {
+            loadAndRenderMatches(data.steamId, "pubRecentMatchesBlock", "pubRecentMatchesTableWrap");
+        }
     }
 
     window.pubAddFriend = async function() {
@@ -388,6 +494,22 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         renderTeamTab(d);
         renderNotifsTab(d);
         updateBadges(d);
+
+        renderStatOverview({
+            card:         "statOverviewCard",
+            faceitDonut:  "statFaceitDonut",
+            faceitVal:    "statFaceitDonutVal",
+            winrateWrap:  "statWinrateWrap",
+            winrateDonut: "statWinrateDonut",
+            winrateVal:   "statWinrateDonutVal",
+            winrateLabel: "statWinrateLabel",
+            kd:           "statKD",
+            matches:      "statMatchesPlayed",
+        }, d);
+
+        if (d.steamId) {
+            loadAndRenderMatches(d.steamId, "recentMatchesBlock", "recentMatchesTableWrap");
+        }
 
  // Кнопка «Просмотр профиля» → публичная страница
     const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");

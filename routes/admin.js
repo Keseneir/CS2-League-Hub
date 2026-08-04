@@ -5,6 +5,7 @@ const Team                 = require("../models/Team");
 const Application          = require("../models/Application");
 const Season               = require("../models/Season");
 const TeamStat             = require("../models/TeamStat");
+const Match                = require("../models/Match");
 const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
 const ShopItem             = require("../models/ShopItem");
@@ -29,7 +30,7 @@ function calcPoints(winnerStat, loserStat, roundDiffForWinner) {
 // ─── Матчи ────────────────────────────────────────────────────────────────────
 
 router.post("/match", requireAdmin, async (req, res) => {
-  const { seasonId, winnerId, loserId, winnerRoundDiff } = req.body;
+  const { seasonId, winnerId, loserId, winnerRoundDiff, map, score, tournamentId, playerStats } = req.body;
   if (!seasonId || !winnerId || !loserId)
     return res.status(400).json({ error: "Необходимо указать сезон, победителя и проигравшего" });
   if (winnerId === loserId)
@@ -62,6 +63,61 @@ router.post("/match", requireAdmin, async (req, res) => {
     loser.isKingOfHill = false;
 
     await Promise.all([winner.save(), loser.save()]);
+
+    // ── Лог матча + персональная K/D/A стата игроков ─────────────────────────
+    let matchDoc = null;
+    try {
+      const cleanPlayerStats = Array.isArray(playerStats)
+        ? playerStats
+            .filter(p => p && p.userId && p.teamId)
+            .map(p => ({
+              userId:  p.userId,
+              teamId:  p.teamId,
+              kills:   Math.max(0, parseInt(p.kills)   || 0),
+              deaths:  Math.max(0, parseInt(p.deaths)  || 0),
+              assists: Math.max(0, parseInt(p.assists) || 0),
+            }))
+        : [];
+
+      matchDoc = await Match.create({
+        seasonId,
+        tournamentId: tournamentId || null,
+        winnerTeamId: winner.teamId,
+        loserTeamId:  loser.teamId,
+        map:   (map   || "").trim(),
+        score: (score || "").trim(),
+        roundDiff: rd,
+        playerStats: cleanPlayerStats,
+      });
+
+      if (cleanPlayerStats.length) {
+        // Начисляем каждому игроку его личный k/d/a и win/loss за этот матч
+        await Promise.all(cleanPlayerStats.map(p => {
+          const isWinner = p.teamId.toString() === winner.teamId.toString();
+          return User.findByIdAndUpdate(p.userId, {
+            $inc: {
+              "stats.kills":   p.kills,
+              "stats.deaths":  p.deaths,
+              "stats.assists": p.assists,
+              "stats.wins":    isWinner ? 1 : 0,
+              "stats.losses":  isWinner ? 0 : 1,
+            },
+          });
+        }));
+
+        // Пересчитываем rating (K/D) по обновлённым суммарным цифрам
+        const affectedIds = cleanPlayerStats.map(p => p.userId);
+        const affectedUsers = await User.find({ _id: { $in: affectedIds } }).select("stats").lean();
+        await Promise.all(affectedUsers.map(u => {
+          const kd = u.stats.deaths > 0
+            ? +(u.stats.kills / u.stats.deaths).toFixed(2)
+            : u.stats.kills;
+          return User.findByIdAndUpdate(u._id, { $set: { "stats.rating": kd } });
+        }));
+      }
+    } catch (matchErr) {
+      console.error("Ошибка записи Match:", matchErr);
+    }
 
    // ── Авто-начисление монет магазина ────────────────────────────────────────
 // Победитель: +15 в командный кошелёк, все участники: +5 лично (x2 при бусте)
@@ -120,7 +176,7 @@ try {
   console.error("Ошибка авто-начисления монет:", balanceErr);
 }
 
-    res.json({ ok: true, winner, loser });
+    res.json({ ok: true, winner, loser, matchId: matchDoc?._id || null });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

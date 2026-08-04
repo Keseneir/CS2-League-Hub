@@ -98,6 +98,38 @@
                 <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Команда</div>
                 <div class="team-card-header" id="pubTeamCard"></div>
             </div>
+
+            <!-- ── Обзорная статистика ── -->
+            <div id="pubStatOverviewCard" class="stat-overview-card" style="display:none;margin-top:14px;">
+                <div class="stat-donut-wrap">
+                    <div class="stat-donut" id="pubFaceitDonut" style="--pct:0;--donut-color:#e6b022;">
+                        <span class="stat-donut-value" id="pubFaceitDonutVal">—</span>
+                    </div>
+                    <div class="stat-donut-label">FACEIT LEVEL</div>
+                </div>
+                <div class="stat-donut-wrap" id="pubWinrateWrap" style="display:none;">
+                    <div class="stat-donut" id="pubWinrateDonut" style="--pct:0;--donut-color:#4caf82;">
+                        <span class="stat-donut-value" id="pubWinrateDonutVal">—</span>
+                    </div>
+                    <div class="stat-donut-label" id="pubWinrateLabel">ВИНРЕЙТ СЕЗОНА</div>
+                </div>
+                <div class="stat-mini-col">
+                    <div class="stat-mini-item">
+                        <span class="stat-mini-value" id="pubStatKD">—</span>
+                        <span class="stat-mini-label">K/D</span>
+                    </div>
+                    <div class="stat-mini-item">
+                        <span class="stat-mini-value" id="pubStatMatchesPlayed">—</span>
+                        <span class="stat-mini-label">Матчей</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Последние матчи ── -->
+            <div id="pubRecentMatchesBlock" class="recent-matches-block" style="display:none;margin-top:14px;">
+                <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+                <div id="pubRecentMatchesTableWrap" class="matches-table-wrap"></div>
+            </div>
         </div>
 
     </div>
@@ -171,6 +203,32 @@
                             filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));transition:all 0.3s ease;">
             </div>
 
+            <!-- ── Обзорная статистика: уровень / винрейт сезона / K-D / матчи ── -->
+            <div id="statOverviewCard" class="stat-overview-card" style="display:none;">
+                <div class="stat-donut-wrap">
+                    <div class="stat-donut" id="statFaceitDonut" style="--pct:0;--donut-color:#e6b022;">
+                        <span class="stat-donut-value" id="statFaceitDonutVal">—</span>
+                    </div>
+                    <div class="stat-donut-label">FACEIT LEVEL</div>
+                </div>
+                <div class="stat-donut-wrap" id="statWinrateWrap" style="display:none;">
+                    <div class="stat-donut" id="statWinrateDonut" style="--pct:0;--donut-color:#4caf82;">
+                        <span class="stat-donut-value" id="statWinrateDonutVal">—</span>
+                    </div>
+                    <div class="stat-donut-label" id="statWinrateLabel">ВИНРЕЙТ СЕЗОНА</div>
+                </div>
+                <div class="stat-mini-col">
+                    <div class="stat-mini-item">
+                        <span class="stat-mini-value" id="statKD">—</span>
+                        <span class="stat-mini-label">K/D</span>
+                    </div>
+                    <div class="stat-mini-item">
+                        <span class="stat-mini-value" id="statMatchesPlayed">—</span>
+                        <span class="stat-mini-label">Матчей</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="profile-tabs">
                 <button class="profile-tab-btn active" data-tab="myprofile">
                     🎮 Мой профиль
@@ -190,6 +248,12 @@
                 <div id="profileIncompleteWarning" class="pform-warning-banner" style="display:none;">
                     ⚠️ <strong>Профиль не заполнен.</strong>
                     Укажите FACEIT уровень и количество часов — без этого нельзя создать команду или принять приглашение.
+                </div>
+
+                <!-- ── Последние матчи ── -->
+                <div id="recentMatchesBlock" class="recent-matches-block" style="display:none;">
+                    <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+                    <div id="recentMatchesTableWrap" class="matches-table-wrap"></div>
                 </div>
 
                 <div class="pform-grid">

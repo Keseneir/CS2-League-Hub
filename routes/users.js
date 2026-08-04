@@ -4,8 +4,30 @@ const User                = require("../models/User");
 const Team                = require("../models/Team");
 const Application         = require("../models/Application");
 const Rank                = require("../models/Rank");
+const Season              = require("../models/Season");
+const TeamStat            = require("../models/TeamStat");
+const Match                = require("../models/Match");
 const { requireAuth }     = require("../middleware/auth");
 const { ADMIN_STEAM_ID }  = require("../config/constants");
+
+// ── Хелпер: winrate/pts команды за активный сезон ─────────────────────────
+async function getActiveSeasonStats(teamId) {
+  if (!teamId) return null;
+  const season = await Season.findOne({ isActive: true }).select("_id name").lean();
+  if (!season) return null;
+  const stat = await TeamStat.findOne({ teamId, seasonId: season._id })
+    .select("pts wins losses matches roundDiff winStreak").lean();
+  if (!stat) return null;
+  const winPct = stat.matches > 0 ? Math.round((stat.wins / stat.matches) * 100) : 0;
+  return {
+    seasonName: season.name,
+    pts:        stat.pts,
+    wins:       stat.wins,
+    losses:     stat.losses,
+    matches:    stat.matches,
+    winPct,
+  };
+}
 
 // GET /api/config — публичные клиентские ключи
 router.get("/config", (req, res) => {
@@ -55,6 +77,8 @@ router.get("/profile", requireAuth, async (req, res) => {
     const applications = await Application.find({ userId: req.user._id })
       .sort({ createdAt: -1 }).limit(5).lean();
 
+    const seasonStats = team ? await getActiveSeasonStats(team._id) : null;
+
     res.json({
       _id:              user._id,
       steamId:          user.steamId,
@@ -67,6 +91,8 @@ router.get("/profile", requireAuth, async (req, res) => {
       isPrivate:        user.isPrivate        || false,
       telegramUsername: user.telegramUsername || "",
       discordUsername:  user.discordUsername  || "",
+      stats:            user.stats            || {},
+      seasonStats,
       team,
       isCaptain,
       teamInvites:      user.teamInvites      || [],
@@ -165,7 +191,7 @@ router.get("/notifications/count", requireAuth, async (req, res) => {
 router.get("/users/:steamId/public", async (req, res) => {
   try {
     const user = await User.findOne({ steamId: req.params.steamId })
-      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId telegramUsername discordUsername equippedCosmetics")
+      .select("steamId displayName avatar rank faceitLevel hoursInCS2 bio isPrivate teamId telegramUsername discordUsername equippedCosmetics stats")
       .populate({ path: "equippedCosmetics.avatarFrame", select: "name icon css keyframes cosmeticType" })
       .populate({ path: "equippedCosmetics.profileBg",   select: "name icon css keyframes cosmeticType" })
       .lean();
@@ -187,6 +213,8 @@ router.get("/users/:steamId/public", async (req, res) => {
       if (rankDoc) rankColor = rankDoc.color;
     }
 
+    const seasonStats = team ? await getActiveSeasonStats(team._id) : null;
+
     return res.json({
       steamId:           user.steamId,
       displayName:       user.displayName,
@@ -199,6 +227,8 @@ router.get("/users/:steamId/public", async (req, res) => {
       isPrivate:         false,
       telegramUsername:  user.telegramUsername || "",
       discordUsername:   user.discordUsername  || "",
+      stats:             user.stats || {},
+      seasonStats,
       team,
       equippedCosmetics: user.equippedCosmetics || {},
     });
@@ -208,6 +238,57 @@ router.get("/users/:steamId/public", async (req, res) => {
   }
 });
 
+
+// GET /api/users/:steamId/matches — последние матчи игрока (своя команда, с личным K/D если введён)
+router.get("/users/:steamId/matches", async (req, res) => {
+  try {
+    const user = await User.findOne({ steamId: req.params.steamId })
+      .select("_id teamId isPrivate").lean();
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+
+    // Свой профиль всегда видно себе, чужой приватный — прячем
+    const isSelf = req.isAuthenticated() && req.user._id.toString() === user._id.toString();
+    if (user.isPrivate && !isSelf) return res.json([]);
+
+    const limit = Math.min(parseInt(req.query.limit) || 10, 30);
+    if (!user.teamId) return res.json([]);
+
+    const matches = await Match.find({
+      $or: [{ winnerTeamId: user.teamId }, { loserTeamId: user.teamId }],
+    })
+      .sort({ playedAt: -1 })
+      .limit(limit)
+      .populate("winnerTeamId", "name tag logo")
+      .populate("loserTeamId",  "name tag logo")
+      .lean();
+
+    const teamIdStr = user.teamId.toString();
+    const result = matches.map(m => {
+      const won = m.winnerTeamId?._id?.toString() === teamIdStr;
+      const own = won ? m.winnerTeamId : m.loserTeamId;
+      const opp = won ? m.loserTeamId  : m.winnerTeamId;
+      const personal = (m.playerStats || []).find(p => p.userId.toString() === user._id.toString()) || null;
+
+      return {
+        matchId:      m._id,
+        playedAt:     m.playedAt,
+        map:          m.map   || "",
+        score:        m.score || "",
+        result:       won ? "win" : "loss",
+        ownTeam:      own ? { name: own.name, tag: own.tag, logo: own.logo } : null,
+        opponentTeam: opp ? { name: opp.name, tag: opp.tag, logo: opp.logo } : null,
+        kills:   personal ? personal.kills   : null,
+        deaths:  personal ? personal.deaths  : null,
+        assists: personal ? personal.assists : null,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
 // POST /api/profile/sync-steam-hours — получить часы из Steam API
 router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {

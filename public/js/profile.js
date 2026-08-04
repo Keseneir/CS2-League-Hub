@@ -538,6 +538,18 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     return { keyframes, cleanCss: cleanCss.trim() };
 }
 
+    // Предмет считается "сырым" CSS (с собственными селекторами/::before/::after),
+    // если содержит фигурную скобку — иначе это просто список свойств (старый формат).
+    function isRawCosmeticCss(css) {
+        return /\{/.test(css);
+    }
+
+    // Подставляет плейсхолдер %SEL% на каждый переданный селектор и склеивает блоки.
+    // Так один и тот же "сырой" CSS предмета применяется и к своему, и к публичному профилю.
+    function injectRawCosmeticCss(css, selectors) {
+        return selectors.map(sel => css.split("%SEL%").join(sel)).join("\n");
+    }
+
 
 
     function applyCosmeticCSS(cosmetics) {
@@ -551,9 +563,15 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
             const cleanCss = extracted.cleanCss;
             if (cleanCss) {
-                const css = addImportant(cleanCss);
-                styles += `#profileAvatar { ${css} }\n`;
-                styles += `#pubAvatar     { ${css} }\n`;
+                if (isRawCosmeticCss(cleanCss)) {
+                    // Сырой CSS (свои селекторы, ::before/::after) — вешаем на div-обёртку,
+                    // а не на <img>: псевдоэлементы на replaced-элементах браузер не рисует.
+                    styles += injectRawCosmeticCss(cleanCss, ["#profileAvatarFrameWrap", "#pubAvatarFrameWrap"]) + "\n";
+                } else {
+                    const css = addImportant(cleanCss);
+                    styles += `#profileAvatar { ${css} }\n`;
+                    styles += `#pubAvatar     { ${css} }\n`;
+                }
             }
         }
 
@@ -573,8 +591,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (extracted.keyframes) styles += extracted.keyframes + "\n";
             const cleanCss = extracted.cleanCss;
             if (cleanCss) {
-                // Применяем к изолированному слою, не к body
-                styles += `#_cosmetic_bg_layer { ${cleanCss} }\n`;
+                if (isRawCosmeticCss(cleanCss)) {
+                    styles += injectRawCosmeticCss(cleanCss, ["#_cosmetic_bg_layer"]) + "\n";
+                } else {
+                    // Применяем к изолированному слою, не к body
+                    styles += `#_cosmetic_bg_layer { ${cleanCss} }\n`;
+                }
                 bgLayer.classList.add("active");
             }
             styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;

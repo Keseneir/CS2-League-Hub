@@ -1,12 +1,13 @@
-/**
- * scripts/seedShop.js — запустить один раз: node scripts/seedShop.js
- * Создаёт косметические предметы магазина (фоны + рамки аватарок) и расходники.
- * Повторный запуск безопасен — дубли пропускаются, CSS обновляется.
- */
 require("dotenv").config();
 const mongoose = require("mongoose");
 const ShopItem = require("../models/ShopItem");
 
+// ── Как устроен "сырой" CSS для рамок/фонов ────────────────────────────────
+// Если в css есть хотя бы одна фигурная скобка `{` — applyCosmeticCSS (profile.js)
+// трактует его как готовые CSS-правила и вставляет как есть, подставляя вместо
+// плейсхолдера %SEL% реальный селектор обёртки аватарки (или фона).
+// Так можно использовать ::before/::after, несколько слоёв, разные анимации —
+// а не только один box-shadow на весь элемент, как раньше.
 const ITEMS = [
 
   // ════════════════════════════════════════════════
@@ -14,53 +15,173 @@ const ITEMS = [
   // ════════════════════════════════════════════════
   {
     name:         "Золотая корона",
-    description:  "Сверкающая золотая рамка с пульсирующим свечением.",
+    description:  "Вращающиеся золотые лучи и пульсирующее кольцо — как нимб чемпиона.",
     icon:         "👑",
     price:        120,
     category:     "personal",
     type:         "cosmetic",
     cosmeticType: "avatar_frame",
-    css: `box-shadow: 0 0 0 3px #e6b022, 0 0 0 5px rgba(230,176,34,0.25), 0 0 22px rgba(230,176,34,0.55); border-radius: 50%; animation: goldCrown 2.5s ease-in-out infinite;`,
-    keyframes: `@keyframes goldCrown { 0%,100% { box-shadow: 0 0 0 3px #e6b022, 0 0 0 5px rgba(230,176,34,0.25), 0 0 20px rgba(230,176,34,0.5); } 50% { box-shadow: 0 0 0 3px #ffd700, 0 0 0 7px rgba(255,215,0,0.3), 0 0 38px rgba(230,176,34,0.85); } }`,
+    css: `
+      %SEL%::before {
+        content: "";
+        position: absolute;
+        inset: -20px;
+        border-radius: 50%;
+        background: repeating-conic-gradient(from 0deg, rgba(230,176,34,0.65) 0deg 3deg, transparent 3deg 16deg);
+        filter: blur(0.5px);
+        opacity: 0.9;
+        z-index: -1;
+        animation: crownRays 14s linear infinite;
+        pointer-events: none;
+      }
+      %SEL%::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 3px #e6b022, 0 0 22px rgba(230,176,34,0.55);
+        animation: crownPulse 2.5s ease-in-out infinite;
+        pointer-events: none;
+      }
+    `,
+    keyframes: `
+      @keyframes crownRays { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes crownPulse {
+        0%,100% { box-shadow: 0 0 0 3px #e6b022, 0 0 20px rgba(230,176,34,0.5); }
+        50%     { box-shadow: 0 0 0 3px #ffd700, 0 0 38px rgba(230,176,34,0.85); }
+      }
+    `,
     isConsumable: false,
     order: 1,
   },
   {
     name:         "Серебряная аура",
-    description:  "Холодный серебристый отблеск вокруг аватарки.",
+    description:  "Холодные серебристые осколки-искры, вращающиеся вокруг аватарки.",
     icon:         "🌙",
     price:        80,
     category:     "personal",
     type:         "cosmetic",
     cosmeticType: "avatar_frame",
-    css: `box-shadow: 0 0 0 3px #a8c8d8, 0 0 18px rgba(168,200,216,0.55); border-radius: 50%; animation: silverAura 3.2s ease-in-out infinite;`,
-    keyframes: `@keyframes silverAura { 0%,100% { box-shadow: 0 0 0 3px #a8c8d8, 0 0 18px rgba(168,200,216,0.45); } 50% { box-shadow: 0 0 0 3px #cce8f8, 0 0 32px rgba(168,200,216,0.8); } }`,
+    css: `
+      %SEL%::before {
+        content: "";
+        position: absolute;
+        inset: -16px;
+        border-radius: 50%;
+        background:
+          radial-gradient(circle 4px at 50% 2%,   #dff3ff 90%, transparent),
+          radial-gradient(circle 3px at 92% 30%,  #dff3ff 90%, transparent),
+          radial-gradient(circle 3px at 85% 82%,  #dff3ff 90%, transparent),
+          radial-gradient(circle 4px at 15% 85%,  #dff3ff 90%, transparent),
+          radial-gradient(circle 3px at 5% 35%,   #dff3ff 90%, transparent);
+        filter: drop-shadow(0 0 4px rgba(168,200,216,0.9));
+        z-index: 2;
+        pointer-events: none;
+        animation: silverShardsSpin 6s linear infinite;
+      }
+      %SEL%::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 3px #a8c8d8, 0 0 18px rgba(168,200,216,0.5);
+        animation: silverGlow 3.2s ease-in-out infinite;
+        pointer-events: none;
+      }
+    `,
+    keyframes: `
+      @keyframes silverShardsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes silverGlow {
+        0%,100% { box-shadow: 0 0 0 3px #a8c8d8, 0 0 18px rgba(168,200,216,0.4); }
+        50%     { box-shadow: 0 0 0 3px #cce8f8, 0 0 32px rgba(168,200,216,0.8); }
+      }
+    `,
     isConsumable: false,
     order: 2,
   },
   {
     name:         "Огненная аура",
-    description:  "Живое пламя охватывает аватарку.",
+    description:  "Настоящее вращающееся пламя с живым мерцанием вокруг аватарки.",
     icon:         "🔥",
     price:        180,
     category:     "personal",
     type:         "cosmetic",
     cosmeticType: "avatar_frame",
-    css: `box-shadow: 0 0 0 3px #ff6b35, 0 0 20px rgba(255,107,53,0.65); border-radius: 50%; animation: fireAura 1.4s ease-in-out infinite;`,
-    keyframes: `@keyframes fireAura { 0%,100% { box-shadow: 0 0 0 3px #ff6b35, 0 0 20px rgba(255,107,53,0.5); } 50% { box-shadow: 0 0 0 4px #ff4500, 0 0 38px rgba(255,69,0,0.85), 0 0 55px rgba(255,100,0,0.3); } }`,
+    css: `
+      %SEL%::before {
+        content: "";
+        position: absolute;
+        inset: -15px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg,
+          #ff4500, #ffae00, #ff2200, #ff8c00, #ff4500, #ffcf3d, #ff2200, #ff4500);
+        filter: blur(8px);
+        opacity: 0.9;
+        z-index: -1;
+        animation: fireSpin 2.4s linear infinite, fireFlicker 0.5s ease-in-out infinite alternate;
+        pointer-events: none;
+      }
+      %SEL%::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        box-shadow: 0 0 16px 3px rgba(255,120,0,0.85), 0 0 32px 8px rgba(255,60,0,0.35);
+        animation: fireFlicker 0.4s ease-in-out infinite alternate-reverse;
+        pointer-events: none;
+      }
+    `,
+    keyframes: `
+      @keyframes fireSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes fireFlicker {
+        0%   { opacity: 0.75; transform: scale(0.96); }
+        100% { opacity: 1;    transform: scale(1.05); }
+      }
+    `,
     isConsumable: false,
     order: 3,
   },
   {
     name:         "Неоновый контур",
-    description:  "Ярко-зелёный неон, прямо из Matrix.",
+    description:  "Ярко-зелёные неоновые кольца, расходящиеся как радар-пульс.",
     icon:         "💚",
     price:        150,
     category:     "personal",
     type:         "cosmetic",
     cosmeticType: "avatar_frame",
-    css: `box-shadow: 0 0 0 2px #00ff41, 0 0 14px rgba(0,255,65,0.7); border-radius: 50%; animation: neonFrame 2s ease-in-out infinite;`,
-    keyframes: `@keyframes neonFrame { 0%,100% { box-shadow: 0 0 0 2px #00ff41, 0 0 14px rgba(0,255,65,0.6); } 50% { box-shadow: 0 0 0 2px #00ff41, 0 0 30px rgba(0,255,65,0.95), 0 0 55px rgba(0,255,65,0.3); } }`,
+    css: `
+      %SEL%::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px #00ff41, 0 0 14px rgba(0,255,65,0.7);
+        z-index: 1;
+        pointer-events: none;
+        animation: neonCore 2s ease-in-out infinite;
+      }
+      %SEL%::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: 50%;
+        border: 2px solid #00ff41;
+        opacity: 0;
+        z-index: -1;
+        pointer-events: none;
+        animation: neonSonar 2.4s ease-out infinite;
+      }
+    `,
+    keyframes: `
+      @keyframes neonCore {
+        0%,100% { box-shadow: 0 0 0 2px #00ff41, 0 0 14px rgba(0,255,65,0.6); }
+        50%     { box-shadow: 0 0 0 2px #00ff41, 0 0 28px rgba(0,255,65,0.95); }
+      }
+      @keyframes neonSonar {
+        0%   { transform: scale(1);    opacity: 0.65; }
+        100% { transform: scale(1.55); opacity: 0; }
+      }
+    `,
     isConsumable: false,
     order: 4,
   },

@@ -40,7 +40,7 @@
 
 
 <!-- ══════════════════════════════════════════════════════
-     ПУБЛИЧНЫЙ ПРОФИЛЬ (при ?id=...) 
+     ПУБЛИЧНЫЙ ПРОФИЛЬ (при ?id=...)
      ══════════════════════════════════════════════════════ -->
 <div id="publicProfileWrap" style="display:none;">
     <div class="container" style="max-width:820px;">
@@ -69,7 +69,9 @@
             </div>
 
             <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
-                <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                <div id="pubAvatarFrameWrap" style="position:relative;flex-shrink:0;">
+                    <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                </div>
                 <div style="flex:1;min-width:0;">
                     <div class="profile-display-name" id="pubName">—</div>
                     <div class="profile-stats-row">
@@ -169,7 +171,7 @@
             </div>
 
             <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
-                <div style="position:relative;">
+                <div id="profileAvatarFrameWrap" style="position:relative;flex-shrink:0;">
                     <img id="profileAvatar" src="" alt="" class="profile-avatar-large"
                          style="border:3px solid var(--bg);transition:box-shadow .3s;"
                          onerror="this.style.display='none'">

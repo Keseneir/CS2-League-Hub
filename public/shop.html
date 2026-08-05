@@ -809,7 +809,7 @@ function openPreview(idOrItem) {
 
         area.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;">
-                <div id="previewAvatarWrap" style="position:relative;">
+                <div id="previewAvatarWrap" style="position:relative;z-index:0;">
                     <img id="previewAvatarEl" src="${avatar}" alt="avatar"
                          style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;"
                          onerror="this.src='';this.style.background='#1f252c'">

@@ -552,7 +552,7 @@ function renderItems(category) {
             : "";
 
         return `<div class="item-card" style="cursor:pointer;"
-                     onclick="openPreview(${encodeItemForAttr(item)})">
+                     onclick="openPreview('${item._id}')">
             <div class="item-icon">${item.icon || "🎁"}</div>
             ${bgPreview}
             <div class="item-name">${esc(item.name)}</div>
@@ -773,15 +773,16 @@ async function equipTeam(itemId, slot, isCurrentlyEquipped) {
 }
 
 // ─── Предпросмотр ─────────────────────────────────────────────────────────────
-function encodeItemForAttr(item) {
-    // Безопасная сериализация объекта для атрибута onclick
-    return "'" + JSON.stringify(item).replace(/'/g, "\\'").replace(/"/g, "&quot;") + "'";
-}
-
 let _previewItem = null;
 
-function openPreview(raw) {
-    const item = typeof raw === "string" ? JSON.parse(raw.replace(/&quot;/g, '"')) : raw;
+function openPreview(idOrItem) {
+    // Раньше сюда передавался весь объект предмета сериализованным в JSON прямо
+    // в HTML-атрибут — хрупкая схема (спецсимволы/переносы строк в CSS ломали JSON.parse).
+    // Теперь передаём только _id и берём сам объект из уже загруженного _allItems.
+    const item = typeof idOrItem === "string"
+        ? _allItems.find(i => i._id === idOrItem)
+        : idOrItem;
+    if (!item) return;
     _previewItem = item;
 
     document.getElementById("previewTitle").textContent = item.name || "Предпросмотр";

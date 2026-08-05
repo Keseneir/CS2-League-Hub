@@ -56,7 +56,7 @@ header {
     align-items: center;
 }
 .logo-img {
-    height: 59px;
+    height: 42px;
     width: auto;
     display: block;
 }
@@ -845,6 +845,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     object-fit: cover;
     border: 3px solid rgba(230,176,34,0.4);
     flex-shrink: 0;
+    display: block;
 }
 .profile-display-name {
     font-family: 'Montserrat', sans-serif;

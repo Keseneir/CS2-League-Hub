@@ -369,7 +369,7 @@
         </div>
         <div style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px;">
             <!-- Preview area -->
-            <div id="previewArea" style="width:100%;border-radius:12px;overflow:hidden;min-height:160px;display:flex;align-items:center;justify-content:center;position:relative;"></div>
+            <div id="previewArea" style="width:100%;border-radius:12px;min-height:160px;display:flex;align-items:center;justify-content:center;position:relative;"></div>
             <div id="previewDesc" style="font-size:13px;color:var(--text-gray);text-align:center;line-height:1.5;"></div>
             <div style="display:flex;gap:10px;width:100%;">
                 <button onclick="closePreview()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:10px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
@@ -825,7 +825,7 @@ function openPreview(raw) {
             : `#previewBgEl { ${item.css} }`;
         const label = item.cosmeticType === "profile_bg" ? "Фон страницы профиля" : "Фон страницы команды";
         area.innerHTML = `
-            <div id="previewBgEl" style="width:100%;height:160px;display:flex;align-items:center;justify-content:center;position:relative;">
+            <div id="previewBgEl" style="width:100%;height:160px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative;">
                 <div style="position:relative;z-index:1;text-align:center;">
                     <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:rgba(255,255,255,0.9);">PREVIEW</div>
                     <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;">${label}</div>

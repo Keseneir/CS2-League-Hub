@@ -2,6 +2,7 @@ const express         = require("express");
 const router          = express.Router();
 const Team            = require("../models/Team");
 const Tournament      = require("../models/Tournament");
+const Match           = require("../models/Match");
 const { requireAuth } = require("../middleware/auth");
 
 
@@ -59,6 +60,66 @@ router.get("/my", requireAuth, async (req, res) => {
   }
 });
 
+
+// GET /api/tournaments/archive — завершённые турниры
+router.get("/archive", async (req, res) => {
+  try {
+    const tournaments = await Tournament.find({ status: "finished" })
+      .select("name description startDate prize maxTeams registrations")
+      .sort({ startDate: -1, createdAt: -1 })
+      .lean();
+    const result = tournaments.map(t => ({
+      _id:         t._id,
+      name:        t.name,
+      description: t.description,
+      startDate:   t.startDate,
+      prize:       t.prize,
+      teamsCount:  (t.registrations || []).length,
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/tournaments/:id — детали турнира (для архива и общего показа), с составом команд
+router.get("/:id", async (req, res) => {
+  try {
+    const t = await Tournament.findById(req.params.id)
+      .populate("registrations.teamId", "name tag logo")
+      .select("name description startDate status minMembers maxTeams prize registrations")
+      .lean();
+    if (!t) return res.status(404).json({ error: "Турнир не найден" });
+    res.json({
+      _id:         t._id,
+      name:        t.name,
+      description: t.description,
+      startDate:   t.startDate,
+      status:      t.status,
+      minMembers:  t.minMembers,
+      maxTeams:    t.maxTeams,
+      prize:       t.prize,
+      teams: (t.registrations || []).map(r => r.teamId).filter(Boolean),
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/tournaments/:id/matches — кто с кем играл в рамках турнира
+router.get("/:id/matches", async (req, res) => {
+  try {
+    const matches = await Match.find({ tournamentId: req.params.id })
+      .sort({ playedAt: 1 })
+      .populate("winnerTeamId", "name tag logo")
+      .populate("loserTeamId",  "name tag logo")
+      .select("winnerTeamId loserTeamId map score roundDiff playedAt")
+      .lean();
+    res.json(matches);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
 router.post("/:id/register", requireAuth, async (req, res) => {
   try {

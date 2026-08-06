@@ -550,8 +550,9 @@
                     </div>
                     <div class="field-row">
                         <div>
-                            <label class="field-label">Дата начала</label>
-                            <input type="date" id="tnDate" class="field-input">
+                            <label class="field-label">Дата и время начала</label>
+                            <input type="datetime-local" id="tnDate" class="field-input">
+                            <div style="font-size:11px;color:#5c6b7f;margin-top:4px;">По вашему местному времени — конвертируется автоматически, игроки увидят обратный отсчёт в своём часовом поясе.</div>
                         </div>
                         <div>
                             <label class="field-label">Статус</label>
@@ -1766,7 +1767,7 @@ function renderTournamentsTable() {
             <td><span style="color:${statusColor[t.status] || "var(--gray)"};">${statusLabel[t.status] || t.status}</span></td>
             <td class="num">${(t.registrations || []).length}</td>
             <td class="num">${t.maxTeams}</td>
-            <td>${t.startDate ? new Date(t.startDate).toLocaleDateString("ru-RU") : "—"}</td>
+            <td>${t.startDate ? new Date(t.startDate).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
             <td style="color:var(--accent);">${t.prize ? escAdmin(t.prize) : "—"}</td>
             <td><div class="actions">
                 <button class="btn btn-ghost btn-sm" onclick="openTournamentRegistrations('${t._id}','${escAdmin(t.name).replace(/'/g,"\\'")}')">👥 Заявки</button>
@@ -1793,7 +1794,7 @@ async function createTournament() {
     try {
         const res = await fetch("/api/admin/tournaments", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal || null, status, minMembers, maxTeams, prize })
+            body: JSON.stringify({ name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null, status, minMembers, maxTeams, prize })
         });
         const d = await res.json();
         if (!res.ok) { showError("tnCreateError", d.error || "Ошибка"); return; }
@@ -1807,13 +1808,22 @@ async function createTournament() {
     finally { btn.disabled = false; btn.textContent = "Создать турнир"; }
 }
 
+// Конвертирует ISO-строку (UTC) в значение для <input type="datetime-local">
+// в ЛОКАЛЬНОМ времени браузера админа (без часового пояса в самой строке — так и надо).
+function toDatetimeLocalValue(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function openEditTournament(id) {
     const t = _tournaments.find(x => x._id === id);
     if (!t) return;
     _editTournamentId = id;
     document.getElementById("etName").value       = t.name;
     document.getElementById("etDesc").value       = t.description || "";
-    document.getElementById("etDate").value       = t.startDate ? t.startDate.split("T")[0] : "";
+    document.getElementById("etDate").value       = toDatetimeLocalValue(t.startDate);
     document.getElementById("etStatus").value     = t.status;
     document.getElementById("etMinMembers").value = t.minMembers;
     document.getElementById("etMaxTeams").value   = t.maxTeams;
@@ -1837,7 +1847,7 @@ async function submitEditTournament() {
     try {
         const res = await fetch(`/api/admin/tournaments/${_editTournamentId}`, {
             method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal || null, status, minMembers, maxTeams, prize })
+            body: JSON.stringify({ name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null, status, minMembers, maxTeams, prize })
         });
         const d = await res.json();
         if (!res.ok) { showError("etError", d.error || "Ошибка"); return; }
@@ -1996,8 +2006,8 @@ init();
             </div>
             <div class="field-row">
                 <div>
-                    <label class="field-label">Дата начала</label>
-                    <input type="date" id="etDate" class="field-input">
+                    <label class="field-label">Дата и время начала</label>
+                    <input type="datetime-local" id="etDate" class="field-input">
                 </div>
                 <div>
                     <label class="field-label">Статус</label>

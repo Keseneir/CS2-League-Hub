@@ -340,6 +340,7 @@
     <div class="hero-eyebrow">Регистрация команд</div>
     <h1>АКТИВНЫЕ <span>ТУРНИРЫ</span></h1>
     <p>Только капитан может зарегистрировать команду на турнир</p>
+    <p style="margin-top:10px;"><a href="archive.html" style="color:#e6b022;font-size:13px;font-weight:600;text-decoration:none;">📜 Архив прошедших турниров →</a></p>
 </div>
 
 <div class="container" id="pageContainer" style="max-width:960px;">
@@ -553,6 +554,7 @@ function buildTournamentCard(t, memberCount) {
             ${t.prize ? `<div class="tc-prize">🏆 ${escHtml(t.prize)}</div>` : ""}
             <div class="tc-meta">
                 <div class="tc-meta-item"><span class="icon">📅</span> <strong>${dateStr}</strong></div>
+                ${countdownHtml(t.startDate)}
                 <div class="tc-meta-item"><span class="icon">👥</span> Заявок: <strong>${t.teamsCount} / ${t.maxTeams}</strong></div>
                 <div class="tc-meta-item"><span class="icon">🎮</span> Мин. состав: <strong>${t.minMembers}/5</strong></div>
             </div>
@@ -663,6 +665,38 @@ function escHtml(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 }
+
+// ── Таймер "Турнир начнётся через..." ────────────────────────────────────
+// Отсчёт идёт от абсолютного момента времени (startDate хранится в UTC на сервере),
+// поэтому у каждого зрителя таймер тикает верно независимо от его часового пояса.
+function formatCountdown(iso) {
+    if (!iso) return null;
+    const diff = new Date(iso).getTime() - Date.now();
+    if (diff <= 0) return null;
+    const totalMin = Math.floor(diff / 60000);
+    const days  = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins  = totalMin % 60;
+    if (days  > 0) return `через ${days} д ${hours} ч`;
+    if (hours > 0) return `через ${hours} ч ${mins} мин`;
+    return `через ${mins} мин`;
+}
+
+function countdownHtml(startDate) {
+    if (!startDate) return "";
+    const txt = formatCountdown(startDate);
+    if (!txt) return "";
+    return `<div class="tc-meta-item countdown-item" data-start="${startDate}"><span class="icon">⏳</span> <strong class="cd-text">${txt}</strong></div>`;
+}
+
+setInterval(() => {
+    document.querySelectorAll(".countdown-item[data-start]").forEach(el => {
+        const txt = formatCountdown(el.dataset.start);
+        if (!txt) { el.style.display = "none"; return; }
+        const strong = el.querySelector(".cd-text");
+        if (strong) strong.textContent = txt;
+    });
+}, 30000);
 </script>
 </body>
 </html>

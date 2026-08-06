@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архив турниров — CS2 League Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=3">
+    <style>
+        .tournaments-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+            margin-top: 32px;
+        }
+        .tournament-card {
+            background: #12171d;
+            border: 1px solid #1f252c;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .tournament-card:hover { border-color: rgba(230,176,34,0.35); transform: translateY(-2px); }
+        .tc-header {
+            background: #0e1318;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid #1f252c;
+        }
+        .tc-name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: #fff; letter-spacing: 0.5px; }
+        .tc-status-badge {
+            font-size: 10px; font-weight: 700; font-family: 'Montserrat', sans-serif;
+            letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px;
+            white-space: nowrap; background: rgba(92,107,127,0.15); color: #8a97a6; border: 1px solid rgba(92,107,127,0.3);
+        }
+        .tc-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+        .tc-desc { font-size: 13px; color: #aebbc7; line-height: 1.55; }
+        .tc-meta { display: flex; flex-wrap: wrap; gap: 10px; }
+        .tc-meta-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5c6b7f; font-family: 'Inter', sans-serif; }
+        .tc-meta-item strong { color: #aebbc7; font-weight: 600; }
+        .tc-prize {
+            background: rgba(230,176,34,0.08); border: 1px solid rgba(230,176,34,0.2); border-radius: 8px;
+            padding: 10px 14px; font-size: 13px; color: #e6b022; display: flex; align-items: center; gap: 8px;
+        }
+        .empty-tournaments { text-align: center; padding: 60px 20px; color: #5c6b7f; }
+        .empty-tournaments-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-tournaments p { font-size: 15px; }
+
+        /* ── Детальный просмотр ── */
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #e6b022; text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .detail-header { margin-bottom: 24px; }
+        .detail-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 26px; color: #fff; margin-bottom: 8px; }
+        .detail-desc { font-size: 14px; color: #aebbc7; line-height: 1.6; max-width: 720px; }
+
+        .section-label {
+            font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 13px; color: #fff;
+            text-transform: uppercase; letter-spacing: 1px; margin: 32px 0 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .team-chip {
+            display: flex; align-items: center; gap: 10px; background: #12171d; border: 1px solid #1f252c;
+            border-radius: 10px; padding: 10px 14px;
+        }
+        .team-chip img { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+        .team-chip-placeholder {
+            width: 32px; height: 32px; border-radius: 6px; background: #1f252c;
+            display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+        }
+        .team-chip-name { font-size: 13px; font-weight: 600; color: #dbe3ea; }
+        .team-chip-tag { font-size: 11px; color: #e6b022; }
+
+        .match-row {
+            display: flex; align-items: center; gap: 14px; background: #12171d; border: 1px solid #1f252c;
+            border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; flex-wrap: wrap;
+        }
+        .match-side { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 140px; }
+        .match-side img { width: 24px; height: 24px; border-radius: 5px; object-fit: cover; flex-shrink: 0; }
+        .match-side-placeholder {
+            width: 24px; height: 24px; border-radius: 5px; background: #1f252c;
+            display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;
+        }
+        .match-side-name { font-size: 13px; font-weight: 600; }
+        .match-side.winner .match-side-name { color: #4caf82; }
+        .match-side.loser  .match-side-name { color: #aebbc7; }
+        .match-vs { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 11px; color: #5c6b7f; padding: 0 4px; }
+        .match-score { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: #fff; min-width: 50px; text-align: center; }
+        .match-map  { font-size: 11px; color: #5c6b7f; min-width: 70px; }
+        .match-date { font-size: 11px; color: #5c6b7f; min-width: 70px; text-align: right; margin-left: auto; }
+
+        .empty-note { font-size: 13px; color: #5c6b7f; padding: 14px 0; }
+    </style>
+</head>
+<body class="page-join">
+
+<header>
+    <a href="index.html" class="logo"><img src="/assets/logo.png" alt="CS2 League Hub" class="logo-img"></a>
+    <div class="header-right">
+        <div class="nav-links">
+            <a href="news.html">Новости</a>
+            <a href="leaderboard.html">Рейтинг</a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="hide-m">Telegram</a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="hide-m">Discord</a>
+        </div>
+
+        <a href="/auth/steam?redirect=/archive.html" id="btnSteamLogin" class="btn-steam-login" style="display:none;" title="Войти через Steam">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
+            Войти через Steam
+        </a>
+
+        <div id="headerUserProfile" class="header-user-profile" style="display:none;">
+            <img id="headerAvatar" src="" alt="avatar" class="header-avatar" onerror="this.style.display='none'">
+            <div class="header-user-info">
+                <span id="headerName" class="header-username"></span>
+                <span id="headerPoints" class="header-points"></span>
+            </div>
+            <div id="headerTeamBadge" class="header-team-badge" style="display:none;"></div>
+            <a href="/logout" class="header-logout-btn">Выйти</a>
+        </div>
+
+        <a href="join.html" class="btn-nav">ТУРНИРЫ</a>
+    </div>
+</header>
+
+<div class="page-hero">
+    <div class="hero-eyebrow">История соревнований</div>
+    <h1>АРХИВ <span>ТУРНИРОВ</span></h1>
+    <p>Прошедшие турниры, составы участников и результаты матчей</p>
+</div>
+
+<div class="container" id="pageContainer" style="max-width:960px;">
+
+    <div id="loadingState" style="text-align:center;padding:60px 20px;color:#5c6b7f;">
+        <div class="mini-spinner" style="margin:0 auto 16px;"></div>
+        Загрузка...
+    </div>
+
+    <!-- ── СПИСОК ── -->
+    <div id="listView" style="display:none;">
+        <div id="tournamentsGrid" class="tournaments-grid"></div>
+        <div id="emptyState" class="empty-tournaments" style="display:none;">
+            <div class="empty-tournaments-icon">📜</div>
+            <p>Пока нет завершённых турниров.</p>
+        </div>
+    </div>
+
+    <!-- ── ДЕТАЛИ ── -->
+    <div id="detailView" style="display:none;">
+        <a href="archive.html" class="back-link">← Ко всем турнирам</a>
+        <div class="detail-header">
+            <div class="detail-title" id="detailName">—</div>
+            <div class="detail-desc" id="detailDesc"></div>
+        </div>
+
+        <div id="detailPrizeWrap" style="display:none;">
+            <div class="tc-prize">🏆 <span id="detailPrize"></span></div>
+        </div>
+
+        <div class="section-label">👥 Участники</div>
+        <div id="detailTeams" class="teams-grid"></div>
+        <div id="detailTeamsEmpty" class="empty-note" style="display:none;">Составы участников не сохранились.</div>
+
+        <div class="section-label">⚔️ Результаты матчей</div>
+        <div id="detailMatches"></div>
+        <div id="detailMatchesEmpty" class="empty-note" style="display:none;">Результаты матчей по этому турниру ещё не внесены.</div>
+    </div>
+
+</div>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-socials">
+            <a href="https://youtube.com/@cs2leaguehub" target="_blank" class="footer-social-link" title="YouTube">
+                <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+            </a>
+            <a href="https://t.me/CS2_LeagueHub" target="_blank" class="footer-social-link" title="Telegram">
+                <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
+            </a>
+            <a href="https://discord.gg/VXEXsVbbx3" target="_blank" class="footer-social-link" title="Discord">
+                <svg viewBox="0 0 24 24"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
+            </a>
+            <a href="https://www.tiktok.com/@cs2.league.hub" target="_blank" class="footer-social-link" title="TikTok">
+                <svg viewBox="0 0 24 24"><path d="M19.6 3h-3.2v12.3a3.2 3.2 0 1 1-3.2-3.1c.3 0 .6 0 .9.1V9c-.3 0-.6-.1-.9-.1a6.4 6.4 0 1 0 6.4 6.4V8.4a9.4 9.4 0 0 0 5.4 1.7V7c-3 0-5.4-2-5.4-4z"/></svg>
+            </a>
+            <a href="https://www.twitch.tv/cs2leaguehub" target="_blank" class="footer-social-link" title="Twitch">
+                <svg viewBox="0 0 24 24"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.5V6zM2.1 0L0 2.4v19.2h6V24l2.4-2.4H12l4.8-4.8V0H2.1zm16.3 13.2-3.6 3.6H11l-2.4 2.4v-2.4H4.8V2.4h13.6v10.8z"/></svg>
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="terms.html">Пользовательское соглашение</a>
+            <a href="privacy.html">Политика конфиденциальности</a>
+            <a href="https://discord.gg/95mhGEQRTt" target="_blank">Поддержка</a>
+        </div>
+        <hr class="footer-divider">
+        <p class="footer-copy">
+            CS2 League Hub не связан с Valve Corporation, Counter-Strike 2 или FACEIT. Все торговые марки принадлежат их владельцам.<br>
+            <span style="opacity:0.6;">© 2024-2026 CS2 League Hub. All Rights Reserved.</span>
+        </p>
+    </div>
+</footer>
+
+<script src="js/common.js?v=2" defer></script>
+<script>
+function escHtmlArc(str) {
+    return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function teamChipHtml(team, extraClass) {
+    if (!team) return `<div class="match-side-placeholder">?</div><span class="match-side-name">—</span>`;
+    const img = team.logo
+        ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'match-side-placeholder',textContent:'🛡️'}))">`
+        : `<div class="match-side-placeholder">🛡️</div>`;
+    return `${img}<span class="match-side-name">[${escHtmlArc(team.tag)}] ${escHtmlArc(team.name)}</span>`;
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const $ = id => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const id = params.get("id");
+
+    $("loadingState").style.display = "none";
+
+    if (id) {
+        await loadDetail(id);
+    } else {
+        await loadList();
+    }
+});
+
+async function loadList() {
+    const $ = id => document.getElementById(id);
+    let tournaments = [];
+    try {
+        const r = await fetch("/api/tournaments/archive");
+        if (r.ok) tournaments = await r.json();
+    } catch {}
+
+    $("listView").style.display = "block";
+
+    if (!tournaments.length) { $("emptyState").style.display = "block"; return; }
+
+    const grid = $("tournamentsGrid");
+    tournaments.forEach(t => {
+        const dateStr = t.startDate
+            ? new Date(t.startDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+            : "Дата не указана";
+        const card = document.createElement("div");
+        card.className = "tournament-card";
+        card.onclick = () => location.href = `archive.html?id=${t._id}`;
+        card.innerHTML = `
+            <div class="tc-header">
+                <div class="tc-name">${escHtmlArc(t.name)}</div>
+                <div class="tc-status-badge">Завершён</div>
+            </div>
+            <div class="tc-body">
+                ${t.description ? `<div class="tc-desc">${escHtmlArc(t.description)}</div>` : ""}
+                ${t.prize ? `<div class="tc-prize">🏆 ${escHtmlArc(t.prize)}</div>` : ""}
+                <div class="tc-meta">
+                    <div class="tc-meta-item"><span class="icon">📅</span> <strong>${dateStr}</strong></div>
+                    <div class="tc-meta-item"><span class="icon">👥</span> Команд: <strong>${t.teamsCount}</strong></div>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+async function loadDetail(id) {
+    const $ = id => document.getElementById(id);
+    let t = null, matches = [];
+    try {
+        const r = await fetch(`/api/tournaments/${id}`);
+        if (r.ok) t = await r.json();
+    } catch {}
+    try {
+        const r = await fetch(`/api/tournaments/${id}/matches`);
+        if (r.ok) matches = await r.json();
+    } catch {}
+
+    if (!t) {
+        $("detailView").innerHTML = `<a href="archive.html" class="back-link">← Ко всем турнирам</a><div class="empty-note">Турнир не найден.</div>`;
+        $("detailView").style.display = "block";
+        return;
+    }
+
+    $("detailView").style.display = "block";
+    $("detailName").textContent = t.name;
+    $("detailDesc").textContent = t.description || "";
+
+    if (t.prize) {
+        $("detailPrizeWrap").style.display = "block";
+        $("detailPrize").textContent = t.prize;
+    }
+
+    const teamsWrap = $("detailTeams");
+    if (t.teams && t.teams.length) {
+        teamsWrap.innerHTML = t.teams.map(team => `
+            <div class="team-chip">
+                ${team.logo
+                    ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'team-chip-placeholder',textContent:'🛡️'}))">`
+                    : `<div class="team-chip-placeholder">🛡️</div>`}
+                <div>
+                    <div class="team-chip-name">${escHtmlArc(team.name)}</div>
+                    <div class="team-chip-tag">[${escHtmlArc(team.tag)}]</div>
+                </div>
+            </div>
+        `).join("");
+    } else {
+        $("detailTeamsEmpty").style.display = "block";
+    }
+
+    const matchesWrap = $("detailMatches");
+    if (matches.length) {
+        matchesWrap.innerHTML = matches.map(m => {
+            const dateStr = m.playedAt
+                ? new Date(m.playedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" })
+                : "";
+            return `
+                <div class="match-row">
+                    <div class="match-side winner">${teamChipHtml(m.winnerTeamId)}</div>
+                    <div class="match-vs">VS</div>
+                    <div class="match-side loser">${teamChipHtml(m.loserTeamId)}</div>
+                    <div class="match-score">${m.score || (m.roundDiff ? `+${m.roundDiff}` : "—")}</div>
+                    ${m.map ? `<div class="match-map">🗺️ ${escHtmlArc(m.map)}</div>` : ""}
+                    <div class="match-date">${dateStr}</div>
+                </div>
+            `;
+        }).join("");
+    } else {
+        $("detailMatchesEmpty").style.display = "block";
+    }
+}
+</script>
+</body>
+</html>

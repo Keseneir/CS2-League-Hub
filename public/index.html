@@ -200,6 +200,7 @@
     <div class="tournaments-section" id="tournamentsSectionWrapper" style="display:none;">
         <div class="tournaments-section-title">
             🏆 Активные турниры
+            <a href="archive.html" style="margin-left:16px;">Архив →</a>
             <a href="join.html">Все турниры →</a>
         </div>
         <div class="tournaments-row" id="tournamentsRow"></div>
@@ -272,6 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ${t.prize ? `<div class="tn-prize">🏆 ${escHtmlIdx(t.prize)}</div>` : ""}
                 <div class="tn-meta">
                     <span>📅 <strong>${dateStr}</strong></span>
+                    ${countdownHtmlIdx(t.startDate)}
                     <span>👥 Заявок: <strong>${t.teamsCount}/${t.maxTeams}</strong></span>
                 </div>
                 <div class="tn-card-footer">
@@ -289,6 +291,36 @@ function escHtmlIdx(str) {
     return String(str || "")
         .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+
+// ── Таймер "Турнир начнётся через..." — см. join.html для деталей ────────
+function formatCountdownIdx(iso) {
+    if (!iso) return null;
+    const diff = new Date(iso).getTime() - Date.now();
+    if (diff <= 0) return null;
+    const totalMin = Math.floor(diff / 60000);
+    const days  = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins  = totalMin % 60;
+    if (days  > 0) return `через ${days} д ${hours} ч`;
+    if (hours > 0) return `через ${hours} ч ${mins} мин`;
+    return `через ${mins} мин`;
+}
+
+function countdownHtmlIdx(startDate) {
+    if (!startDate) return "";
+    const txt = formatCountdownIdx(startDate);
+    if (!txt) return "";
+    return `<span class="countdown-item" data-start="${startDate}">⏳ <strong class="cd-text">${txt}</strong></span>`;
+}
+
+setInterval(() => {
+    document.querySelectorAll(".countdown-item[data-start]").forEach(el => {
+        const txt = formatCountdownIdx(el.dataset.start);
+        if (!txt) { el.style.display = "none"; return; }
+        const strong = el.querySelector(".cd-text");
+        if (strong) strong.textContent = txt;
+    });
+}, 30000);
 </script>
 </body>
 </html>

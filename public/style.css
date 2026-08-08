@@ -294,7 +294,6 @@ footer {
 .rating-widget:hover { border-color: rgba(230,176,34,0.7); box-shadow: 0 0 40px rgba(230,176,34,0.18), 0 20px 40px rgba(0,0,0,0.4); transform: translateY(-3px); }
 .widget-header { padding: 20px 24px 16px; border-bottom: 1px solid #1f252c; display: flex; align-items: center; justify-content: space-between; }
 .widget-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
-.widget-title::before { content: '🏆'; font-size: 16px; }
 .widget-arrow { color: var(--text-gray); font-size: 18px; transition: transform 0.3s, color 0.3s; }
 .rating-widget:hover .widget-arrow { transform: translateX(4px); color: var(--accent); }
 .widget-body { padding: 12px 0; }

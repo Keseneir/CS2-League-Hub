@@ -673,20 +673,22 @@ function formatCountdown(iso) {
     if (!iso) return null;
     const diff = new Date(iso).getTime() - Date.now();
     if (diff <= 0) return null;
-    const totalMin = Math.floor(diff / 60000);
-    const days  = Math.floor(totalMin / 1440);
-    const hours = Math.floor((totalMin % 1440) / 60);
-    const mins  = totalMin % 60;
-    if (days  > 0) return `через ${days} д ${hours} ч`;
-    if (hours > 0) return `через ${hours} ч ${mins} мин`;
-    return `через ${mins} мин`;
+    const totalSec = Math.floor(diff / 1000);
+    const days  = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const mins  = Math.floor((totalSec % 3600) / 60);
+    const secs  = totalSec % 60;
+    const pad   = n => String(n).padStart(2, "0");
+    return days > 0
+        ? `${days}д ${pad(hours)}:${pad(mins)}:${pad(secs)}`
+        : `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
 }
 
 function countdownHtml(startDate) {
     if (!startDate) return "";
     const txt = formatCountdown(startDate);
     if (!txt) return "";
-    return `<div class="tc-meta-item countdown-item" data-start="${startDate}"><span class="icon">⏳</span> <strong class="cd-text">${txt}</strong></div>`;
+    return `<div class="tc-meta-item countdown-item" data-start="${startDate}"><span class="icon">⏳</span> Старт через <strong class="cd-text" style="font-variant-numeric:tabular-nums;">${txt}</strong></div>`;
 }
 
 setInterval(() => {
@@ -696,7 +698,7 @@ setInterval(() => {
         const strong = el.querySelector(".cd-text");
         if (strong) strong.textContent = txt;
     });
-}, 30000);
+}, 1000);
 </script>
 </body>
 </html>

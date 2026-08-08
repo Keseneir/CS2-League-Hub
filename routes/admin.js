@@ -1,4 +1,5 @@
 const express              = require("express");
+const mongoose             = require("mongoose");
 const router               = express.Router();
 const User                 = require("../models/User");
 const Team                 = require("../models/Team");
@@ -222,8 +223,20 @@ router.get("/series/active", requireAdmin, async (req, res) => {
 router.get("/series/:id", requireAdmin, async (req, res) => {
   try {
     const series = await Series.findById(req.params.id)
-      .populate("teamAId", "name tag logo members subs")
-      .populate("teamBId", "name tag logo members subs")
+      .populate({
+        path: "teamAId", select: "name tag logo members subs",
+        populate: [
+          { path: "members", select: "displayName" },
+          { path: "subs",    select: "displayName" },
+        ],
+      })
+      .populate({
+        path: "teamBId", select: "name tag logo members subs",
+        populate: [
+          { path: "members", select: "displayName" },
+          { path: "subs",    select: "displayName" },
+        ],
+      })
       .lean();
     if (!series) return res.status(404).json({ error: "Серия не найдена" });
     const matches = await Match.find({ seriesId: series._id })
@@ -254,7 +267,7 @@ router.post("/series/:id/map", requireAdmin, async (req, res) => {
 
     const cleanPlayerStats = Array.isArray(playerStats)
       ? playerStats
-          .filter(p => p && p.userId && p.teamId)
+          .filter(p => p && mongoose.Types.ObjectId.isValid(p.userId) && mongoose.Types.ObjectId.isValid(p.teamId))
           .map(p => ({
             userId:    p.userId,
             teamId:    p.teamId,

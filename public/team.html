@@ -632,7 +632,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             _team = await res.json();
             renderHero(_team);
             renderRosters(_team);
-            renderStats(_team);
+            renderStats(_team, false);
             renderMatches(_team);
             if (_team.equippedCosmetics?.teamBg) applyTeamCosmetic(_team.equippedCosmetics.teamBg);
             initShareUrl(_team.tag);
@@ -675,7 +675,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderOnboarding(profile);
     renderHero(_team);
     renderRosters(_team);
-    renderStats(_team);
+    renderStats(_team, true);
     renderMatches(_team);
     renderWallet(_team, canEdit);
 
@@ -830,7 +830,12 @@ function playerCard(member, captainId, roleLabel) {
 }
 
 // ─── Статистика ────────────────────────────────────────────────────────────
-async function renderStats(team) {
+async function renderStats(team, isOwnView) {
+    // showStats скрывает блок только от чужих — своей команде статистика видна всегда
+    if (!isOwnView && team.privacySettings?.showStats === false) {
+        document.getElementById("statsSection").style.display = "none";
+        return;
+    }
     try {
         const lb = await fetch("/api/leaderboard/").then(r => r.json());
         const row = (lb.rows || []).find(r => r.teamId?.toString() === team._id?.toString());

@@ -170,7 +170,12 @@
         .mps-team-label { font-family:'Montserrat',sans-serif; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#7a8899; margin-bottom:6px; }
         .mps-player-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
         .mps-player-name { flex:1; font-size:13px; color:#c9d3dc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .mps-kda-input { width:56px; text-align:center; padding:6px 4px; }
+        .mps-kda-input { width:52px; text-align:center; padding:6px 4px; }
+        .series-card-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .series-score-badge { font-family:'Montserrat',sans-serif; font-weight:800; font-size:15px; color:#e6b022; }
+        .series-format-tag { font-size:10px; font-weight:700; letter-spacing:1px; color:#7a8899; border:1px solid #2a323c; border-radius:20px; padding:2px 8px; }
+        .winner-side-radio { display:flex; gap:14px; margin-bottom:10px; }
+        .winner-side-radio label { display:flex; align-items:center; gap:6px; font-size:13px; color:#c9d3dc; cursor:pointer; }
         .vs-badge { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 14px; color: var(--gray2); flex-shrink: 0; }
 
         .player-profile-cell { display: flex; align-items: flex-start; gap: 10px; }
@@ -291,48 +296,45 @@
             <div class="empty-state"><div class="empty-state-icon">🏆</div><p>Выберите сезон выше</p></div>
         </div>
 
-        <div class="section-title" style="margin-top:8px;">⚔️ Записать матч</div>
+        <div class="section-title" style="margin-top:8px;">⚔️ Серии (BO1/BO3/BO5)</div>
         <div class="cards-grid" style="max-width:600px;">
             <div class="form-card">
-                <div class="form-card-header">Результат матча</div>
+                <div class="form-card-header">Создать серию</div>
                 <div class="form-card-body">
-                    <div id="matchError" class="modal-error"></div>
+                    <div id="seriesError" class="modal-error"></div>
                     <div class="match-row">
                         <div style="flex:1;">
-                            <label class="field-label">Победитель</label>
-                            <select id="matchWinner" class="field-select" onchange="renderMatchPlayerStatsForm()"><option value="">—</option></select>
+                            <label class="field-label">Команда A</label>
+                            <select id="seriesTeamA" class="field-select"><option value="">—</option></select>
                         </div>
                         <span class="vs-badge">VS</span>
                         <div style="flex:1;">
-                            <label class="field-label">Проигравший</label>
-                            <select id="matchLoser" class="field-select" onchange="renderMatchPlayerStatsForm()"><option value="">—</option></select>
+                            <label class="field-label">Команда B</label>
+                            <select id="seriesTeamB" class="field-select"><option value="">—</option></select>
                         </div>
                     </div>
                     <div class="match-row">
                         <div style="flex:1;">
-                            <label class="field-label">Карта <span style="opacity:.6;">(необязательно)</span></label>
-                            <input type="text" id="matchMap" class="field-input" placeholder="например: Mirage">
+                            <label class="field-label">Формат</label>
+                            <select id="seriesFormat" class="field-select">
+                                <option value="bo1">BO1</option>
+                                <option value="bo3" selected>BO3</option>
+                                <option value="bo5">BO5</option>
+                            </select>
                         </div>
                         <div style="flex:1;">
-                            <label class="field-label">Счёт <span style="opacity:.6;">(необязательно)</span></label>
-                            <input type="text" id="matchScore" class="field-input" placeholder="например: 13:7">
+                            <label class="field-label">Турнир <span style="opacity:.6;">(необязательно)</span></label>
+                            <select id="seriesTournament" class="field-select"><option value="">— Вне турнира —</option></select>
                         </div>
                     </div>
-                    <div>
-                        <label class="field-label">Разница раундов (победителя)</label>
-                        <input type="number" id="matchRD" class="field-input" value="0" min="-50" max="50" placeholder="например: 6">
-                    </div>
-
-                    <div id="matchPlayerStatsWrap" style="display:none;margin-top:8px;">
-                        <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;">
-                            <span>Личная стата игроков <span style="opacity:.6;">(необязательно, K / D / A)</span></span>
-                        </label>
-                        <div id="matchPlayerStatsBody" style="display:flex;flex-direction:column;gap:14px;"></div>
-                    </div>
-
-                    <button class="btn btn-primary" onclick="recordMatch()">✔ Записать матч</button>
+                    <button class="btn btn-primary" onclick="createSeries()">✔ Создать серию</button>
                 </div>
             </div>
+        </div>
+
+        <div class="section-title" style="margin-top:24px;">📋 Незавершённые серии</div>
+        <div id="activeSeriesList" style="display:flex;flex-direction:column;gap:14px;max-width:760px;">
+            <div class="empty-state"><div class="empty-state-icon">⚔️</div><p>Нет незавершённых серий — создайте новую выше</p></div>
         </div>
     </div>
 
@@ -839,7 +841,8 @@ async function init() {
         document.getElementById("topbarName").textContent = user.displayName;
     } catch { }
 
-    await Promise.all([loadSeasons(), loadAllTeams(), loadRanks()]);
+    await Promise.all([loadSeasons(), loadAllTeams(), loadRanks(), loadTournaments()]);
+    buildSeriesTournamentSelect();
 }
 
 //табы
@@ -900,7 +903,8 @@ async function selectSeason(sid) {
     const s = _seasons.find(x => x._id === sid);
     if (s) document.getElementById("lbSeasonLabel").textContent = s.name;
     await loadLbStats();
-    buildMatchSelects();
+    buildSeriesTeamSelects();
+    await loadActiveSeries();
 }
 
 async function createSeason() {
@@ -1008,7 +1012,7 @@ async function addTeamToLeaderboard() {
         toast("Команда добавлена в сезон!", "ok");
         document.getElementById("addTeamSelect").value = "";
         await loadLbStats();
-        buildMatchSelects();
+        buildSeriesTeamSelects();
     } catch { showError("addTeamError", "Ошибка соединения"); }
 }
 
@@ -1018,7 +1022,7 @@ async function removeFromLb(statId, name) {
             await fetch(`/api/admin/leaderboard/${statId}`, { method: "DELETE" });
             toast("Команда убрана из таблицы", "ok");
             await loadLbStats();
-            buildMatchSelects();
+            buildSeriesTeamSelects();
         } catch { toast("Ошибка", "err"); }
     });
 }
@@ -1062,14 +1066,21 @@ async function saveStatEdit() {
     finally { btn.disabled = false; btn.textContent = "Сохранить"; }
 }
 
-function buildMatchSelects() {
+function buildSeriesTeamSelects() {
     const opts = `<option value="">—</option>` + _lbStats.map(s =>
         `<option value="${s._id}">${s.teamId?.name || "?"}</option>`
     ).join("");
-    document.getElementById("matchWinner").innerHTML = opts;
-    document.getElementById("matchLoser").innerHTML  = opts;
-    document.getElementById("matchPlayerStatsWrap").style.display = "none";
-    document.getElementById("matchPlayerStatsBody").innerHTML = "";
+    document.getElementById("seriesTeamA").innerHTML = opts;
+    document.getElementById("seriesTeamB").innerHTML = opts;
+}
+
+function buildSeriesTournamentSelect() {
+    const sel = document.getElementById("seriesTournament");
+    if (!sel) return;
+    const opts = `<option value="">— Вне турнира —</option>` + _tournaments.map(t =>
+        `<option value="${t._id}">${t.name}</option>`
+    ).join("");
+    sel.innerHTML = opts;
 }
 
 // Находит реальный Team (с составом) по id соответствующего TeamStat
@@ -1079,19 +1090,91 @@ function _teamByStatId(statId) {
     return _allTeams.find(t => t._id === stat.teamId._id) || null;
 }
 
-function renderMatchPlayerStatsForm() {
-    const winnerStatId = document.getElementById("matchWinner").value;
-    const loserStatId  = document.getElementById("matchLoser").value;
-    const wrap = document.getElementById("matchPlayerStatsWrap");
-    const body = document.getElementById("matchPlayerStatsBody");
+async function createSeries() {
+    hideError("seriesError");
+    const teamAStatId = document.getElementById("seriesTeamA").value;
+    const teamBStatId = document.getElementById("seriesTeamB").value;
+    const format       = document.getElementById("seriesFormat").value;
+    const tournamentId = document.getElementById("seriesTournament").value || null;
+    if (!teamAStatId) { showError("seriesError", "Выберите команду A"); return; }
+    if (!teamBStatId) { showError("seriesError", "Выберите команду B"); return; }
+    if (teamAStatId === teamBStatId) { showError("seriesError", "Команды не могут совпадать"); return; }
+    if (!_activeSid) { showError("seriesError", "Выберите сезон"); return; }
 
-    if (!winnerStatId || !loserStatId) { wrap.style.display = "none"; body.innerHTML = ""; return; }
+    const btn = document.querySelector('[onclick="createSeries()"]');
+    if (btn) { btn.disabled = true; btn.textContent = "Создаём..."; }
+    try {
+        const res = await fetch("/api/admin/series", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ seasonId: _activeSid, teamAStatId, teamBStatId, format, tournamentId }),
+        });
+        const d = await res.json();
+        if (!res.ok) { showError("seriesError", d.error || "Ошибка"); return; }
+        toast("✅ Серия создана!", "ok");
+        document.getElementById("seriesTeamA").value = "";
+        document.getElementById("seriesTeamB").value = "";
+        await loadActiveSeries();
+    } catch { showError("seriesError", "Ошибка соединения"); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = "✔ Создать серию"; } }
+}
 
-    const winnerTeam = _teamByStatId(winnerStatId);
-    const loserTeam  = _teamByStatId(loserStatId);
-    if (!winnerTeam || !loserTeam) { wrap.style.display = "none"; body.innerHTML = ""; return; }
+async function loadActiveSeries() {
+    const wrap = document.getElementById("activeSeriesList");
+    if (!wrap) return;
+    try {
+        const url = _activeSid ? `/api/admin/series/active?seasonId=${_activeSid}` : "/api/admin/series/active";
+        const res = await fetch(url);
+        const list = res.ok ? await res.json() : [];
+        if (!list.length) {
+            wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚔️</div><p>Нет незавершённых серий — создайте новую выше</p></div>`;
+            return;
+        }
+        wrap.innerHTML = list.map(s => renderSeriesCard(s)).join("");
+    } catch {
+        wrap.innerHTML = `<div class="empty-state"><p>Не удалось загрузить серии</p></div>`;
+    }
+}
 
-    const renderTeamBlock = (team, label) => {
+function renderSeriesCard(s) {
+    const tag = fmt => (fmt || "bo1").toUpperCase();
+    const tName = s.teamAId?.name || "?";
+    const bName = s.teamBId?.name || "?";
+    return `
+        <div class="form-card" data-series-id="${s._id}">
+            <div class="form-card-header series-card-header">
+                <span>${tName}</span>
+                <span class="series-score-badge">${s.mapsWonA} : ${s.mapsWonB}</span>
+                <span>${bName}</span>
+                <span class="series-format-tag">${tag(s.format)}</span>
+            </div>
+            <div class="form-card-body">
+                <button class="btn btn-secondary" onclick="toggleMapForm('${s._id}')">+ Добавить результат карты</button>
+                <div id="mapFormWrap-${s._id}" style="display:none;margin-top:14px;"></div>
+            </div>
+        </div>`;
+}
+
+async function toggleMapForm(seriesId) {
+    const wrap = document.getElementById(`mapFormWrap-${seriesId}`);
+    if (!wrap) return;
+    if (wrap.style.display === "block") { wrap.style.display = "none"; return; }
+
+    wrap.innerHTML = `<div class="mini-spinner" style="margin:10px auto;"></div>`;
+    wrap.style.display = "block";
+
+    try {
+        const res = await fetch(`/api/admin/series/${seriesId}`);
+        const d   = await res.json();
+        if (!res.ok) { wrap.innerHTML = `<div class="modal-error" style="display:block;">${d.error || "Ошибка"}</div>`; return; }
+        wrap.innerHTML = renderMapForm(d.series);
+    } catch {
+        wrap.innerHTML = `<div class="modal-error" style="display:block;">Ошибка соединения</div>`;
+    }
+}
+
+function renderMapForm(series) {
+    const teamA = series.teamAId, teamB = series.teamBId;
+    const rosterHtml = (team, side) => {
         const roster = [...(team.members || []), ...(team.subs || [])];
         if (!roster.length) return "";
         const rows = roster.map(p => `
@@ -1100,61 +1183,97 @@ function renderMatchPlayerStatsForm() {
                 <input type="number" class="field-input mps-kda-input mps-kills"   min="0" placeholder="K">
                 <input type="number" class="field-input mps-kda-input mps-deaths"  min="0" placeholder="D">
                 <input type="number" class="field-input mps-kda-input mps-assists" min="0" placeholder="A">
+                <input type="number" class="field-input mps-kda-input mps-hs"      min="0" placeholder="HS">
             </div>`).join("");
-        return `<div><div class="mps-team-label">${label}: ${team.name}</div>${rows}</div>`;
+        return `<div><div class="mps-team-label">Сторона ${side}: ${team.name}</div>${rows}</div>`;
     };
 
-    body.innerHTML = renderTeamBlock(winnerTeam, "Победитель") + renderTeamBlock(loserTeam, "Проигравший");
-    wrap.style.display = "block";
+    return `
+        <div id="mapError-${series._id}" class="modal-error"></div>
+        <div class="winner-side-radio">
+            <label><input type="radio" name="mapWinner-${series._id}" value="A"> ${teamA.name} победили карту</label>
+            <label><input type="radio" name="mapWinner-${series._id}" value="B"> ${teamB.name} победили карту</label>
+        </div>
+        <div class="match-row">
+            <div style="flex:1;">
+                <label class="field-label">Карта</label>
+                <input type="text" id="mapMap-${series._id}" class="field-input" placeholder="например: Mirage">
+            </div>
+            <div style="flex:1;">
+                <label class="field-label">Счёт</label>
+                <input type="text" id="mapScore-${series._id}" class="field-input" placeholder="например: 13:7">
+            </div>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label class="field-label">Разница раундов (победителя карты)</label>
+            <input type="number" id="mapRD-${series._id}" class="field-input" value="0" min="0" max="16" placeholder="например: 6">
+        </div>
+        <div style="margin-bottom:10px;">
+            <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Личная стата игроков <span style="opacity:.6;">(необязательно, K / D / A / HS)</span></span>
+            </label>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                ${rosterHtml(teamA, "A")}
+                ${rosterHtml(teamB, "B")}
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="submitMap('${series._id}')">✔ Записать карту</button>
+    `;
 }
 
-function collectMatchPlayerStats() {
-    const rows = document.querySelectorAll("#matchPlayerStatsBody .mps-player-row");
+function collectMapPlayerStats(seriesId) {
+    const wrap = document.getElementById(`mapFormWrap-${seriesId}`);
+    const rows = wrap.querySelectorAll(".mps-player-row");
     const result = [];
     rows.forEach(row => {
-        const kills   = parseInt(row.querySelector(".mps-kills").value)   || 0;
-        const deaths  = parseInt(row.querySelector(".mps-deaths").value)  || 0;
-        const assists = parseInt(row.querySelector(".mps-assists").value) || 0;
-        if (kills || deaths || assists) {
-            result.push({
-                userId: row.dataset.uid,
-                teamId: row.dataset.team,
-                kills, deaths, assists,
-            });
+        const kills     = parseInt(row.querySelector(".mps-kills").value)   || 0;
+        const deaths    = parseInt(row.querySelector(".mps-deaths").value)  || 0;
+        const assists   = parseInt(row.querySelector(".mps-assists").value) || 0;
+        const headshots = parseInt(row.querySelector(".mps-hs").value)      || 0;
+        if (kills || deaths || assists || headshots) {
+            result.push({ userId: row.dataset.uid, teamId: row.dataset.team, kills, deaths, assists, headshots });
         }
     });
     return result;
 }
 
-async function recordMatch() {
-    hideError("matchError");
-    const winnerId = document.getElementById("matchWinner").value;
-    const loserId  = document.getElementById("matchLoser").value;
-    const rd       = parseInt(document.getElementById("matchRD").value) || 0;
-    if (!winnerId) { showError("matchError", "Выберите победителя");   return; }
-    if (!loserId)  { showError("matchError", "Выберите проигравшего"); return; }
-    if (winnerId === loserId) { showError("matchError", "Победитель и проигравший не могут совпадать"); return; }
-    const btn = document.querySelector('[onclick="recordMatch()"]');
+async function submitMap(seriesId) {
+    const errEl = document.getElementById(`mapError-${seriesId}`);
+    if (errEl) errEl.style.display = "none";
+
+    const wrap = document.getElementById(`mapFormWrap-${seriesId}`);
+    const winnerSideEl = wrap.querySelector(`input[name="mapWinner-${seriesId}"]:checked`);
+    if (!winnerSideEl) {
+        if (errEl) { errEl.textContent = "Выберите победителя карты"; errEl.style.display = "block"; }
+        return;
+    }
+    const winnerSide = winnerSideEl.value;
+    const map         = document.getElementById(`mapMap-${seriesId}`).value.trim();
+    const score       = document.getElementById(`mapScore-${seriesId}`).value.trim();
+    const roundDiff   = parseInt(document.getElementById(`mapRD-${seriesId}`).value) || 0;
+    const playerStats = collectMapPlayerStats(seriesId);
+
+    const btn = wrap.querySelector('[onclick^="submitMap"]');
     if (btn) { btn.disabled = true; btn.textContent = "Записываем..."; }
-    const map          = document.getElementById("matchMap").value.trim();
-    const score        = document.getElementById("matchScore").value.trim();
-    const playerStats  = collectMatchPlayerStats();
+
     try {
-        const res = await fetch("/api/admin/match", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seasonId: _activeSid, winnerId, loserId, winnerRoundDiff: rd, map, score, playerStats }) });
-        const d   = await res.json();
-        if (!res.ok) { showError("matchError", d.error || "Ошибка"); return; }
-        toast(`✅ Матч записан!`, "ok");
-        document.getElementById("matchWinner").value = "";
-        document.getElementById("matchLoser").value  = "";
-        document.getElementById("matchRD").value     = "0";
-        document.getElementById("matchMap").value    = "";
-        document.getElementById("matchScore").value  = "";
-        document.getElementById("matchPlayerStatsWrap").style.display = "none";
-        document.getElementById("matchPlayerStatsBody").innerHTML = "";
+        const res = await fetch(`/api/admin/series/${seriesId}/map`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ winnerSide, map, score, roundDiff, playerStats }),
+        });
+        const d = await res.json();
+        if (!res.ok) {
+            if (errEl) { errEl.textContent = d.error || "Ошибка"; errEl.style.display = "block"; }
+            return;
+        }
+        toast(d.seriesFinished ? "🏆 Серия завершена!" : "✅ Карта записана!", "ok");
         await loadLbStats();
-        buildMatchSelects();
-    } catch { showError("matchError", "Ошибка соединения"); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = "✔ Записать матч"; } }
+        await loadActiveSeries();
+    } catch {
+        if (errEl) { errEl.textContent = "Ошибка соединения"; errEl.style.display = "block"; }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = "✔ Записать карту"; }
+    }
 }
 
 //команды
@@ -1740,6 +1859,7 @@ async function loadTournaments() {
         _tournaments = res.ok ? await res.json() : [];
     } catch { _tournaments = []; }
     renderTournamentsTable();
+    buildSeriesTournamentSelect();
 }
 
 function renderTournamentsTable() {

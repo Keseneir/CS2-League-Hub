@@ -6,6 +6,7 @@ const Application          = require("../models/Application");
 const Season               = require("../models/Season");
 const TeamStat             = require("../models/TeamStat");
 const Match                = require("../models/Match");
+const Series               = require("../models/Series");
 const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
 const ShopItem             = require("../models/ShopItem");
@@ -29,154 +30,281 @@ function calcPoints(winnerStat, loserStat, roundDiffForWinner) {
 
 // ─── Матчи ────────────────────────────────────────────────────────────────────
 
-router.post("/match", requireAdmin, async (req, res) => {
-  const { seasonId, winnerId, loserId, winnerRoundDiff, map, score, tournamentId, playerStats } = req.body;
-  if (!seasonId || !winnerId || !loserId)
-    return res.status(400).json({ error: "Необходимо указать сезон, победителя и проигравшего" });
-  if (winnerId === loserId)
-    return res.status(400).json({ error: "Победитель и проигравший не могут совпадать" });
+// ─── Серии матчей (BO1/BO3/BO5) ────────────────────────────────────────────
+// Рейтинг сезона (TeamStat.wins/losses/pts) и личная стата wins/losses игрока
+// обновляются только когда СЕРИЯ завершается целиком (одна из команд набрала
+// нужное число выигранных карт), а не за каждую отдельную карту. Карта — это
+// один документ Match с личной статой K/D/A/HS по игрокам, она пишется сразу.
 
-  try {
-    const [winner, loser] = await Promise.all([
-      TeamStat.findById(winnerId),
-      TeamStat.findById(loserId),
-    ]);
-    if (!winner || !loser) return res.status(404).json({ error: "TeamStat не найден" });
-    if (winner.seasonId.toString() !== seasonId || loser.seasonId.toString() !== seasonId)
-      return res.status(400).json({ error: "Команды принадлежат разным сезонам" });
+// Начисляет очки/монеты и win/loss по итогам ЗАВЕРШЁННОЙ серии.
+async function finalizeSeries(series) {
+  const winnerIsA = series.winnerTeamId.toString() === series.teamAId.toString();
+  const winnerStatId = winnerIsA ? series.teamAStatId : series.teamBStatId;
+  const loserStatId  = winnerIsA ? series.teamBStatId : series.teamAStatId;
 
-    const rd = parseInt(winnerRoundDiff) || 0;
-    const { winPts, losePts, newWinStreak } = calcPoints(winner, loser, rd);
-
-    winner.pts         = Math.max(0, winner.pts + winPts);
-    winner.wins       += 1;
-    winner.matches    += 1;
-    winner.roundDiff  += rd;
-    winner.winStreak   = newWinStreak;
-    winner.isKingOfHill = newWinStreak >= 3;
-
-    loser.pts          = Math.max(0, loser.pts + losePts);
-    loser.losses      += 1;
-    loser.matches     += 1;
-    loser.roundDiff   -= rd;
-    loser.winStreak    = 0;
-    loser.isKingOfHill = false;
-
-    await Promise.all([winner.save(), loser.save()]);
-
-    // ── Лог матча + персональная K/D/A стата игроков ─────────────────────────
-    let matchDoc = null;
-    try {
-      const cleanPlayerStats = Array.isArray(playerStats)
-        ? playerStats
-            .filter(p => p && p.userId && p.teamId)
-            .map(p => ({
-              userId:  p.userId,
-              teamId:  p.teamId,
-              kills:   Math.max(0, parseInt(p.kills)   || 0),
-              deaths:  Math.max(0, parseInt(p.deaths)  || 0),
-              assists: Math.max(0, parseInt(p.assists) || 0),
-            }))
-        : [];
-
-      matchDoc = await Match.create({
-        seasonId,
-        tournamentId: tournamentId || null,
-        winnerTeamId: winner.teamId,
-        loserTeamId:  loser.teamId,
-        map:   (map   || "").trim(),
-        score: (score || "").trim(),
-        roundDiff: rd,
-        playerStats: cleanPlayerStats,
-      });
-
-      if (cleanPlayerStats.length) {
-        // Начисляем каждому игроку его личный k/d/a и win/loss за этот матч
-        await Promise.all(cleanPlayerStats.map(p => {
-          const isWinner = p.teamId.toString() === winner.teamId.toString();
-          return User.findByIdAndUpdate(p.userId, {
-            $inc: {
-              "stats.kills":   p.kills,
-              "stats.deaths":  p.deaths,
-              "stats.assists": p.assists,
-              "stats.wins":    isWinner ? 1 : 0,
-              "stats.losses":  isWinner ? 0 : 1,
-            },
-          });
-        }));
-
-        // Пересчитываем rating (K/D) по обновлённым суммарным цифрам
-        const affectedIds = cleanPlayerStats.map(p => p.userId);
-        const affectedUsers = await User.find({ _id: { $in: affectedIds } }).select("stats").lean();
-        await Promise.all(affectedUsers.map(u => {
-          const kd = u.stats.deaths > 0
-            ? +(u.stats.kills / u.stats.deaths).toFixed(2)
-            : u.stats.kills;
-          return User.findByIdAndUpdate(u._id, { $set: { "stats.rating": kd } });
-        }));
-      }
-    } catch (matchErr) {
-      console.error("Ошибка записи Match:", matchErr);
-    }
-
-   // ── Авто-начисление монет магазина ────────────────────────────────────────
-// Победитель: +15 в командный кошелёк, все участники: +5 лично (x2 при бусте)
-try {
-  await Promise.all([
-    Team.findByIdAndUpdate(winner.teamId, { $inc: { balance: 15 } }),
-    Team.findByIdAndUpdate(loser.teamId,  { $inc: { balance: 5  } }),
+  const [winner, loser] = await Promise.all([
+    TeamStat.findById(winnerStatId),
+    TeamStat.findById(loserStatId),
   ]);
+  if (!winner || !loser) return null;
 
-  const [winTeam, loseTeam] = await Promise.all([
-    Team.findById(winner.teamId).select("members subs captainId").lean(),
-    Team.findById(loser.teamId).select("members subs captainId").lean(),
-  ]);
-  const allPlayerIds = [
-    ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
-    ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
-  ].filter(Boolean).map(id => id.toString());
-  const uniqueIds = [...new Set(allPlayerIds)];
+  const seriesMatches = await Match.find({ seriesId: series._id })
+    .select("roundDiff winnerTeamId playerStats").lean();
 
-  if (uniqueIds.length) {
-    const boostItem = await ShopItem.findOne({ type: "boost", isConsumable: true }).select("_id").lean();
+  // Суммарная разница раундов по всем картам серии, в пользу победителя серии
+  const totalRd = seriesMatches.reduce((sum, m) => {
+    const mapWonBySeriesWinner = m.winnerTeamId.toString() === series.winnerTeamId.toString();
+    return sum + (mapWonBySeriesWinner ? m.roundDiff : -m.roundDiff);
+  }, 0);
 
-    let boostedIds = new Set();
-    if (boostItem) {
-      // Игроки, у которых есть неиспользованный буст
-      const usersWithBoost = await User.find({
-        _id: { $in: uniqueIds },
-        personalInventory: { $elemMatch: { itemId: boostItem._id, consumed: false } },
-      }).select("_id personalInventory").lean();
+  const { winPts, losePts, newWinStreak } = calcPoints(winner, loser, totalRd);
 
-      for (const u of usersWithBoost) {
-        const entry = u.personalInventory.find(
-          e => e.itemId?.toString() === boostItem._id.toString() && !e.consumed
-        );
-        if (!entry) continue;
-        boostedIds.add(u._id.toString());
-        await User.updateOne(
-          { _id: u._id, "personalInventory._id": entry._id },
-          {
-            $inc: { personalBalance: 10 }, // x2 вместо 5
-            $set: {
-              "personalInventory.$.consumed":   true,
-              "personalInventory.$.consumedAt": new Date(),
-            },
-          }
-        );
-      }
-    }
+  winner.pts          = Math.max(0, winner.pts + winPts);
+  winner.wins         += 1;
+  winner.matches       += 1;
+  winner.roundDiff     += totalRd;
+  winner.winStreak      = newWinStreak;
+  winner.isKingOfHill   = newWinStreak >= 3;
 
-    const normalIds = uniqueIds.filter(id => !boostedIds.has(id));
-    if (normalIds.length) {
-      await User.updateMany({ _id: { $in: normalIds } }, { $inc: { personalBalance: 5 } });
+  loser.pts          = Math.max(0, loser.pts + losePts);
+  loser.losses       += 1;
+  loser.matches       += 1;
+  loser.roundDiff     -= totalRd;
+  loser.winStreak      = 0;
+  loser.isKingOfHill   = false;
+
+  await Promise.all([winner.save(), loser.save()]);
+
+  // ── Личная стата wins/losses — по факту участия хотя бы в одной карте серии
+  const winnerUserIds = new Set();
+  const loserUserIds  = new Set();
+  for (const m of seriesMatches) {
+    for (const p of (m.playerStats || [])) {
+      const onWinnerSide = p.teamId.toString() === series.winnerTeamId.toString();
+      (onWinnerSide ? winnerUserIds : loserUserIds).add(p.userId.toString());
     }
   }
-} catch (balanceErr) {
-  console.error("Ошибка авто-начисления монет:", balanceErr);
+  await Promise.all([
+    ...[...winnerUserIds].map(id => User.findByIdAndUpdate(id, { $inc: { "stats.wins":   1 } })),
+    ...[...loserUserIds].map(id  => User.findByIdAndUpdate(id, { $inc: { "stats.losses": 1 } })),
+  ]);
+
+  // ── Авто-начисление монет магазина (один раз за серию, не за карту) ──────
+  // Победитель: +15 в командный кошелёк, все участники: +5 лично (x2 при бусте)
+  try {
+    await Promise.all([
+      Team.findByIdAndUpdate(series.winnerTeamId, { $inc: { balance: 15 } }),
+      Team.findByIdAndUpdate(series.loserTeamId,  { $inc: { balance: 5  } }),
+    ]);
+
+    const [winTeam, loseTeam] = await Promise.all([
+      Team.findById(series.winnerTeamId).select("members subs captainId").lean(),
+      Team.findById(series.loserTeamId).select("members subs captainId").lean(),
+    ]);
+    const allPlayerIds = [
+      ...(winTeam  ? [...(winTeam.members  || []), ...(winTeam.subs  || []), winTeam.captainId]  : []),
+      ...(loseTeam ? [...(loseTeam.members || []), ...(loseTeam.subs || []), loseTeam.captainId] : []),
+    ].filter(Boolean).map(id => id.toString());
+    const uniqueIds = [...new Set(allPlayerIds)];
+
+    if (uniqueIds.length) {
+      const boostItem = await ShopItem.findOne({ type: "boost", isConsumable: true }).select("_id").lean();
+
+      let boostedIds = new Set();
+      if (boostItem) {
+        const usersWithBoost = await User.find({
+          _id: { $in: uniqueIds },
+          personalInventory: { $elemMatch: { itemId: boostItem._id, consumed: false } },
+        }).select("_id personalInventory").lean();
+
+        for (const u of usersWithBoost) {
+          const entry = u.personalInventory.find(
+            e => e.itemId?.toString() === boostItem._id.toString() && !e.consumed
+          );
+          if (!entry) continue;
+          boostedIds.add(u._id.toString());
+          await User.updateOne(
+            { _id: u._id, "personalInventory._id": entry._id },
+            {
+              $inc: { personalBalance: 10 }, // x2 вместо 5
+              $set: {
+                "personalInventory.$.consumed":   true,
+                "personalInventory.$.consumedAt": new Date(),
+              },
+            }
+          );
+        }
+      }
+
+      const normalIds = uniqueIds.filter(id => !boostedIds.has(id));
+      if (normalIds.length) {
+        await User.updateMany({ _id: { $in: normalIds } }, { $inc: { personalBalance: 5 } });
+      }
+    }
+  } catch (balanceErr) {
+    console.error("Ошибка авто-начисления монет:", balanceErr);
+  }
+
+  // Пересчитываем rating (K/D) по всем затронутым игрокам серии
+  try {
+    const affectedIds = [...new Set([...winnerUserIds, ...loserUserIds])];
+    if (affectedIds.length) {
+      const affectedUsers = await User.find({ _id: { $in: affectedIds } }).select("stats").lean();
+      await Promise.all(affectedUsers.map(u => {
+        const kd = u.stats.deaths > 0
+          ? +(u.stats.kills / u.stats.deaths).toFixed(2)
+          : u.stats.kills;
+        return User.findByIdAndUpdate(u._id, { $set: { "stats.rating": kd } });
+      }));
+    }
+  } catch (ratingErr) {
+    console.error("Ошибка пересчёта rating:", ratingErr);
+  }
+
+  return { winner, loser };
 }
 
-    res.json({ ok: true, winner, loser, matchId: matchDoc?._id || null });
+// ─── Серии ──────────────────────────────────────────────────────────────────
+
+// POST /api/admin/series — создать новую серию (BO1/BO3/BO5) между двумя командами
+router.post("/series", requireAdmin, async (req, res) => {
+  try {
+    const { seasonId, teamAStatId, teamBStatId, format, tournamentId } = req.body;
+    if (!seasonId || !teamAStatId || !teamBStatId)
+      return res.status(400).json({ error: "Укажите сезон и обе команды" });
+    if (teamAStatId === teamBStatId)
+      return res.status(400).json({ error: "Команды не могут совпадать" });
+
+    const [a, b] = await Promise.all([
+      TeamStat.findById(teamAStatId).lean(),
+      TeamStat.findById(teamBStatId).lean(),
+    ]);
+    if (!a || !b) return res.status(404).json({ error: "TeamStat не найден" });
+    if (a.seasonId.toString() !== seasonId || b.seasonId.toString() !== seasonId)
+      return res.status(400).json({ error: "Команды принадлежат разным сезонам" });
+
+    const series = await Series.create({
+      seasonId,
+      tournamentId: tournamentId || null,
+      format: ["bo1", "bo3", "bo5"].includes(format) ? format : "bo1",
+      teamAStatId, teamBStatId,
+      teamAId: a.teamId, teamBId: b.teamId,
+    });
+
+    const populated = await Series.findById(series._id)
+      .populate("teamAId", "name tag logo")
+      .populate("teamBId", "name tag logo")
+      .lean();
+    res.json(populated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/admin/series/active?seasonId=... — незавершённые серии текущего сезона
+router.get("/series/active", requireAdmin, async (req, res) => {
+  try {
+    const filter = { status: "in_progress" };
+    if (req.query.seasonId) filter.seasonId = req.query.seasonId;
+    const series = await Series.find(filter)
+      .populate("teamAId", "name tag logo")
+      .populate("teamBId", "name tag logo")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(series);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/admin/series/:id — состояние одной серии + сыгранные карты
+router.get("/series/:id", requireAdmin, async (req, res) => {
+  try {
+    const series = await Series.findById(req.params.id)
+      .populate("teamAId", "name tag logo members subs")
+      .populate("teamBId", "name tag logo members subs")
+      .lean();
+    if (!series) return res.status(404).json({ error: "Серия не найдена" });
+    const matches = await Match.find({ seriesId: series._id })
+      .sort({ playedAt: 1 })
+      .populate("winnerTeamId", "name tag")
+      .lean();
+    res.json({ series, matches });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// POST /api/admin/series/:id/map — записать результат одной карты внутри серии
+router.post("/series/:id/map", requireAdmin, async (req, res) => {
+  try {
+    const series = await Series.findById(req.params.id);
+    if (!series) return res.status(404).json({ error: "Серия не найдена" });
+    if (series.status !== "in_progress")
+      return res.status(400).json({ error: "Серия уже завершена" });
+
+    const { winnerSide, map, score, roundDiff, playerStats } = req.body;
+    if (!["A", "B"].includes(winnerSide))
+      return res.status(400).json({ error: "winnerSide должен быть 'A' или 'B'" });
+
+    const winnerTeamId = winnerSide === "A" ? series.teamAId : series.teamBId;
+    const loserTeamId  = winnerSide === "A" ? series.teamBId : series.teamAId;
+    const rd = Math.max(0, parseInt(roundDiff) || 0);
+
+    const cleanPlayerStats = Array.isArray(playerStats)
+      ? playerStats
+          .filter(p => p && p.userId && p.teamId)
+          .map(p => ({
+            userId:    p.userId,
+            teamId:    p.teamId,
+            kills:     Math.max(0, parseInt(p.kills)     || 0),
+            deaths:    Math.max(0, parseInt(p.deaths)    || 0),
+            assists:   Math.max(0, parseInt(p.assists)   || 0),
+            headshots: Math.max(0, parseInt(p.headshots) || 0),
+          }))
+      : [];
+
+    const matchDoc = await Match.create({
+      seasonId:     series.seasonId,
+      tournamentId: series.tournamentId,
+      seriesId:     series._id,
+      winnerTeamId, loserTeamId,
+      map:   (map   || "").trim(),
+      score: (score || "").trim(),
+      roundDiff: rd,
+      playerStats: cleanPlayerStats,
+    });
+
+    // Личная K/D/A/HS стата пишется сразу за каждую карту (win/loss — по итогу серии)
+    if (cleanPlayerStats.length) {
+      await Promise.all(cleanPlayerStats.map(p => User.findByIdAndUpdate(p.userId, {
+        $inc: {
+          "stats.kills":     p.kills,
+          "stats.deaths":    p.deaths,
+          "stats.assists":   p.assists,
+          "stats.headshots": p.headshots,
+        },
+      })));
+    }
+
+    if (winnerSide === "A") series.mapsWonA += 1; else series.mapsWonB += 1;
+
+    const needToWin = series.format === "bo1" ? 1 : series.format === "bo3" ? 2 : 3;
+    let seriesFinished = false;
+    if (series.mapsWonA >= needToWin || series.mapsWonB >= needToWin) {
+      series.status       = "finished";
+      series.winnerTeamId = series.mapsWonA > series.mapsWonB ? series.teamAId : series.teamBId;
+      series.loserTeamId  = series.mapsWonA > series.mapsWonB ? series.teamBId : series.teamAId;
+      series.finishedAt   = new Date();
+      seriesFinished = true;
+    }
+    await series.save();
+
+    let rating = null;
+    if (seriesFinished) rating = await finalizeSeries(series);
+
+    res.json({ ok: true, matchId: matchDoc._id, series, seriesFinished, rating });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

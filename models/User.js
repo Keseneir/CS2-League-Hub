@@ -71,12 +71,13 @@ const userSchema = new mongoose.Schema(
 
     //стата
     stats: {
-      kills:   { type: Number, default: 0 },
-      deaths:  { type: Number, default: 0 },
-      assists: { type: Number, default: 0 },
-      wins:    { type: Number, default: 0 },
-      losses:  { type: Number, default: 0 },
-      rating:  { type: Number, default: 0 },
+      kills:      { type: Number, default: 0 },
+      deaths:     { type: Number, default: 0 },
+      assists:    { type: Number, default: 0 },
+      headshots:  { type: Number, default: 0 },
+      wins:       { type: Number, default: 0 },
+      losses:     { type: Number, default: 0 },
+      rating:     { type: Number, default: 0 },
     },
 
     rank: {

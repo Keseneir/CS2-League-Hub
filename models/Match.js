@@ -4,6 +4,9 @@ const matchSchema = new mongoose.Schema(
   {
     seasonId:     { type: mongoose.Schema.Types.ObjectId, ref: "Season",     required: true },
     tournamentId: { type: mongoose.Schema.Types.ObjectId, ref: "Tournament", default: null },
+    // Серия (BO1/BO3/BO5), в рамках которой сыграна эта карта.
+    // null — для матчей, записанных до введения серий (старый формат).
+    seriesId:     { type: mongoose.Schema.Types.ObjectId, ref: "Series",     default: null },
 
     winnerTeamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
     loserTeamId:  { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
@@ -17,11 +20,12 @@ const matchSchema = new mongoose.Schema(
     // ── Личная стата по игрокам (опционально, вводится админом) ────────────
     playerStats: [
       {
-        userId:  { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-        teamId:  { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true }, // за какую команду играл в этом матче
-        kills:   { type: Number, default: 0, min: 0 },
-        deaths:  { type: Number, default: 0, min: 0 },
-        assists: { type: Number, default: 0, min: 0 },
+        userId:     { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        teamId:     { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true }, // за какую команду играл в этом матче
+        kills:      { type: Number, default: 0, min: 0 },
+        deaths:     { type: Number, default: 0, min: 0 },
+        assists:    { type: Number, default: 0, min: 0 },
+        headshots:  { type: Number, default: 0, min: 0 }, // сколько из kills — в голову (для HS%)
       },
     ],
   },
@@ -31,5 +35,6 @@ const matchSchema = new mongoose.Schema(
 matchSchema.index({ winnerTeamId: 1, playedAt: -1 });
 matchSchema.index({ loserTeamId: 1, playedAt: -1 });
 matchSchema.index({ "playerStats.userId": 1, playedAt: -1 });
+matchSchema.index({ seriesId: 1 });
 
 module.exports = mongoose.models.Match || mongoose.model("Match", matchSchema);

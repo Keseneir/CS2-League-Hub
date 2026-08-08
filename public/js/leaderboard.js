@@ -10,6 +10,19 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // ── Цветной плейсхолдер вместо лого (хэш названия → стабильный оттенок) ──
+  function teamColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 55%, 42%)`;
+  }
+  function teamInitialsHtml(tag, name, fontSize) {
+    const label = (tag || name || "?").replace(/[^a-zA-Zа-яА-Я0-9]/g, "").slice(0, 2).toUpperCase() || "?";
+    const bg    = teamColor(tag || name || "?");
+    return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${bg};color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:${fontSize || 12}px;">${label}</div>`;
+  }
+
   const tableContainer = $("tableContainer");
   const teamSearch     = $("teamSearch");
   const seasonSelect   = $("seasonSelect");
@@ -183,10 +196,10 @@
         const img = document.createElement("img");
         img.src = row.logo;
         img.style.cssText = "width:32px;height:32px;object-fit:cover;display:block;";
-        img.onerror = () => { logoEl.innerHTML = iconSvg("shield"); };
+        img.onerror = () => { logoEl.innerHTML = teamInitialsHtml(row.tag, row.team, 12); };
         logoEl.appendChild(img);
       } else {
-        logoEl.innerHTML = iconSvg("shield");
+        logoEl.innerHTML = teamInitialsHtml(row.tag, row.team, 12);
       }
 
       const nameWrap = document.createElement("div");
@@ -305,9 +318,16 @@
 
     if (lbTeamName) lbTeamName.textContent = name;
     if (lbAvatar) {
-      lbAvatar.innerHTML = logo
-        ? `<img src="${x(logo)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`
-        : iconSvg("shield");
+      if (logo) {
+        lbAvatar.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = logo;
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:8px;";
+        img.onerror = () => { lbAvatar.innerHTML = teamInitialsHtml(tag, name, 18); };
+        lbAvatar.appendChild(img);
+      } else {
+        lbAvatar.innerHTML = teamInitialsHtml(tag, name, 18);
+      }
     }
     if (lbTelegram) {
       lbTelegram.style.display = telegram ? "" : "none";

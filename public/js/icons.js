@@ -60,6 +60,8 @@ const ICONS = {
   rocket:        '<path d="M12 2c3 1 6 4 6 9 0 3-1 5-2 6H8c-1-1-2-3-2-6 0-5 3-8 6-9Z"/><circle cx="12" cy="9" r="1.8"/><path d="M9 17l-2 4 3-1.5M15 17l2 4-3-1.5"/>',
   scale:         '<path d="M12 3v18M7 21h10M5 7h14"/><path d="M5 7l-3 6a3 3 0 0 0 6 0L5 7Z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0l-3-6Z"/>',
   search:        '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>',
+  coinL:         '<circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="10" fill="currentColor" stroke="none">L</text>',
+  coinH:         '<circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="10" fill="currentColor" stroke="none">H</text>',
 };
 
 // Возвращает <svg> целиком с классом .icon — для использования в JS-шаблонах

@@ -441,6 +441,12 @@
             </div>
         </div>
 
+        <!-- ── Последние матчи ── -->
+        <div id="matchesSection" class="recent-matches-block" style="display:none;margin-bottom:32px;">
+            <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+            <div id="matchesListWrap" class="matches-table-wrap"></div>
+        </div>
+
         <!-- ── Редактирование (только капитан / менеджер) ── -->
         <div id="editSection" style="display:none;margin-bottom:32px;">
             <div class="section-label">✏️ Управление командой</div>
@@ -627,6 +633,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             renderHero(_team);
             renderRosters(_team);
             renderStats(_team);
+            renderMatches(_team);
             if (_team.equippedCosmetics?.teamBg) applyTeamCosmetic(_team.equippedCosmetics.teamBg);
             initShareUrl(_team.tag);
             // Публичный просмотр: нет кошелька, нет редактора
@@ -669,6 +676,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderHero(_team);
     renderRosters(_team);
     renderStats(_team);
+    renderMatches(_team);
     renderWallet(_team, canEdit);
 
     // Применяем надетый косметический фон команды
@@ -832,6 +840,39 @@ async function renderStats(team) {
             document.getElementById("sPts").textContent    = row.pts;
             document.getElementById("sWR").textContent     = row.wr + "%";
         }
+    } catch {}
+}
+
+// ─── Последние матчи ─────────────────────────────────────────────────────
+function escHtmlTeam(str) {
+    return String(str || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+async function renderMatches(team) {
+    const section = document.getElementById("matchesSection");
+    const wrap    = document.getElementById("matchesListWrap");
+    if (!section || !wrap || !team?._id) return;
+
+    try {
+        const res = await fetch(`/api/teams/${team._id}/matches?limit=8`);
+        if (!res.ok) return;
+        const matches = await res.json();
+        if (!matches.length) return;
+
+        section.style.display = "block";
+        wrap.innerHTML = matches.map(m => {
+            const dateStr = m.playedAt
+                ? new Date(m.playedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })
+                : "";
+            return `
+                <div class="match-row-item">
+                    <span class="match-result-badge ${m.result === "win" ? "win" : "loss"}">${m.result === "win" ? "WIN" : "LOSS"}</span>
+                    <span class="match-map">${m.map ? escHtmlTeam(m.map) : "—"}</span>
+                    <span class="match-opponent">vs ${m.opponentTeam ? `[${escHtmlTeam(m.opponentTeam.tag)}] ${escHtmlTeam(m.opponentTeam.name)}` : "—"}</span>
+                    <span class="match-score">${m.score ? escHtmlTeam(m.score) : "—"}</span>
+                    <span class="match-date">${dateStr}</span>
+                </div>`;
+        }).join("");
     } catch {}
 }
 

@@ -3,6 +3,7 @@ const router          = express.Router();
 const mongoose        = require("mongoose");
 const User            = require("../models/User");
 const Team            = require("../models/Team");
+const Match           = require("../models/Match");
 const Application     = require("../models/Application");
 const { requireAuth } = require("../middleware/auth");
 
@@ -448,6 +449,56 @@ router.get("/teams/:teamId/public", async (req, res) => {
       equippedCosmetics: team.equippedCosmetics || {},
     });
   } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// GET /api/teams/:teamId/matches — последние матчи команды
+// Если капитан скрыл историю (privacySettings.showHistory === false),
+// чужим она не видна, но участникам своей команды — видна всегда.
+router.get("/teams/:teamId/matches", async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId)
+      .select("privacySettings members subs captainId").lean();
+    if (!team) return res.status(404).json({ error: "Команда не найдена" });
+
+    const isMember = req.isAuthenticated() && [
+      team.captainId?.toString(),
+      ...(team.members || []).map(id => id.toString()),
+      ...(team.subs    || []).map(id => id.toString()),
+    ].includes(req.user._id.toString());
+
+    if (team.privacySettings?.showHistory === false && !isMember) {
+      return res.json([]);
+    }
+
+    const limit = Math.min(parseInt(req.query.limit) || 10, 30);
+    const matches = await Match.find({
+      $or: [{ winnerTeamId: req.params.teamId }, { loserTeamId: req.params.teamId }],
+    })
+      .sort({ playedAt: -1 })
+      .limit(limit)
+      .populate("winnerTeamId", "name tag logo")
+      .populate("loserTeamId",  "name tag logo")
+      .lean();
+
+    const teamIdStr = req.params.teamId;
+    const result = matches.map(m => {
+      const won = m.winnerTeamId?._id?.toString() === teamIdStr;
+      const opp = won ? m.loserTeamId : m.winnerTeamId;
+      return {
+        matchId:      m._id,
+        playedAt:     m.playedAt,
+        map:          m.map   || "",
+        score:        m.score || "",
+        result:       won ? "win" : "loss",
+        opponentTeam: opp ? { name: opp.name, tag: opp.tag, logo: opp.logo } : null,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

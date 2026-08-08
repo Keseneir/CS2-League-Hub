@@ -53,6 +53,9 @@ const ICONS = {
   map:           '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
   party:         '<path d="M3 21 7 10c3 0 6 1.5 8 3.5L3 21Z"/><circle cx="10" cy="8" r="1"/><circle cx="14" cy="5" r="1"/><path d="M16 3l1.3 1.3M19.5 5.5l1.3 1.3M18 9l1.3 1.3"/>',
   info:          '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  zap:           '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  megaphone:     '<path d="M3 11v2a2 2 0 0 0 2 2h1l3 6 2-1-2.5-5H11l8 4V6l-8 4H5a2 2 0 0 0-2 2Z"/><path d="M18 8a4 4 0 0 1 0 8"/>',
+  mail:          '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/>',
 };
 
 // Возвращает <svg> целиком с классом .icon — для использования в JS-шаблонах

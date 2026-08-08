@@ -328,7 +328,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             friendBtnWrap.style.display = "block";
             const isFriend = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
             if (isFriend) {
-                friendBtn.textContent = "✓ Уже в друзьях";
+                friendBtn.innerHTML = iconSvg("checkCircle") + " Уже в друзьях";
                 friendBtn.style.background  = "rgba(76,175,130,0.12)";
                 friendBtn.style.borderColor = "rgba(76,175,130,0.35)";
                 friendBtn.style.color       = "#4caf82";
@@ -346,7 +346,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         const hoursBadge = document.getElementById("pubHoursBadge");
         if (hoursBadge && data.hoursInCS2 !== null && data.hoursInCS2 !== undefined) {
-            hoursBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">⏱ ${data.hoursInCS2} ч. в CS2</span>`;
+            hoursBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${iconSvg("clock")} ${data.hoursInCS2} ч. в CS2</span>`;
             hoursBadge.style.display = "block";
         }
 
@@ -430,7 +430,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 return;
             }
             if (d.autoAccepted) {
-                if (btn) { btn.textContent = "✓ Уже в друзьях"; btn.style.color = "#4caf82"; btn.style.borderColor = "rgba(76,175,130,0.35)"; }
+                if (btn) { btn.innerHTML = iconSvg("checkCircle") + " Уже в друзьях"; btn.style.color = "#4caf82"; btn.style.borderColor = "rgba(76,175,130,0.35)"; }
             } else {
                 if (btn) { btn.textContent = "Заявка отправлена"; btn.style.color = "#e6b022"; btn.style.borderColor = "rgba(230,176,34,0.35)"; }
             }
@@ -741,9 +741,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             "profile_bg":   "profileBg",
         };
         const cosmeticLabels = {
-            "avatar_frame": "🖼 Рамка аватара",
-            "profile_bg":   "🎨 Фон профиля",
-            "team_bg":      "🏟 Фон команды",
+            "avatar_frame": iconSvg("image") + " Рамка аватара",
+            "profile_bg":   iconSvg("palette") + " Фон профиля",
+            "team_bg":      iconSvg("shield") + " Фон команды",
         };
 
         personal.forEach(({ itemId, consumed }) => {
@@ -753,12 +753,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 const card = document.createElement("div");
                 card.className = "cosmetic-inv-card" + (consumed ? " is-equipped" : "");
                 card.innerHTML = `
-                    <div class="cic-icon">${itemId.icon || "💰"}</div>
+                    <div class="cic-icon">${itemId.icon || iconSvg("coins")}</div>
                     <div class="cic-meta">
                         <div class="cic-name">${itemId.name}</div>
                         <div class="cic-type">${consumed
-                            ? "✅ Использован"
-                            : "⚡ Активен — сработает в следующем матче"}</div>
+                            ? iconSvg("checkCircle") + " Использован"
+                            : iconSvg("zap") + " Активен — сработает в следующем матче"}</div>
                     </div>
                     <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;
                          border:none;font-size:11px;color:var(--text-gray);">
@@ -774,10 +774,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 const card = document.createElement("div");
                 card.className = "cosmetic-inv-card";
                 card.innerHTML = `
-                    <div class="cic-icon">${itemId.icon || "🎁"}</div>
+                    <div class="cic-icon">${itemId.icon || iconSvg("gift")}</div>
                     <div class="cic-meta">
                         <div class="cic-name">${itemId.name}</div>
-                        <div class="cic-type">🏟 Командный предмет</div>
+                        <div class="cic-type">${iconSvg("shield")} Командный предмет</div>
                     </div>
                     <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;
                          border:none;font-size:11px;color:var(--text-gray);">Команда</div>
@@ -796,7 +796,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 (equippedItem._id || equippedItem).toString() === (itemId._id || itemId).toString();
 
             const typeLabel = cosmeticLabels[itemId.cosmeticType] || itemId.cosmeticType || "Предмет";
-            const icon      = itemId.icon || (itemId.cosmeticType === "avatar_frame" ? "🖼️" : "🎨");
+            const icon      = itemId.icon || (itemId.cosmeticType === "avatar_frame" ? iconSvg("image") : iconSvg("palette"));
 
             const card = document.createElement("div");
             card.className = "cosmetic-inv-card" + (isEquipped ? " is-equipped" : "");
@@ -926,7 +926,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const btn      = document.getElementById("syncSteamBtn");
         const statusEl = document.getElementById("syncSteamStatus");
         const hoursEl  = document.getElementById("statHours");
-        if (btn) { btn.disabled = true; btn.textContent = "⏳ Загружаем..."; }
+        if (btn) { btn.disabled = true; btn.innerHTML = iconSvg("clock") + " Загружаем..."; }
         if (statusEl) { statusEl.style.display = "none"; }
         try {
             const res  = await fetch("/api/profile/sync-steam-hours", { method: "POST" });
@@ -940,7 +940,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             } else {
                 if (hoursEl) hoursEl.value = data.hoursInCS2;
                 if (statusEl) {
-                    statusEl.textContent   = `✓ Получено ${data.hoursInCS2} ч. из Steam`;
+                    statusEl.innerHTML     = iconSvg("check") + ` Получено ${data.hoursInCS2} ч. из Steam`;
                     statusEl.style.color   = "#4caf82";
                     statusEl.style.display = "block";
                 }
@@ -954,7 +954,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 statusEl.style.display = "block";
             }
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = "🔄 Синхронизировать со Steam"; }
+            if (btn) { btn.disabled = false; btn.innerHTML = iconSvg("refresh") + " Синхронизировать со Steam"; }
         }
     };
 
@@ -1048,7 +1048,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             : "";
         return `<div class="member-row" ${clickAttr}>
             ${avatarEl(m.avatar, m.displayName, "member-avatar")}
-            <span class="member-name">${m.displayName || "Игрок"}${isCap ? '<span class="captain-crown" title="Капитан">👑</span>' : ""}</span>
+            <span class="member-name">${m.displayName || "Игрок"}${isCap ? `<span class="captain-crown" title="Капитан">${iconSvg("crown")}</span>` : ""}</span>
             ${(myCap && !isMe) ? '<span style="font-size:11px;color:var(--gray2);margin-left:auto;padding-right:4px;">⋯</span>' : ""}
         </div>`;
     }
@@ -1066,21 +1066,21 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         if (notices.length > 0) {
             html += `<div class="notif-block">
-                <div class="notif-block-title">📢 Сообщения от администрации</div>
+                <div class="notif-block-title">${iconSvg("megaphone")} Сообщения от администрации</div>
                 ${notices.map((n, idx) => `<div class="friend-row">
-                    <div style="font-size:24px;flex-shrink:0;">📣</div>
+                    <div style="font-size:24px;flex-shrink:0;">${iconSvg("megaphone")}</div>
                     <div class="friend-info">
                         <div class="friend-name">${n.message}</div>
                         <div class="friend-sub">${n.teamName ? "Команда: " + n.teamName : ""}</div>
                     </div>
-                    <button class="btn-fr btn-fr-reject" onclick="dismissNotice(${idx})">✕</button>
+                    <button class="btn-fr btn-fr-reject" onclick="dismissNotice(${idx})">${iconSvg("x")}</button>
                 </div>`).join("")}
             </div>`;
         }
 
         if (apps.length > 0) {
             html += `<div class="notif-block">
-                <div class="notif-block-title">📋 Статус заявки на участие</div>
+                <div class="notif-block-title">${iconSvg("clipboard")} Статус заявки на участие</div>
                 ${apps.map(a => `<div class="friend-row">
                     <div style="font-size:24px;flex-shrink:0;">${appStatusIcon(a.status)}</div>
                     <div class="friend-info">
@@ -1093,19 +1093,19 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
         if (requests.length > 0) {
             html += `<div class="notif-block">
-                <div class="notif-block-title">📩 Заявки в друзья</div>
+                <div class="notif-block-title">${iconSvg("mail")} Заявки в друзья</div>
                 ${requests.map(r => renderFriendRequestRow(r)).join("")}
             </div>`;
         }
 
         if (invites.length > 0) {
             html += `<div class="notif-block">
-                <div class="notif-block-title">⚔️ Приглашения в команду</div>
+                <div class="notif-block-title">${iconSvg("swords")} Приглашения в команду</div>
                 ${invites.map(inv => renderTeamInviteRow(inv)).join("")}
             </div>`;
         }
 
-        if (!html) html = `<div class="notif-empty">🔔 Уведомлений нет</div>`;
+        if (!html) html = `<div class="notif-empty">${iconSvg("bell")} Уведомлений нет</div>`;
         el.innerHTML = html;
     }
 
@@ -1121,8 +1121,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 <div class="friend-sub">Роль: ${role} · от ${from?.displayName || "?"}</div>
             </div>
             <div class="friend-actions">
-                <button class="btn-fr btn-fr-accept" onclick="acceptTeamInvite('${team._id}')">✓ Принять</button>
-                <button class="btn-fr btn-fr-reject" onclick="rejectTeamInvite('${team._id}')">✕ Отказ</button>
+                <button class="btn-fr btn-fr-accept" onclick="acceptTeamInvite('${team._id}')">${iconSvg("check")} Принять</button>
+                <button class="btn-fr btn-fr-reject" onclick="rejectTeamInvite('${team._id}')">${iconSvg("x")} Отказ</button>
             </div>
         </div>`;
     }
@@ -1170,9 +1170,9 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
 
     function renderSearchResult(u) {
         let btn = "";
-        if (u.isFriend)            btn = `<span class="btn-fr btn-fr-pending">✓ Друг</span>`;
+        if (u.isFriend)            btn = `<span class="btn-fr btn-fr-pending">${iconSvg("check")} Друг</span>`;
         else if (u.iRequestedThem) btn = `<span class="btn-fr btn-fr-pending">Отправлено</span>`;
-        else if (u.requestedMe)    btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">✓ Принять</button>`;
+        else if (u.requestedMe)    btn = `<button class="btn-fr btn-fr-accept" onclick="acceptFriend('${u._id}')">${iconSvg("check")} Принять</button>`;
         else                       btn = `<button class="btn-fr btn-fr-add" onclick="addFriend('${u._id}', this)">+ Добавить</button>`;
 
         return `<div class="friend-row">
@@ -1182,7 +1182,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 <div class="friend-sub">Steam ID: ${u.steamId}</div>
             </div>
             <div class="friend-actions">
-                <a href="/profile.html?id=${u.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">👤 Профиль</a>
+                <a href="/profile.html?id=${u.steamId}" class="btn-fr btn-fr-pending" style="text-decoration:none;" target="_blank">${iconSvg("user")} Профиль</a>
                 ${btn}
             </div>
         </div>`;
@@ -1363,11 +1363,11 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (_preview) {
             const _existingLogo = _profileData.team.logo || "";
             if (_existingLogo) {
-                _preview.innerHTML = `<img src="${_existingLogo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='🛡️'">`;
+                _preview.innerHTML = `<img src="${_existingLogo}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`;
                 if (_fileName) _fileName.textContent = "Текущий логотип загружен";
                 if (document.getElementById("tsLogoDeleteBtn")) document.getElementById("tsLogoDeleteBtn").style.display = "";
             } else {
-                _preview.innerHTML = "🛡️";
+                _preview.innerHTML = iconSvg("shield");
                 if (_fileName) _fileName.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
             }
         }
@@ -1502,7 +1502,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const delBtn     = document.getElementById("ctLogoDeleteBtn");
         if (hiddenUrl) hiddenUrl.value  = "";
         if (fileInput) fileInput.value  = "";
-        if (preview)   preview.innerHTML = "🛡️";
+        if (preview)   preview.innerHTML = iconSvg("shield");
         if (fileNameEl) fileNameEl.textContent = "Файл не выбран · до 2 МБ · JPG/PNG/GIF/WEBP";
         if (errorEl)   errorEl.style.display   = "none";
         if (delBtn)    delBtn.style.display     = "none";
@@ -1551,7 +1551,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         try {
             const res = await fetch("/api/team", { method: "DELETE" });
             const d   = await res.json();
-            if (!res.ok) { showToast(d.error || "Ошибка", "err"); if (btn) { btn.disabled = false; btn.textContent = "💀 Распустить"; } return; }
+            if (!res.ok) { showToast(d.error || "Ошибка", "err"); if (btn) { btn.disabled = false; btn.innerHTML = iconSvg("skull") + " Распустить"; } return; }
             closeModal("confirmDeleteModal");
             showToast("Команда распущена", "ok");
             await refreshProfile();

@@ -199,7 +199,7 @@
 
     <div class="tournaments-section" id="tournamentsSectionWrapper" style="display:none;">
         <div class="tournaments-section-title">
-            🏆 Активные турниры
+            <i class="icon" data-icon="trophy" aria-hidden="true"></i> Активные турниры
             <a href="archive.html" style="margin-left:16px;">Архив →</a>
             <a href="join.html">Все турниры →</a>
         </div>
@@ -238,6 +238,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js" defer></script>
 <script src="js/common.js" defer></script>
 <script src="js/index.js" defer></script>
 <script>
@@ -270,11 +271,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <div class="tn-badge ${statusClass}">${statusLabel}</div>
                 </div>
                 ${t.description ? `<div class="tn-desc">${escHtmlIdx(t.description)}</div>` : ""}
-                ${t.prize ? `<div class="tn-prize">🏆 ${escHtmlIdx(t.prize)}</div>` : ""}
+                ${t.prize ? `<div class="tn-prize">${iconSvg("trophy")} ${escHtmlIdx(t.prize)}</div>` : ""}
                 <div class="tn-meta">
-                    <span>📅 <strong>${dateStr}</strong></span>
+                    <span>${iconSvg("calendar")} <strong>${dateStr}</strong></span>
                     ${countdownHtmlIdx(t.startDate)}
-                    <span>👥 Заявок: <strong>${t.teamsCount}/${t.maxTeams}</strong></span>
+                    <span>${iconSvg("users")} Заявок: <strong>${t.teamsCount}/${t.maxTeams}</strong></span>
                 </div>
                 <div class="tn-card-footer">
                     <a href="join.html" class="tn-register-btn">
@@ -312,7 +313,7 @@ function countdownHtmlIdx(startDate) {
     if (!startDate) return "";
     const txt = formatCountdownIdx(startDate);
     if (!txt) return "";
-    return `<span class="countdown-item" data-start="${startDate}">⏳ Старт через <strong class="cd-text" style="font-variant-numeric:tabular-nums;">${txt}</strong></span>`;
+    return `<span class="countdown-item" data-start="${startDate}">${iconSvg("clock")} Старт через <strong class="cd-text" style="font-variant-numeric:tabular-nums;">${txt}</strong></span>`;
 }
 
 setInterval(() => {

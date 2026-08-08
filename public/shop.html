@@ -255,7 +255,7 @@
 <!-- Hero -->
 <section class="shop-hero">
     <div style="position:relative;z-index:1;">
-        <div class="hero-eyebrow" style="margin-bottom:16px;">🛒 Магазин лиги</div>
+        <div class="hero-eyebrow" style="margin-bottom:16px;"><i class="icon" data-icon="cart" aria-hidden="true"></i> Магазин лиги</div>
         <h1 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:36px;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">
             League <span style="color:var(--accent);">Store</span>
         </h1>
@@ -265,7 +265,7 @@
 
 <!-- Нет авторизации -->
 <div id="authGate" style="display:none;text-align:center;padding:100px 20px;">
-    <div style="font-size:56px;margin-bottom:20px;">🔒</div>
+    <div class="icon" data-icon="lock" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
     <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
     <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam чтобы открыть магазин</p>
     <a href="/auth/steam?redirect=/shop.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;">
@@ -287,14 +287,14 @@
         <!-- Балансы -->
         <div class="balances-row" id="balancesRow">
             <div class="balance-card accent">
-                <div class="balance-icon">🪙</div>
+                <div class="balance-icon icon" data-icon="coins" aria-hidden="true"></div>
                 <div>
                     <div class="balance-val" id="personalBalVal">0</div>
                     <div class="balance-label">Личный баланс</div>
                 </div>
             </div>
             <div class="balance-card" id="teamBalCard" style="display:none;">
-                <div class="balance-icon">🛡️</div>
+                <div class="balance-icon icon" data-icon="shield" aria-hidden="true"></div>
                 <div>
                     <div class="balance-val" id="teamBalVal">0</div>
                     <div class="balance-label" id="teamBalLabel">Командный кошелёк</div>
@@ -305,7 +305,7 @@
 
         <!-- Откуда монеты -->
         <div style="background:rgba(230,176,34,0.05);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:14px 18px;margin-bottom:28px;font-size:13px;color:var(--text-gray);line-height:1.6;">
-            💡 <strong style="color:var(--accent);">Как получить монеты:</strong>
+            <i class="icon" data-icon="bulb" aria-hidden="true"></i> <strong style="color:var(--accent);">Как получить монеты:</strong>
             участие в матче <strong style="color:#fff;">+5 лично</strong> ·
             победа команды <strong style="color:#fff;">+15 в командный кошелёк</strong> ·
             поражение <strong style="color:#fff;">+5 команде</strong>.
@@ -314,8 +314,8 @@
 
         <!-- Табы -->
         <div class="shop-tabs">
-            <button class="shop-tab active" id="tabPersonal" onclick="switchTab('personal')">👤 Для себя</button>
-            <button class="shop-tab" id="tabTeam" onclick="switchTab('team')">🛡️ Для команды</button>
+            <button class="shop-tab active" id="tabPersonal" onclick="switchTab('personal')"><i class="icon" data-icon="user" aria-hidden="true"></i> Для себя</button>
+            <button class="shop-tab" id="tabTeam" onclick="switchTab('team')"><i class="icon" data-icon="shield" aria-hidden="true"></i> Для команды</button>
         </div>
 
         <!-- Личные товары -->
@@ -337,7 +337,7 @@
         <div id="panelTeam" style="display:none;">
 
             <div id="noTeamMsg" style="display:none;text-align:center;padding:60px 20px;">
-                <div style="font-size:40px;margin-bottom:16px;">⚔️</div>
+                <div class="icon" data-icon="swords" style="width:40px;height:40px;margin:0 auto 16px;color:var(--text-gray);" aria-hidden="true"></div>
                 <p style="color:var(--text-gray);">Вступите в команду, чтобы видеть командный магазин</p>
                 <a href="/profile.html" style="display:inline-flex;margin-top:16px;padding:10px 22px;border-radius:6px;background:var(--card-bg);border:1px solid var(--border);color:var(--text-gray);font-size:13px;font-family:'Montserrat',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
                     В профиль
@@ -345,7 +345,7 @@
             </div>
 
             <div id="noManagerMsg" style="display:none;background:rgba(92,107,127,0.08);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--text-gray);">
-                ℹ️ Покупки для команды может совершать только <strong style="color:#fff;">капитан или менеджер</strong> команды.
+                <i class="icon" data-icon="info" aria-hidden="true"></i> Покупки для команды может совершать только <strong style="color:#fff;">капитан или менеджер</strong> команды.
             </div>
 
             <div class="items-grid" id="teamItemsGrid"></div>
@@ -365,7 +365,9 @@
     <div style="background:#12171d;border:1px solid rgba(230,176,34,0.25);border-radius:16px;width:100%;max-width:400px;overflow:hidden;">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #1f252c;">
             <div id="previewTitle" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;"></div>
-            <button onclick="closePreview()" style="background:#1a2128;border:none;color:#aebbc7;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;">✕</button>
+            <button onclick="closePreview()" style="background:#1a2128;border:none;color:#aebbc7;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="icon" data-icon="x" style="width:14px;height:14px;" aria-hidden="true"></i>
+            </button>
         </div>
         <div style="padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px;">
             <!-- Preview area -->
@@ -383,7 +385,7 @@
 <style id="preview-cosmetic-style"></style>
 <div class="modal-overlay" id="depositModal">
     <div class="modal-box">
-        <div class="modal-title">💸 Пополнить командный кошелёк</div>
+        <div class="modal-title"><i class="icon" data-icon="banknote" aria-hidden="true"></i> Пополнить командный кошелёк</div>
         <p style="font-size:13px;color:var(--text-gray);margin-bottom:14px;">
             Сумма будет списана с вашего личного баланса и зачислена команде.
         </p>
@@ -435,6 +437,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js"></script>
 <script src="js/common.js?v=2"></script>
 <script>
 let _balance      = { personalBalance: 0, teamBalance: null, isTeamManager: false, teamName: "" };
@@ -525,7 +528,7 @@ function renderItems(category) {
 
     if (!items.length) {
         grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-gray);">
-            <div style="font-size:36px;margin-bottom:12px;opacity:.4;">🏪</div>
+            <div style="font-size:36px;margin-bottom:12px;opacity:.4;">${iconSvg("store")}</div>
             <p>Товаров пока нет — администратор добавит их в ближайшее время</p>
         </div>`;
         return;
@@ -553,7 +556,7 @@ function renderItems(category) {
 
         return `<div class="item-card" style="cursor:pointer;"
                      onclick="openPreview('${item._id}')">
-            <div class="item-icon">${item.icon || "🎁"}</div>
+            <div class="item-icon">${item.icon || iconSvg("gift")}</div>
             ${bgPreview}
             <div class="item-name">${esc(item.name)}</div>
             ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ""}
@@ -582,7 +585,7 @@ function renderInventory(category) {
         document.getElementById("personalInvGrid").innerHTML = items.map(e => {
             const item = e.itemId || {};
             const n    = item.name || "Предмет";
-            const ic   = item.icon || "📦";
+            const ic   = item.icon || iconSvg("package");
             const ct   = item.cosmeticType;
             const slotMap = { avatar_frame: "avatarFrame", profile_bg: "profileBg" };
             const slot    = slotMap[ct];
@@ -594,7 +597,7 @@ function renderInventory(category) {
                 ${canEquip ? `
                 <button onclick="equipPersonal('${item._id}','${slot}',${isEquipped})"
                     style="margin-left:6px;background:${isEquipped?"rgba(230,176,34,0.15)":"rgba(255,255,255,0.05)"};border:1px solid ${isEquipped?"rgba(230,176,34,0.4)":"rgba(255,255,255,0.1)"};color:${isEquipped?"#e6b022":"#aebbc7"};border-radius:5px;padding:3px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;">
-                    ${isEquipped ? "✓ Надето" : "Надеть"}
+                    ${isEquipped ? iconSvg("check") + " Надето" : "Надеть"}
                 </button>` : ""}
             </div>`;
         }).join("");
@@ -605,7 +608,7 @@ function renderInventory(category) {
         document.getElementById("teamInvGrid").innerHTML = items.map(e => {
             const item = e.itemId || {};
             const n    = item.name || "Предмет";
-            const ic   = item.icon || "📦";
+            const ic   = item.icon || iconSvg("package");
             const ct   = item.cosmeticType;
             const slot = ct === "team_bg" ? "teamBg" : null;
             const isEquipped = slot && (equipped[slot]?._id || equipped[slot])?.toString() === (item._id || "").toString();
@@ -616,7 +619,7 @@ function renderInventory(category) {
                 ${canEquip ? `
                 <button onclick="equipTeam('${item._id}','${slot}',${isEquipped})"
                     style="margin-left:6px;background:${isEquipped?"rgba(230,176,34,0.15)":"rgba(255,255,255,0.05)"};border:1px solid ${isEquipped?"rgba(230,176,34,0.4)":"rgba(255,255,255,0.1)"};color:${isEquipped?"#e6b022":"#aebbc7"};border-radius:5px;padding:3px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;">
-                    ${isEquipped ? "✓ Надето" : "Надеть"}
+                    ${isEquipped ? iconSvg("check") + " Надето" : "Надеть"}
                 </button>` : ""}
             </div>`;
         }).join("");
@@ -660,7 +663,7 @@ async function confirmBuy() {
         }
 
         closeModal("buyModal");
-        showToast("Покупка успешна! 🎉", "ok");
+        showToast("Покупка успешна!", "ok", "party");
 
         // Обновляем баланс и перерисовываем
         if (_pendingBuy.category === "personal") {
@@ -845,7 +848,7 @@ function openPreview(idOrItem) {
     const owned = myInv.includes(item._id?.toString());
 
     if (owned) {
-        buyBtn.textContent = "✓ Куплено";
+        buyBtn.innerHTML   = iconSvg("check") + " Куплено";
         buyBtn.disabled    = true;
         buyBtn.style.opacity = "0.5";
     } else {
@@ -892,9 +895,10 @@ document.addEventListener("keydown", e => {
 function esc(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
-function showToast(msg, type) {
+function showToast(msg, type, iconName) {
     const t = document.getElementById("toast");
-    t.textContent = msg; t.className = `toast ${type} show`;
+    t.innerHTML = iconName ? `${iconSvg(iconName)} ${esc(msg)}` : esc(msg);
+    t.className = `toast ${type} show`;
     setTimeout(() => t.classList.remove("show"), 2800);
 }
 </script>

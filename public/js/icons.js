@@ -51,6 +51,8 @@ const ICONS = {
   target:        '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   book:          '<path d="M12 5a5 5 0 0 0-5-2H3v15h4a5 5 0 0 1 5 2 5 5 0 0 1 5-2h4V3h-4a5 5 0 0 0-5 2Z"/><path d="M12 5v15"/>',
   map:           '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
+  party:         '<path d="M3 21 7 10c3 0 6 1.5 8 3.5L3 21Z"/><circle cx="10" cy="8" r="1"/><circle cx="14" cy="5" r="1"/><path d="M16 3l1.3 1.3M19.5 5.5l1.3 1.3M18 9l1.3 1.3"/>',
+  info:          '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
 };
 
 // Возвращает <svg> целиком с классом .icon — для использования в JS-шаблонах

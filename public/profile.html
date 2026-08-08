@@ -51,7 +51,7 @@
         </div>
 
         <div id="publicHidden" style="display:none;text-align:center;padding:100px 20px;">
-            <div style="font-size:56px;margin-bottom:20px;">🔒</div>
+            <div class="icon" data-icon="lock" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
             <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px;text-transform:uppercase;">Профиль скрыт</h2>
             <p style="color:var(--text-gray);">Этот игрок скрыл свой профиль</p>
         </div>
@@ -129,7 +129,7 @@
 
             <!-- ── Последние матчи ── -->
             <div id="pubRecentMatchesBlock" class="recent-matches-block" style="display:none;margin-top:14px;">
-                <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+                <div class="pform-card-title" style="margin-bottom:14px;"><i class="icon" data-icon="clock" aria-hidden="true"></i> Последние матчи</div>
                 <div id="pubRecentMatchesTableWrap" class="matches-table-wrap"></div>
             </div>
         </div>
@@ -144,7 +144,7 @@
 <div id="ownProfileWrap" style="display:none;">
 
     <div id="authGateProfile" style="display:none; text-align:center; padding:100px 20px;">
-        <div style="font-size:56px; margin-bottom:20px;">🔒</div>
+        <div class="icon" data-icon="lock" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
         <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
         <p style="color:var(--text-gray);margin-bottom:28px;">Войдите через Steam, чтобы открыть личный кабинет</p>
         <a href="/auth/steam?redirect=/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
@@ -233,12 +233,12 @@
 
             <div class="profile-tabs">
                 <button class="profile-tab-btn active" data-tab="myprofile">
-                    🎮 Мой профиль
+                    <i class="icon" data-icon="gamepad" aria-hidden="true"></i> Мой профиль
                     <span class="tab-badge" id="profileIncompleteBadge" style="display:none;">!</span>
                 </button>
-                <button class="profile-tab-btn" data-tab="team">⚔️ Команда</button>
+                <button class="profile-tab-btn" data-tab="team"><i class="icon" data-icon="swords" aria-hidden="true"></i> Команда</button>
                 <button class="profile-tab-btn" data-tab="notifs">
-                    🔔 Уведомления
+                    <i class="icon" data-icon="bell" aria-hidden="true"></i> Уведомления
                     <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
                 </button>
             </div>
@@ -248,13 +248,13 @@
             <div class="profile-tab-content active" id="tab-myprofile">
 
                 <div id="profileIncompleteWarning" class="pform-warning-banner" style="display:none;">
-                    ⚠️ <strong>Профиль не заполнен.</strong>
+                    <i class="icon" data-icon="alert" aria-hidden="true"></i> <strong>Профиль не заполнен.</strong>
                     Укажите FACEIT уровень и количество часов — без этого нельзя создать команду или принять приглашение.
                 </div>
 
                 <!-- ── Последние матчи ── -->
                 <div id="recentMatchesBlock" class="recent-matches-block" style="display:none;">
-                    <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+                    <div class="pform-card-title" style="margin-bottom:14px;"><i class="icon" data-icon="clock" aria-hidden="true"></i> Последние матчи</div>
                     <div id="recentMatchesTableWrap" class="matches-table-wrap"></div>
                 </div>
 
@@ -262,7 +262,7 @@
 
                     <!-- Игровые данные -->
                     <div class="pform-card">
-                        <div class="pform-card-title">🎮 Игровые данные</div>
+                        <div class="pform-card-title"><i class="icon" data-icon="gamepad" aria-hidden="true"></i> Игровые данные</div>
 
                         <div class="pform-field">
                             <label class="p-field-label">
@@ -297,7 +297,7 @@
                     <!-- О себе -->
                     <div class="pform-card">
                         <div class="pform-card-title">
-                            📝 О себе
+                            <i class="icon" data-icon="edit" aria-hidden="true"></i> О себе
                             <span class="pform-optional">— необязательно, макс. 300 символов</span>
                         </div>
                         <div class="pform-field" style="margin-bottom:0;">
@@ -316,7 +316,7 @@
                     <!-- Контакты -->
                     <div class="pform-card">
                         <div class="pform-card-title">
-                            📡 Контакты
+                            <i class="icon" data-icon="radio" aria-hidden="true"></i> Контакты
                             <span class="pform-optional">— необязательно</span>
                         </div>
                         <div class="pform-contacts">
@@ -343,7 +343,7 @@
                     <div class="pform-card">
                         <div class="pform-privacy-row">
                             <div>
-                                <div class="pform-privacy-label">🔒 Скрыть профиль</div>
+                                <div class="pform-privacy-label"><i class="icon" data-icon="lock" aria-hidden="true"></i> Скрыть профиль</div>
                                 <div class="pform-privacy-desc">Другие игроки не смогут видеть ваш FACEIT, часы и bio</div>
                             </div>
                             <label class="toggle-switch" title="Скрыть профиль от других">
@@ -353,7 +353,7 @@
                         </div>
 
                         <div id="statsError" class="p-modal-error" style="display:none;"></div>
-                        <div id="statsSuccess" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.25);border-radius:8px;padding:10px 14px;color:#4caf82;font-size:13px;font-weight:600;margin-bottom:4px;">✅ Данные сохранены!</div>
+                        <div id="statsSuccess" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.25);border-radius:8px;padding:10px 14px;color:#4caf82;font-size:13px;font-weight:600;margin-bottom:4px;"><i class="icon" data-icon="checkCircle" aria-hidden="true"></i> Данные сохранены!</div>
 
                         <button id="statsSaveBtn" class="p-btn-save pform-save-btn" onclick="saveProfileStats()">
                             Сохранить изменения
@@ -363,15 +363,15 @@
                     <!-- Кастомизация + Инвентарь -->
                     <div id="cosmeticsSection" class="pform-card">
                         <div class="pform-card-title" style="justify-content:space-between;margin-bottom:16px;">
-                            🎨 Кастомизация
-                            <a href="/shop.html" class="pform-shop-link">🛒 Магазин</a>
+                            <i class="icon" data-icon="palette" aria-hidden="true"></i> Кастомизация
+                            <a href="/shop.html" class="pform-shop-link"><i class="icon" data-icon="cart" aria-hidden="true"></i> Магазин</a>
                         </div>
 
                         <!-- Слоты "Сейчас надето" -->
                         <div class="cosmetic-slots-grid">
                             <div class="cosmetic-slot" id="slotAvatarFrame">
                                 <div class="cslot-header">
-                                    <span class="cslot-icon">🖼️</span>
+                                    <span class="cslot-icon"><i class="icon" data-icon="image" aria-hidden="true"></i></span>
                                     <span class="cslot-type">Рамка аватара</span>
                                 </div>
                                 <div class="cslot-body">
@@ -379,12 +379,12 @@
                                 </div>
                                 <button class="cslot-remove-btn" id="unequipAvatarFrameBtn"
                                         onclick="unequipCosmetic('avatarFrame')" style="display:none;">
-                                    ✕ Снять
+                                    <i class="icon" data-icon="x" aria-hidden="true"></i> Снять
                                 </button>
                             </div>
                             <div class="cosmetic-slot" id="slotProfileBg">
                                 <div class="cslot-header">
-                                    <span class="cslot-icon">🎨</span>
+                                    <span class="cslot-icon"><i class="icon" data-icon="palette" aria-hidden="true"></i></span>
                                     <span class="cslot-type">Фон профиля</span>
                                 </div>
                                 <div class="cslot-body">
@@ -392,7 +392,7 @@
                                 </div>
                                 <button class="cslot-remove-btn" id="unequipProfileBgBtn"
                                         onclick="unequipCosmetic('profileBg')" style="display:none;">
-                                    ✕ Снять
+                                    <i class="icon" data-icon="x" aria-hidden="true"></i> Снять
                                 </button>
                             </div>
                         </div>
@@ -417,19 +417,19 @@
             <div class="profile-tab-content" id="tab-team">
 
                 <div id="teamTabBlocker" style="display:none;text-align:center;padding:60px 20px;background:rgba(224,92,92,0.05);border:1px solid rgba(224,92,92,0.2);border-radius:14px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
+                    <div class="icon" data-icon="ban" style="width:48px;height:48px;margin:0 auto 16px;color:var(--text-gray);" aria-hidden="true"></div>
                     <h3 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;text-transform:uppercase;margin-bottom:10px;color:white;">Профиль не заполнен</h3>
                     <p style="color:var(--text-gray);font-size:14px;margin-bottom:20px;">Чтобы создать команду или вступить в неё, укажите FACEIT уровень и количество часов в CS2.</p>
                     <button
                         class="btn-apply"
                         style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;"
                         onclick="switchToMyProfileTab()"
-                    >🎮 Заполнить профиль</button>
+                    ><i class="icon" data-icon="gamepad" aria-hidden="true"></i> Заполнить профиль</button>
                 </div>
 
                 <div id="teamTabContent" style="display:none;">
                     <div id="noTeamState" class="no-team-state" style="display:none;">
-                        <div class="no-team-icon">🎯</div>
+                        <div class="no-team-icon icon" data-icon="target" aria-hidden="true"></div>
                         <p>Вы пока не состоите в команде</p>
                         <button onclick="openCreateTeamModal()" class="btn-apply" style="display:inline-flex;padding:10px 24px;border-radius:4px;font-size:13px;margin-top:8px;border:none;cursor:pointer;">+ Создать команду</button>
                     </div>
@@ -445,7 +445,7 @@
 
                         <div class="roster-block">
                             <div class="roster-block-title">
-                                <span>⚔️ Основной состав</span>
+                                <span><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав</span>
                                 <span class="roster-count" id="mainCountLabel">0/5</span>
                             </div>
                             <div id="mainRosterList"></div>
@@ -453,19 +453,19 @@
 
                         <div class="roster-block">
                             <div class="roster-block-title">
-                                <span>🔄 Замены</span>
+                                <span><i class="icon" data-icon="refresh" aria-hidden="true"></i> Замены</span>
                                 <span class="roster-count" id="subCountLabel">0/5</span>
                             </div>
                             <div id="subRosterList"></div>
                         </div>
 
                         <div id="captainActions" class="team-action-bar" style="display:none;">
-                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🛡️ Страница команды</a>
-                            <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;">🔄 Сменить роль</button>
+                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="icon" data-icon="shield" aria-hidden="true"></i> Страница команды</a>
+                            <button class="btn-team-settings" id="captainSelfRoleBtn" style="background:rgba(91,141,232,0.1);border-color:rgba(91,141,232,0.3);color:#5b8de8;"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Сменить роль</button>
                         </div>
 
                         <div id="memberActions" class="team-action-bar" style="display:none;">
-                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">🛡️ Страница команды</a>
+                            <a href="/team.html" class="btn-team-settings" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><i class="icon" data-icon="shield" aria-hidden="true"></i> Страница команды</a>
                         </div>
                     </div>
                 </div>
@@ -515,28 +515,28 @@
         <img src="assets/smoke-mascot.png" alt="Smoke Mascot" style="position:absolute;top:10px;left:-285px;width:500px;z-index:0;pointer-events:none;user-select:none;filter:drop-shadow(-4px 0 12px rgba(0,0,0,0.6));animation:modalIn 0.25s ease;">
         <div class="p-modal-panel" style="max-width:560px;max-height:90vh;overflow-y:auto;position:relative;z-index:1;">
             <div class="p-modal-header">
-                <span class="p-modal-title">📖 Инструкция для игроков</span>
-                <button class="p-modal-close" onclick="document.getElementById('profileHelpModal').classList.add('p-modal-hidden');document.body.style.overflow='';">✕</button>
+                <span class="p-modal-title"><i class="icon" data-icon="book" aria-hidden="true"></i> Инструкция для игроков</span>
+                <button class="p-modal-close" onclick="document.getElementById('profileHelpModal').classList.add('p-modal-hidden');document.body.style.overflow='';"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
             </div>
             <div class="p-modal-body" style="gap:20px;">
                 <div style="background:rgba(91,141,232,0.07);border:1px solid rgba(91,141,232,0.2);border-radius:10px;padding:16px 18px;">
-                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎮 Шаг 0 — Заполни профиль</div>
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="gamepad" aria-hidden="true"></i> Шаг 0 — Заполни профиль</div>
                     <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Перейди во вкладку <strong style="color:white;">«Мой профиль»</strong> и укажи FACEIT уровень и количество часов в CS2. Без этого нельзя создать команду или принять приглашение.</p>
                 </div>
                 <div style="background:rgba(230,176,34,0.07);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:16px 18px;">
-                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚔️ Шаг 1 — Создание команды</div>
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="swords" aria-hidden="true"></i> Шаг 1 — Создание команды</div>
                     <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан команды регистрируется через Steam и в личном кабинете создаёт команду: указывает название, тег и логотип.</p>
                 </div>
                 <div style="background:rgba(76,175,130,0.07);border:1px solid rgba(76,175,130,0.2);border-radius:10px;padding:16px 18px;">
-                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#4caf82;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">👥 Шаг 2 — Набор игроков</div>
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#4caf82;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="users" aria-hidden="true"></i> Шаг 2 — Набор игроков</div>
                     <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Капитан открывает вкладку <strong style="color:white;">«Команда»</strong> и нажимает <strong style="color:white;">«Пригласить»</strong>. Выберите роль — основной состав или замена — и скопируйте ссылку. Отправьте её игроку любым удобным способом: в Telegram, Discord или Steam-чат. Игрок переходит по ссылке и вступает в команду в один клик.</p>
                     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
-                        <div style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#e6b022;">⚔️ Основной состав — 5 игроков</div>
-                        <div style="background:rgba(92,107,127,0.15);border:1px solid rgba(92,107,127,0.3);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#aebbc7;">🔄 Замены — до 5 игроков</div>
+                        <div style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#e6b022;"><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав — 5 игроков</div>
+                        <div style="background:rgba(92,107,127,0.15);border:1px solid rgba(92,107,127,0.3);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#aebbc7;"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Замены — до 5 игроков</div>
                     </div>
                 </div>
                 <div style="background:rgba(92,107,127,0.08);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
-                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#aebbc7;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🔔 Статус заявки</div>
+                    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#aebbc7;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="bell" aria-hidden="true"></i> Статус заявки</div>
                     <p style="font-size:13px;line-height:1.7;color:#aebbc7;">После вступления в команду ваши данные автоматически отправляются администраторам. Статус отображается во вкладке <strong style="color:white;">«Уведомления»</strong>.</p>
                 </div>
             </div>
@@ -548,8 +548,8 @@
 <div id="createTeamModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
-            <span class="p-modal-title">⚔️ Создать команду</span>
-            <button class="p-modal-close" onclick="closeCreateTeamModal()">✕</button>
+            <span class="p-modal-title"><i class="icon" data-icon="swords" aria-hidden="true"></i> Создать команду</span>
+            <button class="p-modal-close" onclick="closeCreateTeamModal()"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="p-modal-body">
             <div id="ctError" class="p-modal-error"></div>
@@ -576,7 +576,7 @@
                         width:56px;height:56px;border-radius:10px;
                         background:#1f252c;border:1px solid #2a3340;
                         display:flex;align-items:center;justify-content:center;
-                        overflow:hidden;flex-shrink:0;font-size:22px;">🛡️</div>
+                        overflow:hidden;flex-shrink:0;"><i class="icon" data-icon="shield" aria-hidden="true"></i></div>
                     <div style="flex:1;">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                             <label for="ctLogoFile" style="
@@ -586,7 +586,7 @@
                                 font-size:12px;font-family:'Montserrat',sans-serif;
                                 font-weight:700;letter-spacing:0.5px;color:#aebbc7;
                                 transition:border-color 0.2s,color 0.2s;">
-                                📁 Выбрать файл
+                                <i class="icon" data-icon="folder" aria-hidden="true"></i> Выбрать файл
                             </label>
                             <button type="button" id="ctLogoDeleteBtn" onclick="clearCreateTeamLogo()" style="
                                 display:none;cursor:pointer;
@@ -595,7 +595,7 @@
                                 font-size:12px;font-family:'Montserrat',sans-serif;
                                 font-weight:700;letter-spacing:0.5px;color:#e05c5c;
                                 transition:border-color 0.2s,background 0.2s;">
-                                🗑 Удалить лого
+                                <i class="icon" data-icon="trash" aria-hidden="true"></i> Удалить лого
                             </button>
                         </div>
                         <input type="file" id="ctLogoFile" accept="image/*" style="display:none;">
@@ -618,8 +618,8 @@
 <div id="inviteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
-            <span class="p-modal-title">🔗 Пригласить в команду</span>
-            <button class="p-modal-close" onclick="closeInviteModal()">✕</button>
+            <span class="p-modal-title"><i class="icon" data-icon="link" aria-hidden="true"></i> Пригласить в команду</span>
+            <button class="p-modal-close" onclick="closeInviteModal()"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="p-modal-body" style="gap:16px;">
             <div id="inviteError" class="p-modal-error"></div>
@@ -629,8 +629,8 @@
             </p>
 
             <div style="display:flex;gap:10px;">
-                <button class="btn-team-settings" style="flex:1;" onclick="generateInviteLink('main')">⚔️ Основной состав</button>
-                <button class="p-btn-cancel"      style="flex:1;padding:10px;" onclick="generateInviteLink('sub')">🔄 Замена</button>
+                <button class="btn-team-settings" style="flex:1;" onclick="generateInviteLink('main')"><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав</button>
+                <button class="p-btn-cancel"      style="flex:1;padding:10px;" onclick="generateInviteLink('sub')"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Замена</button>
             </div>
 
             <div id="inviteLinkResult" style="display:none;flex-direction:column;gap:10px;">
@@ -641,7 +641,7 @@
                            onclick="this.select()">
                     <button onclick="copyInviteLink()" class="btn-team-settings"
                             style="white-space:nowrap;padding:0 14px;flex-shrink:0;"
-                            id="copyInviteLinkBtn">📋 Копировать</button>
+                            id="copyInviteLinkBtn"><i class="icon" data-icon="clipboard" aria-hidden="true"></i> Копировать</button>
                 </div>
                 <div id="inviteLinkExpiry" style="font-size:11px;color:#5c6b7f;"></div>
             </div>
@@ -652,8 +652,8 @@
 <div id="confirmDeleteModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
-            <span class="p-modal-title" style="color:#e05c5c;">⚠️ Распустить команду</span>
-            <button class="p-modal-close" onclick="closeModal('confirmDeleteModal')">✕</button>
+            <span class="p-modal-title" style="color:#e05c5c;"><i class="icon" data-icon="alert" aria-hidden="true"></i> Распустить команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmDeleteModal')"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="p-modal-body">
             <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">
@@ -663,7 +663,7 @@
         </div>
         <div class="p-modal-footer">
             <button class="p-btn-cancel" onclick="closeModal('confirmDeleteModal')">Отмена</button>
-            <button class="btn-team-danger" id="confirmDeleteBtn" onclick="doDeleteTeam()">💀 Распустить</button>
+            <button class="btn-team-danger" id="confirmDeleteBtn" onclick="doDeleteTeam()"><i class="icon" data-icon="skull" aria-hidden="true"></i> Распустить</button>
         </div>
     </div>
 </div>
@@ -671,13 +671,13 @@
 <div id="memberModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
-            <span class="p-modal-title">👤 <span id="memberModalName"></span></span>
-            <button class="p-modal-close" onclick="closeMemberModal()">✕</button>
+            <span class="p-modal-title"><i class="icon" data-icon="user" aria-hidden="true"></i> <span id="memberModalName"></span></span>
+            <button class="p-modal-close" onclick="closeMemberModal()"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="p-modal-body" style="gap:10px;">
-            <button onclick="memberModalKick()"    class="btn-team-danger"    style="width:100%;justify-content:center;">🚫 Исключить из команды</button>
-            <button onclick="memberModalCaptain()" id="memberModalCapBtn" class="btn-team-settings" style="width:100%;justify-content:center;">👑 Назначить капитаном</button>
-            <button onclick="memberModalRole()"    class="p-btn-cancel"       style="width:100%;padding:10px;text-align:center;">🔄 Сменить роль (замена ↔ основа)</button>
+            <button onclick="memberModalKick()"    class="btn-team-danger"    style="width:100%;justify-content:center;"><i class="icon" data-icon="ban" aria-hidden="true"></i> Исключить из команды</button>
+            <button onclick="memberModalCaptain()" id="memberModalCapBtn" class="btn-team-settings" style="width:100%;justify-content:center;"><i class="icon" data-icon="crown" aria-hidden="true"></i> Назначить капитаном</button>
+            <button onclick="memberModalRole()"    class="p-btn-cancel"       style="width:100%;padding:10px;text-align:center;"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Сменить роль (замена ↔ основа)</button>
         </div>
     </div>
 </div>
@@ -685,8 +685,8 @@
 <div id="confirmLeaveModal" class="p-modal-overlay p-modal-hidden">
     <div class="p-modal-panel">
         <div class="p-modal-header">
-            <span class="p-modal-title" style="color:#e05c5c;">🚪 Покинуть команду</span>
-            <button class="p-modal-close" onclick="closeModal('confirmLeaveModal')">✕</button>
+            <span class="p-modal-title" style="color:#e05c5c;"><i class="icon" data-icon="logout" aria-hidden="true"></i> Покинуть команду</span>
+            <button class="p-modal-close" onclick="closeModal('confirmLeaveModal')"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="p-modal-body">
             <p style="color:var(--text-gray);font-size:14px;line-height:1.7;">Вы уверены, что хотите покинуть команду?</p>
@@ -730,6 +730,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js"></script>
 <script src="js/common.js?v=2"></script>
 <script src="js/profile.js?v=2" defer></script>
 
@@ -768,8 +769,8 @@ async function generateInviteLink(role) {
             return;
         }
         document.getElementById("inviteLinkInput").value = d.inviteUrl;
-        document.getElementById("inviteLinkExpiry").textContent =
-            "⏳ Ссылка действительна 72 часа · " +
+        document.getElementById("inviteLinkExpiry").innerHTML =
+            iconSvg("clock") + " Ссылка действительна 72 часа · " +
             (role === "sub" ? "Роль: Замена" : "Роль: Основной состав");
         document.getElementById("inviteLinkResult").style.display = "flex";
     } catch {
@@ -783,9 +784,9 @@ function copyInviteLink() {
     const btn   = document.getElementById("copyInviteLinkBtn");
     if (!input.value) return;
     navigator.clipboard.writeText(input.value).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = "✅ Скопировано!";
-        setTimeout(() => { btn.textContent = orig; }, 2000);
+        const orig = btn.innerHTML;
+        btn.innerHTML = iconSvg("checkCircle") + " Скопировано!";
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
     }).catch(() => {
         input.select();
         document.execCommand("copy");

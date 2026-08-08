@@ -301,8 +301,7 @@
 
 <!-- ─── Нет команды ─── -->
 <div id="noTeamWrap" style="display:none;text-align:center;padding:100px 20px;">
-    <div style="font-size:56px;margin-bottom:20px;">⚔️</div>
-    <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Вы не в команде</h2>
+    <div class="icon" data-icon="swords" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
     <p style="color:var(--text-gray);margin-bottom:28px;">Создайте команду в личном кабинете или примите приглашение</p>
     <a href="/profile.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
         Перейти в профиль
@@ -311,8 +310,7 @@
 
 <!-- ─── Нет авторизации ─── -->
 <div id="authGate" style="display:none;text-align:center;padding:100px 20px;">
-    <div style="font-size:56px;margin-bottom:20px;">🔒</div>
-    <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;margin-bottom:12px;text-transform:uppercase;">Нужна авторизация</h2>
+    <div class="icon" data-icon="lock" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
     <a href="/auth/steam?redirect=/team.html" class="btn-apply" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:4px;font-size:13px;letter-spacing:1px;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658a3.29 3.29 0 0 1 1.86-.564l2.86-4.142-.002-.137a4.244 4.244 0 0 1 4.24-4.24 4.244 4.244 0 0 1 4.24 4.24 4.244 4.244 0 0 1-4.24 4.24l-.107-.002-4.073 2.907c0 .055.003.11.003.166A3.309 3.309 0 0 1 8 19.36a3.31 3.31 0 0 1-3.28-2.874l-4.6-1.903C1.7 20.188 6.37 24 11.979 24 18.626 24 24 18.627 24 11.979 24 5.33 18.626 0 11.979 0z"/></svg>
         Войти через Steam
@@ -342,7 +340,7 @@
         <!-- ── Кнопка поделиться ── -->
         <div style="margin-bottom:32px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <div style="flex:1;min-width:0;">
-                <div class="section-label">🔗 Ссылка на страницу команды</div>
+                <div class="section-label"><i class="icon" data-icon="link" aria-hidden="true"></i> Ссылка на страницу команды</div>
                 <div style="display:flex;align-items:center;gap:10px;">
                     <input id="shareUrlInput" readonly
                         style="flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-gray);font-family:'Inter',sans-serif;font-size:13px;outline:none;min-width:0;"
@@ -351,7 +349,7 @@
                         style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--text-gray);font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .2s;"
                         onmouseover="this.style.borderColor='rgba(230,176,34,0.5)';this.style.color='#e6b022'"
                         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
-                        📋 Копировать
+                        <i class="icon" data-icon="clipboard" aria-hidden="true"></i> Копировать
                     </button>
                 </div>
             </div>
@@ -360,12 +358,12 @@
         <!-- ── Управление составом (только капитан) ── -->
         <div id="memberMgmtSection" style="display:none;margin-bottom:32px;">
             <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-                <span>👥 Управление составом</span>
+                <span><i class="icon" data-icon="users" aria-hidden="true"></i> Управление составом</span>
                 <button onclick="openInviteModal()"
                     style="background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.35);color:#e6b022;border-radius:7px;padding:8px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.5px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;text-transform:none;"
                     onmouseover="this.style.background='rgba(230,176,34,0.18)'"
                     onmouseout="this.style.background='rgba(230,176,34,0.1)'">
-                    🔗 Пригласить по ссылке
+                    <i class="icon" data-icon="link" aria-hidden="true"></i> Пригласить по ссылке
                 </button>
             </div>
             <div id="memberMgmtList" style="display:flex;flex-direction:column;gap:8px;"></div>
@@ -380,7 +378,7 @@
 
         <!-- ── Выбор лейаута (капитан / менеджер) ── -->
         <div id="layoutPickerSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label">🎨 Шаблон страницы</div>
+            <div class="section-label"><i class="icon" data-icon="palette" aria-hidden="true"></i> Шаблон страницы</div>
             <div class="layout-picker">
                 <button class="layout-btn" data-layout="1" title="Центр" onclick="setLayout(1)">
                     <svg viewBox="0 0 28 22" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -408,9 +406,9 @@
 
         <!-- ── Кошелёк команды ── -->
         <div id="walletSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label">💰 Командный кошелёк</div>
+            <div class="section-label"><i class="icon" data-icon="wallet" aria-hidden="true"></i> Командный кошелёк</div>
             <div class="wallet-card">
-                <div class="wallet-icon">🪙</div>
+                <div class="wallet-icon icon" data-icon="coins" aria-hidden="true"></div>
                 <div>
                     <div class="wallet-val" id="walletBal">0</div>
                     <div class="wallet-label">монет</div>
@@ -421,18 +419,18 @@
 
         <!-- ── Состав ── -->
         <div style="margin-bottom:32px;">
-            <div class="section-label">⚔️ Основной состав</div>
+            <div class="section-label"><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав</div>
             <div class="roster-grid" id="mainRosterGrid"></div>
         </div>
 
         <div id="subsSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label">🔄 Запасные</div>
+            <div class="section-label"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Запасные</div>
             <div class="roster-grid" id="subsRosterGrid"></div>
         </div>
 
         <!-- ── Статистика ── -->
         <div id="statsSection" style="margin-bottom:32px;">
-            <div class="section-label">📊 Статистика сезона</div>
+            <div class="section-label"><i class="icon" data-icon="chart" aria-hidden="true"></i> Статистика сезона</div>
             <div class="stats-grid" id="statsGrid">
                 <div class="stat-box"><div class="stat-box-val" id="sWins">—</div><div class="stat-box-label">Победы</div></div>
                 <div class="stat-box"><div class="stat-box-val" id="sLosses">—</div><div class="stat-box-label">Поражения</div></div>
@@ -443,27 +441,27 @@
 
         <!-- ── Последние матчи ── -->
         <div id="matchesSection" class="recent-matches-block" style="display:none;margin-bottom:32px;">
-            <div class="pform-card-title" style="margin-bottom:14px;">🕑 Последние матчи</div>
+            <div class="pform-card-title" style="margin-bottom:14px;"><i class="icon" data-icon="clock" aria-hidden="true"></i> Последние матчи</div>
             <div id="matchesListWrap" class="matches-table-wrap"></div>
         </div>
 
         <!-- ── Редактирование (только капитан / менеджер) ── -->
         <div id="editSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label">✏️ Управление командой</div>
+            <div class="section-label"><i class="icon" data-icon="edit" aria-hidden="true"></i> Управление командой</div>
             <div class="edit-section">
 
                 <div class="field-row">
                     <label class="field-label-sm">Логотип команды</label>
                     <div style="display:flex;align-items:center;gap:14px;">
-                        <div id="logoPreview" style="width:56px;height:56px;border-radius:10px;background:var(--input-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0;">🛡️</div>
+                        <div id="logoPreview" style="width:56px;height:56px;border-radius:10px;background:var(--input-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0;"><i class="icon" data-icon="shield" aria-hidden="true"></i></div>
                         <div style="flex:1;">
                             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                                 <label for="logoFileInput" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--input-bg);border:1px solid var(--border);border-radius:7px;padding:8px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-gray);transition:all .2s;"
                                     onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'"
-                                    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">📁 Загрузить</label>
+                                    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'"><i class="icon" data-icon="folder" aria-hidden="true"></i> Загрузить</label>
                                 <input type="file" id="logoFileInput" accept="image/*" style="display:none;" onchange="handleLogoFile(this)">
                                 <button type="button" id="logoDeleteBtn" style="display:none;background:transparent;border:1px solid rgba(224,92,92,.35);border-radius:7px;padding:8px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--red);cursor:pointer;transition:all .2s;"
-                                    onclick="clearLogo()">🗑 Удалить</button>
+                                    onclick="clearLogo()"><i class="icon" data-icon="trash" aria-hidden="true"></i> Удалить</button>
                             </div>
                             <div id="logoFileName" style="margin-top:5px;font-size:11px;color:#5c6b7f;">Файл не выбран · до 2 МБ</div>
                             <div id="logoUploadErr" style="margin-top:4px;font-size:11px;color:var(--red);display:none;"></div>
@@ -539,17 +537,17 @@
 
         <!-- ── Зона опасных действий ── -->
         <div id="dangerZoneSection" style="display:none;margin-bottom:32px;">
-            <div class="section-label" style="color:rgba(224,92,92,0.7);">⚠️ Опасная зона</div>
+            <div class="section-label" style="color:rgba(224,92,92,0.7);"><i class="icon" data-icon="alert" aria-hidden="true"></i> Опасная зона</div>
             <div style="background:rgba(224,92,92,0.04);border:1px solid rgba(224,92,92,0.18);border-radius:14px;padding:20px 24px;">
                 <div id="dangerDisbandBlock" style="display:none;">
                     <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Расформировать команду</div>
                     <div style="font-size:12px;color:var(--text-gray);margin-bottom:14px;">Команда будет удалена навсегда. Все участники автоматически покинут её.</div>
-                    <button class="btn-danger" onclick="openDisbandConfirm()">💀 Распустить команду</button>
+                    <button class="btn-danger" onclick="openDisbandConfirm()"><i class="icon" data-icon="skull" aria-hidden="true"></i> Распустить команду</button>
                 </div>
                 <div id="dangerLeaveBlock" style="display:none;">
                     <div style="font-weight:700;font-size:13px;margin-bottom:6px;">Покинуть команду</div>
                     <div style="font-size:12px;color:var(--text-gray);margin-bottom:14px;">Вы покинете команду. Капитан сможет пригласить другого игрока.</div>
-                    <button class="btn-danger" onclick="openLeaveConfirm()">🚪 Покинуть команду</button>
+                    <button class="btn-danger" onclick="openLeaveConfirm()"><i class="icon" data-icon="logout" aria-hidden="true"></i> Покинуть команду</button>
                 </div>
             </div>
         </div>
@@ -557,7 +555,7 @@
         <!-- Модалы подтверждения -->
         <div id="disbandConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;padding:20px;">
             <div style="background:var(--bg2,#12171d);border:1px solid rgba(224,92,92,0.4);border-radius:14px;padding:28px;max-width:380px;width:100%;">
-                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#e05c5c;margin-bottom:12px;">⚠️ Распустить команду?</div>
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#e05c5c;margin-bottom:12px;"><i class="icon" data-icon="alert" aria-hidden="true"></i> Распустить команду?</div>
                 <p style="font-size:13px;color:var(--text-gray);margin-bottom:20px;line-height:1.6;">Это действие нельзя отменить. Все игроки будут удалены из команды.</p>
                 <div style="display:flex;gap:10px;justify-content:flex-end;">
                     <button onclick="closeDisbandConfirm()" style="background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;">Отмена</button>
@@ -568,7 +566,7 @@
 
         <div id="leaveConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;align-items:center;justify-content:center;padding:20px;">
             <div style="background:var(--bg2,#12171d);border:1px solid rgba(224,92,92,0.3);border-radius:14px;padding:28px;max-width:380px;width:100%;">
-                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;margin-bottom:12px;">🚪 Покинуть команду?</div>
+                <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;margin-bottom:12px;"><i class="icon" data-icon="logout" aria-hidden="true"></i> Покинуть команду?</div>
                 <p style="font-size:13px;color:var(--text-gray);margin-bottom:20px;">Вы уверены, что хотите покинуть команду?</p>
                 <div style="display:flex;gap:10px;justify-content:flex-end;">
                     <button onclick="closeLeaveConfirm()" style="background:transparent;border:1px solid var(--border);color:var(--text-gray);border-radius:6px;padding:9px 18px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;">Отмена</button>
@@ -604,6 +602,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js"></script>
 <script src="js/common.js"></script>
 <script>
 let _me = null;      // текущий пользователь
@@ -732,7 +731,7 @@ function renderOnboarding(profile) {
         div.className = "step-item";
         const circle = document.createElement("div");
         circle.className = "step-circle" + (isDone ? " done" : isActive ? " active" : "");
-        circle.textContent = isDone ? "✓" : (i + 1);
+        circle.innerHTML = isDone ? iconSvg("check") : (i + 1);
         div.appendChild(circle);
         el.appendChild(div);
         if (i < steps.length - 1) {
@@ -753,8 +752,8 @@ function renderOnboarding(profile) {
 function renderHero(team) {
     const layout  = team.layoutStyle || 1;
     const logoHtml = team.logo
-        ? `<img src="${team.logo}" alt="logo" onerror="this.parentElement.textContent='🛡️'">`
-        : "🛡️";
+        ? `<img src="${team.logo}" alt="logo" onerror="this.parentElement.innerHTML=iconSvg('shield')">`
+        : iconSvg("shield");
     const quoteHtml = team.quote
         ? `<div class="team-hub-quote">"${esc(team.quote)}"</div>` : "";
     const descHtml  = team.description
@@ -823,7 +822,7 @@ function playerCard(member, captainId, roleLabel) {
     card.href      = `/profile.html?id=${member.steamId || ""}`;
     card.innerHTML = `
         <img src="${member.avatar || ""}" alt="" onerror="this.style.display='none'">
-        <div class="player-card-name">${isCap ? `<span class="captain-crown">👑</span> ` : ""}${esc(member.displayName || "—")}</div>
+        <div class="player-card-name">${isCap ? `<span class="captain-crown">${iconSvg("crown")}</span> ` : ""}${esc(member.displayName || "—")}</div>
         <div class="player-card-role">${roleLabel}</div>
     `;
     return card;
@@ -1060,7 +1059,7 @@ function handleLogoFile(input) {
             if (!data.secure_url) throw new Error("Нет URL");
             _pendingLogoUrl = data.secure_url;
             const preview = document.getElementById("logoPreview");
-            preview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='🛡️'">`;
+            preview.innerHTML = `<img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`;
             document.getElementById("logoFileName").textContent = "Готово — нажмите «Сохранить»";
             document.getElementById("logoDeleteBtn").style.display = "";
         })
@@ -1074,7 +1073,7 @@ function handleLogoFile(input) {
 
 function clearLogo() {
     _pendingLogoUrl = "";   // пустая строка = удалить
-    document.getElementById("logoPreview").textContent = "🛡️";
+    document.getElementById("logoPreview").innerHTML = iconSvg("shield");
     document.getElementById("logoFileName").textContent = "Логотип будет удалён после сохранения";
     document.getElementById("logoDeleteBtn").style.display = "none";
 }
@@ -1083,7 +1082,7 @@ function initLogoPreview(logoUrl) {
     if (!logoUrl) return;
     const preview = document.getElementById("logoPreview");
     if (preview) {
-        preview.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent='🛡️'">`;
+        preview.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`;
         document.getElementById("logoDeleteBtn").style.display = "";
     }
 }
@@ -1112,7 +1111,7 @@ function renderMemberManagement(team) {
         row.innerHTML = `
             <img src="${esc(member.avatar||"")}" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;" onerror="this.style.display='none'">
             <div style="flex:1;min-width:0;">
-                <div style="font-weight:700;font-size:13px;">${isCap?"👑 ":""}${esc(member.displayName||"—")}</div>
+                <div style="font-weight:700;font-size:13px;">${isCap ? iconSvg("crown") + " " : ""}${esc(member.displayName||"—")}</div>
                 <div style="font-size:11px;color:var(--text-gray);">${member.slot === "main" ? "Основной" : "Запасной"}</div>
             </div>
             ${!isCap ? `
@@ -1124,7 +1123,7 @@ function renderMemberManagement(team) {
             <button onclick="transferCaptain('${mid}')"
                 style="background:rgba(230,176,34,0.08);border:1px solid rgba(230,176,34,0.25);color:var(--accent);border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
                 onmouseover="this.style.background='rgba(230,176,34,0.15)'" onmouseout="this.style.background='rgba(230,176,34,0.08)'">
-                👑 Капитан
+                ${iconSvg("crown")} Капитан
             </button>
             <button onclick="kickMember('${mid}')"
                 style="background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.25);color:var(--red);border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
@@ -1225,8 +1224,8 @@ async function saveTeamSettings() {
 <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:20px;">
     <div style="background:var(--bg2,#12171d);border:1px solid #1f252c;border-radius:14px;padding:28px;max-width:420px;width:100%;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-            <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;">🔗 Пригласить в команду</div>
-            <button onclick="closeInviteModal()" style="background:none;border:none;color:var(--text-gray);font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">✕</button>
+            <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;"><i class="icon" data-icon="link" aria-hidden="true"></i> Пригласить в команду</div>
+            <button onclick="closeInviteModal()" style="background:none;border:none;color:var(--text-gray);cursor:pointer;line-height:1;padding:0 4px;display:flex;align-items:center;"><i class="icon" data-icon="x" style="width:20px;height:20px;" aria-hidden="true"></i></button>
         </div>
 
         <p style="font-size:13px;color:var(--text-gray);line-height:1.6;margin-bottom:18px;">
@@ -1239,12 +1238,12 @@ async function saveTeamSettings() {
             <button onclick="generateInviteLink('main')"
                 style="flex:1;background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.35);color:#e6b022;border-radius:8px;padding:11px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
                 onmouseover="this.style.background='rgba(230,176,34,0.18)'" onmouseout="this.style.background='rgba(230,176,34,0.1)'">
-                ⚔️ Основной состав
+                <i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав
             </button>
             <button onclick="generateInviteLink('sub')"
                 style="flex:1;background:var(--input-bg);border:1px solid var(--border);color:var(--text-gray);border-radius:8px;padding:11px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;"
                 onmouseover="this.style.borderColor='rgba(230,176,34,0.35)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
-                🔄 Замена
+                <i class="icon" data-icon="refresh" aria-hidden="true"></i> Замена
             </button>
         </div>
 
@@ -1257,7 +1256,7 @@ async function saveTeamSettings() {
                 <button onclick="copyInviteLink()" id="copyInviteLinkBtn"
                     style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;color:var(--text-gray);cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0;"
                     onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
-                    📋 Копировать
+                    <i class="icon" data-icon="clipboard" aria-hidden="true"></i> Копировать
                 </button>
             </div>
             <div id="inviteLinkMeta" style="margin-top:8px;font-size:11px;color:#5c6b7f;"></div>
@@ -1321,9 +1320,9 @@ function copyInviteLink() {
     const btn   = document.getElementById("copyInviteLinkBtn");
     if (!input.value) return;
     navigator.clipboard.writeText(input.value).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = "✅ Скопировано!";
-        setTimeout(() => { btn.textContent = orig; }, 2000);
+        const orig = btn.innerHTML;
+        btn.innerHTML = iconSvg("checkCircle") + " Скопировано!";
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
     }).catch(() => { input.select(); document.execCommand("copy"); });
 }
 
@@ -1358,7 +1357,7 @@ async function loadInviteLinks() {
                 <button onclick="copyActiveLinkUrl('${link.inviteUrl}', this)"
                     style="background:transparent;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--text-gray);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;"
                     onmouseover="this.style.borderColor='rgba(230,176,34,0.4)';this.style.color='#e6b022'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-gray)'">
-                    📋 Копировать
+                    ${iconSvg("clipboard")} Копировать
                 </button>
                 <button onclick="deactivateInviteLink('${link.token}', this)"
                     style="background:transparent;border:1px solid rgba(224,92,92,.3);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;color:var(--red);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;"
@@ -1373,9 +1372,9 @@ async function loadInviteLinks() {
 
 function copyActiveLinkUrl(url, btn) {
     navigator.clipboard.writeText(url).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = "✅";
-        setTimeout(() => { btn.textContent = orig; }, 1800);
+        const orig = btn.innerHTML;
+        btn.innerHTML = iconSvg("checkCircle");
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
     }).catch(() => {});
 }
 

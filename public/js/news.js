@@ -106,7 +106,7 @@ if (document.getElementById("newsContainer")) {
             html += "</div>";
         }
         if (!featured && rest.length === 0) {
-            html = `<div class="empty-state"><div class="icon">🔍</div><p>Ничего не найдено. Попробуй другой запрос.</p></div>`;
+            html = `<div class="empty-state"><div class="icon">${iconSvg("search")}</div><p>Ничего не найдено. Попробуй другой запрос.</p></div>`;
         }
         document.getElementById("newsContainer").innerHTML = html;
     }

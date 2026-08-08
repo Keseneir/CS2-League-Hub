@@ -48,7 +48,7 @@
 
 <div class="container">
     <div class="season-bar">
-        <div class="season-label">🏆 Загрузка...</div>
+        <div class="season-label"><i class="icon" data-icon="trophy" aria-hidden="true"></i> Загрузка...</div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
             <div class="last-updated">Обновлено: <span id="updateTime">—</span></div>
         </div>
@@ -123,7 +123,7 @@
                 <div class="roster-modal-team-name" id="rosterModalTeamName">—</div>
                 <div class="roster-modal-sub">Основной состав</div>
             </div>
-            <button id="rosterModalClose">✕</button>
+            <button id="rosterModalClose"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="roster-modal-body">
             <div class="roster-players-list" id="rosterPlayersList"></div>
@@ -143,19 +143,19 @@
 <div id="ratingModal">
     <div class="modal-box">
         <div class="modal-header">
-            <div class="modal-title">🏆 Система рейтинга CS2 League Hub</div>
-            <button id="modalClose">✕</button>
+            <div class="modal-title"><i class="icon" data-icon="trophy" aria-hidden="true"></i> Система рейтинга CS2 League Hub</div>
+            <button id="modalClose"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div class="modal-body">
             <div class="rating-block">
-                <div class="rating-section-title">🚀 Старт</div>
+                <div class="rating-section-title"><i class="icon" data-icon="rocket" aria-hidden="true"></i> Старт</div>
                 <ul>
                     <li>Каждая команда начинает с <span class="val">100 очков</span></li>
                     <li>Все команды находятся в равных условиях</li>
                 </ul>
             </div>
             <div class="rating-block">
-                <div class="rating-section-title">⚔️ Очки за матч</div>
+                <div class="rating-section-title"><i class="icon" data-icon="swords" aria-hidden="true"></i> Очки за матч</div>
                 <p>После каждого матча рейтинг изменяется:</p>
                 <div class="points-row">
                     <div class="points-card win">
@@ -169,16 +169,16 @@
                 </div>
             </div>
             <div class="rating-block">
-                <div class="rating-section-title">🔥 Серия побед</div>
+                <div class="rating-section-title"><i class="icon" data-icon="flame" aria-hidden="true"></i> Серия побед</div>
                 <p>Серия начинается с <span class="val">3 выигранных матчей подряд</span>:</p>
                 <ul>
-                    <li>3 победы подряд → статус <span class="crown">👑 Царь горы</span></li>
+                    <li>3 победы подряд → статус <span class="crown"><i class="icon" data-icon="crown" aria-hidden="true"></i> Царь горы</span></li>
                     <li>Начиная с 3-й победы → <span class="val">+5 очков</span> за каждую победу в серии</li>
                     <li>После поражения серия сбрасывается</li>
                 </ul>
             </div>
             <div class="rating-block">
-                <div class="rating-section-title">👑 Царь горы</div>
+                <div class="rating-section-title"><i class="icon" data-icon="crown" aria-hidden="true"></i> Царь горы</div>
                 <p>Команда получает статус после 3 побед подряд:</p>
                 <ul>
                     <li>Сохраняет статус до первого поражения</li>
@@ -187,7 +187,7 @@
                 </ul>
             </div>
             <div class="rating-block">
-                <div class="rating-section-title">⚖️ Сила соперника</div>
+                <div class="rating-section-title"><i class="icon" data-icon="scale" aria-hidden="true"></i> Сила соперника</div>
                 <p>При расчёте учитывается рейтинг соперника до матча:</p>
                 <div class="opponent-grid">
                     <div class="opp-card">
@@ -203,13 +203,13 @@
                 </div>
             </div>
             <div class="rating-block">
-                <div class="rating-section-title">🛡️ Ограничение рейтинга</div>
+                <div class="rating-section-title"><i class="icon" data-icon="shield" aria-hidden="true"></i> Ограничение рейтинга</div>
                 <ul>
                     <li>Рейтинг команды <span class="val">не может быть ниже 0</span> очков</li>
                 </ul>
             </div>
             <div class="rating-block last">
-                <div class="rating-section-title">📊 Общая логика</div>
+                <div class="rating-section-title"><i class="icon" data-icon="chart" aria-hidden="true"></i> Общая логика</div>
                 <ul>
                     <li>Победы увеличивают рейтинг</li>
                     <li>Серии побед дают дополнительные очки</li>
@@ -221,6 +221,7 @@
     </div>
 </div>
 
+<script src="js/icons.js" defer></script>
 <script src="js/common.js" defer></script>
 <script src="js/leaderboard.js" defer></script>
 
@@ -233,12 +234,12 @@
                 <div style="font-size:12px;color:#5c6b7f;margin-top:3px;">Состав команды</div>
             </div>
            <div id="lbRosterTelegram" style="display:none;flex-shrink:0;flex-grow:0;align-self:center;"></div>
-            <button id="lbRosterClose" style="background:#1a2128;border:none;color:#aebbc7;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0;">✕</button>
+            <button id="lbRosterClose" style="background:#1a2128;border:none;color:#aebbc7;width:32px;height:32px;border-radius:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
         </div>
         <div style="padding:20px 24px 24px;">
-            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;">⚔️ Основной состав</div>
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;"><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав</div>
             <div id="lbRosterMain" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;"></div>
-            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;">🔄 Замены</div>
+            <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:12px;"><i class="icon" data-icon="refresh" aria-hidden="true"></i> Замены</div>
             <div id="lbRosterSubs" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
         </div>
     </div>

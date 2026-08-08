@@ -87,7 +87,7 @@ if (document.getElementById("joinForm")) {
             const ps = document.getElementById("ps" + n);
             const pl = document.getElementById("pl" + n);
             if (!ps) return;
-            if (filled) { ps.classList.remove("active"); ps.classList.add("done"); const c = ps.querySelector(".progress-step-circle"); if (c) c.textContent = "✓"; if (pl) pl.classList.add("done"); }
+            if (filled) { ps.classList.remove("active"); ps.classList.add("done"); const c = ps.querySelector(".progress-step-circle"); if (c) c.innerHTML = iconSvg("check"); if (pl) pl.classList.add("done"); }
             else        { ps.classList.remove("done"); const c = ps.querySelector(".progress-step-circle"); if (c) c.textContent = n; if (pl) pl.classList.remove("done"); }
         });
         let found = false;

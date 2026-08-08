@@ -427,9 +427,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const div = document.createElement("div");
         div.innerHTML = `
             <div class="mobile-nav-divider"></div>
-            <a href="/profile.html">👤 Профиль</a>
-            ${user.team ? `<a href="/team.html">🛡️ Моя команда</a>` : ""}
-            <a href="/shop.html" style="color:#e6b022;">🛒 Магазин</a>
+            <a href="/profile.html">${iconSvg("user")} Профиль</a>
+            ${user.team ? `<a href="/team.html">${iconSvg("shield")} Моя команда</a>` : ""}
+            <a href="/shop.html" style="color:#e6b022;">${iconSvg("cart")} Магазин</a>
             <a href="/logout" style="color:#e05c5c;">Выйти</a>
         `;
         div.querySelectorAll("a").forEach(a => a.addEventListener("click", closeDrawer));

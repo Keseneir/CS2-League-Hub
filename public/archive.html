@@ -149,7 +149,7 @@
     <div id="listView" style="display:none;">
         <div id="tournamentsGrid" class="tournaments-grid"></div>
         <div id="emptyState" class="empty-tournaments" style="display:none;">
-            <div class="empty-tournaments-icon">📜</div>
+            <div class="empty-tournaments-icon icon" data-icon="scroll" aria-hidden="true"></div>
             <p>Пока нет завершённых турниров.</p>
         </div>
     </div>
@@ -163,14 +163,14 @@
         </div>
 
         <div id="detailPrizeWrap" style="display:none;">
-            <div class="tc-prize">🏆 <span id="detailPrize"></span></div>
+            <div class="tc-prize"><i class="icon" data-icon="trophy" aria-hidden="true"></i> <span id="detailPrize"></span></div>
         </div>
 
-        <div class="section-label">👥 Участники</div>
+        <div class="section-label"><i class="icon" data-icon="users" aria-hidden="true"></i> Участники</div>
         <div id="detailTeams" class="teams-grid"></div>
         <div id="detailTeamsEmpty" class="empty-note" style="display:none;">Составы участников не сохранились.</div>
 
-        <div class="section-label">⚔️ Результаты матчей</div>
+        <div class="section-label"><i class="icon" data-icon="swords" aria-hidden="true"></i> Результаты матчей</div>
         <div id="detailMatches"></div>
         <div id="detailMatchesEmpty" class="empty-note" style="display:none;">Результаты матчей по этому турниру ещё не внесены.</div>
     </div>
@@ -209,6 +209,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js" defer></script>
 <script src="js/common.js?v=2" defer></script>
 <script>
 function escHtmlArc(str) {
@@ -218,8 +219,8 @@ function escHtmlArc(str) {
 function teamChipHtml(team, extraClass) {
     if (!team) return `<div class="match-side-placeholder">?</div><span class="match-side-name">—</span>`;
     const img = team.logo
-        ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'match-side-placeholder',textContent:'🛡️'}))">`
-        : `<div class="match-side-placeholder">🛡️</div>`;
+        ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'match-side-placeholder',innerHTML:iconSvg('shield')}))">`
+        : `<div class="match-side-placeholder">${iconSvg("shield")}</div>`;
     return `${img}<span class="match-side-name">[${escHtmlArc(team.tag)}] ${escHtmlArc(team.name)}</span>`;
 }
 
@@ -264,10 +265,10 @@ async function loadList() {
             </div>
             <div class="tc-body">
                 ${t.description ? `<div class="tc-desc">${escHtmlArc(t.description)}</div>` : ""}
-                ${t.prize ? `<div class="tc-prize">🏆 ${escHtmlArc(t.prize)}</div>` : ""}
+                ${t.prize ? `<div class="tc-prize">${iconSvg("trophy")} ${escHtmlArc(t.prize)}</div>` : ""}
                 <div class="tc-meta">
-                    <div class="tc-meta-item"><span class="icon">📅</span> <strong>${dateStr}</strong></div>
-                    <div class="tc-meta-item"><span class="icon">👥</span> Команд: <strong>${t.teamsCount}</strong></div>
+                    <div class="tc-meta-item"><span class="icon">${iconSvg("calendar")}</span> <strong>${dateStr}</strong></div>
+                    <div class="tc-meta-item"><span class="icon">${iconSvg("users")}</span> Команд: <strong>${t.teamsCount}</strong></div>
                 </div>
             </div>
         `;
@@ -307,8 +308,8 @@ async function loadDetail(id) {
         teamsWrap.innerHTML = t.teams.map(team => `
             <div class="team-chip">
                 ${team.logo
-                    ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'team-chip-placeholder',textContent:'🛡️'}))">`
-                    : `<div class="team-chip-placeholder">🛡️</div>`}
+                    ? `<img src="${team.logo}" alt="${escHtmlArc(team.name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'team-chip-placeholder',innerHTML:iconSvg('shield')}))">`
+                    : `<div class="team-chip-placeholder">${iconSvg("shield")}</div>`}
                 <div>
                     <div class="team-chip-name">${escHtmlArc(team.name)}</div>
                     <div class="team-chip-tag">[${escHtmlArc(team.tag)}]</div>
@@ -331,7 +332,7 @@ async function loadDetail(id) {
                     <div class="match-vs">VS</div>
                     <div class="match-side loser">${teamChipHtml(m.loserTeamId)}</div>
                     <div class="match-score">${m.score || (m.roundDiff ? `+${m.roundDiff}` : "—")}</div>
-                    ${m.map ? `<div class="match-map">🗺️ ${escHtmlArc(m.map)}</div>` : ""}
+                    ${m.map ? `<div class="match-map">${iconSvg("map")} ${escHtmlArc(m.map)}</div>` : ""}
                     <div class="match-date">${dateStr}</div>
                 </div>
             `;

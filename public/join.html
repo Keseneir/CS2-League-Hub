@@ -340,7 +340,7 @@
     <div class="hero-eyebrow">Регистрация команд</div>
     <h1>АКТИВНЫЕ <span>ТУРНИРЫ</span></h1>
     <p>Только капитан может зарегистрировать команду на турнир</p>
-    <p style="margin-top:10px;"><a href="archive.html" style="color:#e6b022;font-size:13px;font-weight:600;text-decoration:none;">📜 Архив прошедших турниров →</a></p>
+    <p style="margin-top:10px;"><a href="archive.html" style="color:#e6b022;font-size:13px;font-weight:600;text-decoration:none;"><i class="icon" data-icon="scroll" aria-hidden="true"></i> Архив прошедших турниров →</a></p>
 </div>
 
 <div class="container" id="pageContainer" style="max-width:960px;">
@@ -354,7 +354,7 @@
     
     <div id="authGate" style="display:none;">
         <div class="info-banner">
-            <div class="info-banner-icon">🔒</div>
+            <div class="info-banner-icon icon" data-icon="lock" aria-hidden="true"></div>
             <div class="info-banner-text">
                 <strong>Требуется авторизация</strong>
                 <p>Чтобы зарегистрировать команду на турнир, необходимо войти через Steam.</p>
@@ -368,7 +368,7 @@
     
     <div id="notCaptainState" style="display:none;">
         <div class="info-banner">
-            <div class="info-banner-icon">🛡️</div>
+            <div class="info-banner-icon icon" data-icon="shield" aria-hidden="true"></div>
             <div class="info-banner-text">
                 <strong>Только для капитанов</strong>
                 <p>Регистрацию команды на турнир может подать только капитан. Попросите капитана вашей команды зайти на эту страницу, или создайте собственную команду.</p>
@@ -380,7 +380,7 @@
     
     <div id="noTeamState" style="display:none;">
         <div class="info-banner">
-            <div class="info-banner-icon">👥</div>
+            <div class="info-banner-icon icon" data-icon="users" aria-hidden="true"></div>
             <div class="info-banner-text">
                 <strong>У вас нет команды</strong>
                 <p>Чтобы подать заявку на турнир, сначала создайте команду и набери игроков через свой профиль.</p>
@@ -394,7 +394,7 @@
 
        
         <div id="teamSummary" class="team-summary-card">
-            <div class="team-summary-logo-placeholder">🛡️</div>
+            <div class="team-summary-logo-placeholder icon" data-icon="shield" aria-hidden="true"></div>
             <div class="team-summary-info">
                 <div class="team-summary-name" id="teamSummaryName">—</div>
                 <div class="team-summary-tag" id="teamSummaryTag">—</div>
@@ -404,7 +404,7 @@
 
         
         <div id="teamIncompleteWarning" class="warning-banner" style="display:none;">
-            <span class="warning-banner-icon">⚠️</span>
+            <span class="warning-banner-icon icon" data-icon="alert" aria-hidden="true"></span>
             <span>
                 <strong>Команда не заполнена</strong> — для регистрации нужно минимум 5 игроков в основном составе.
                 Пригласите игроков через вкладку «Команда».
@@ -413,7 +413,7 @@
 
         <div id="tournamentsGrid" class="tournaments-grid"></div>
         <div id="noTournamentsState" class="empty-tournaments" style="display:none;">
-            <div class="empty-tournaments-icon">🏆</div>
+            <div class="empty-tournaments-icon icon" data-icon="trophy" aria-hidden="true"></div>
             <p>Пока нет открытых турниров. Следите за обновлениями!</p>
         </div>
 
@@ -453,6 +453,7 @@
     </div>
 </footer>
 
+<script src="js/icons.js" defer></script>
 <script src="js/common.js" defer></script>
 <script src="js/join.js" defer></script>
 <script>
@@ -551,17 +552,17 @@ function buildTournamentCard(t, memberCount) {
         </div>
         <div class="tc-body">
             ${t.description ? `<div class="tc-desc">${escHtml(t.description)}</div>` : ""}
-            ${t.prize ? `<div class="tc-prize">🏆 ${escHtml(t.prize)}</div>` : ""}
+            ${t.prize ? `<div class="tc-prize">${iconSvg("trophy")} ${escHtml(t.prize)}</div>` : ""}
             <div class="tc-meta">
-                <div class="tc-meta-item"><span class="icon">📅</span> <strong>${dateStr}</strong></div>
+                <div class="tc-meta-item"><span class="icon">${iconSvg("calendar")}</span> <strong>${dateStr}</strong></div>
                 ${countdownHtml(t.startDate)}
-                <div class="tc-meta-item"><span class="icon">👥</span> Заявок: <strong>${t.teamsCount} / ${t.maxTeams}</strong></div>
-                <div class="tc-meta-item"><span class="icon">🎮</span> Мин. состав: <strong>${t.minMembers}/5</strong></div>
+                <div class="tc-meta-item"><span class="icon">${iconSvg("users")}</span> Заявок: <strong>${t.teamsCount} / ${t.maxTeams}</strong></div>
+                <div class="tc-meta-item"><span class="icon">${iconSvg("gamepad")}</span> Мин. состав: <strong>${t.minMembers}/5</strong></div>
             </div>
 
             ${t.isRegistered
                 ? `<div class="tc-registered-banner">
-                       ✅ Ваша команда зарегистрирована
+                       ${iconSvg("checkCircle")} Ваша команда зарегистрирована
                        <button onclick="unregister('${t._id}', this)">Отменить</button>
                    </div>`
                 : `<div class="tc-checkboxes">
@@ -688,7 +689,7 @@ function countdownHtml(startDate) {
     if (!startDate) return "";
     const txt = formatCountdown(startDate);
     if (!txt) return "";
-    return `<div class="tc-meta-item countdown-item" data-start="${startDate}"><span class="icon">⏳</span> Старт через <strong class="cd-text" style="font-variant-numeric:tabular-nums;">${txt}</strong></div>`;
+    return `<div class="tc-meta-item countdown-item" data-start="${startDate}"><span class="icon">${iconSvg("clock")}</span> Старт через <strong class="cd-text" style="font-variant-numeric:tabular-nums;">${txt}</strong></div>`;
 }
 
 setInterval(() => {

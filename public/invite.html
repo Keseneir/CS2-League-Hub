@@ -198,14 +198,14 @@
 
         <!-- Ссылка недействительна / истекла -->
         <div id="stateInvalid">
-            <div class="invite-logo-placeholder">⛔</div>
+            <div class="invite-logo-placeholder icon" data-icon="ban" aria-hidden="true"></div>
             <div class="invite-error" id="invalidMsg">Ссылка недействительна или истёк срок действия.</div>
             <a href="/join.html" class="invite-login-btn">Смотреть турниры</a>
         </div>
 
         <!-- Не авторизован -->
         <div id="stateNoAuth">
-            <div class="invite-logo-placeholder">🔐</div>
+            <div class="invite-logo-placeholder icon" data-icon="lock" aria-hidden="true"></div>
             <div class="invite-team-name" id="noAuthTeamName"></div>
             <div class="invite-desc">Войди через Steam, чтобы принять приглашение в команду.</div>
             <a id="steamLoginBtn" href="#" class="invite-btn">Войти через Steam</a>
@@ -213,14 +213,14 @@
 
         <!-- Уже в команде -->
         <div id="stateAlreadyInTeam">
-            <div class="invite-logo-placeholder">🛡️</div>
+            <div class="invite-logo-placeholder icon" data-icon="shield" aria-hidden="true"></div>
             <div class="invite-error">Вы уже состоите в команде. Покиньте текущую команду, чтобы принять приглашение.</div>
             <a href="/team.html" class="invite-login-btn">Моя команда</a>
         </div>
 
         <!-- Профиль не заполнен -->
         <div id="stateProfileIncomplete">
-            <div class="invite-logo-placeholder">📋</div>
+            <div class="invite-logo-placeholder icon" data-icon="clipboard" aria-hidden="true"></div>
             <div class="invite-error">Заполните профиль (FACEIT уровень и часы в CS2), чтобы вступить в команду.</div>
             <a href="/profile.html" class="invite-btn">Заполнить профиль</a>
         </div>
@@ -241,7 +241,7 @@
 
         <!-- Успех -->
         <div id="stateSuccess">
-            <div class="invite-logo-placeholder">🎉</div>
+            <div class="invite-logo-placeholder icon" data-icon="party" aria-hidden="true"></div>
             <div class="invite-team-name" id="successTeamName"></div>
             <div class="invite-success" id="successMsg"></div>
             <a href="/team.html" class="invite-btn">Перейти в команду</a>
@@ -250,6 +250,7 @@
     </div>
 </div>
 
+<script src="js/icons.js" defer></script>
 <script src="js/common.js" defer></script>
 <script>
 (function() {
@@ -343,7 +344,7 @@
     function placeholder() {
         const d = document.createElement("div");
         d.className = "invite-logo-placeholder";
-        d.textContent = "🛡️";
+        d.innerHTML = iconSvg("shield");
         return d;
     }
 

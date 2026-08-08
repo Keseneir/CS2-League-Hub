@@ -73,7 +73,7 @@
   function renderLeaderboard({ season, rows }) {
     allRows = rows || [];
     if (seasonLabelEl)
-      seasonLabelEl.textContent = season ? `🏆 ${season.name || "Текущий сезон"}` : "🏆 Нет данных";
+      seasonLabelEl.innerHTML = season ? `${iconSvg("trophy")} ${season.name || "Текущий сезон"}` : `${iconSvg("trophy")} Нет данных`;
     if (updateTimeEl)
       updateTimeEl.textContent = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
@@ -170,7 +170,7 @@
       rankCell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 0;";
       rankCell.innerHTML = `
         <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:${rankColor};">${rank}</span>
-        ${row.isKingOfHill ? `<span style="font-size:11px;" title="Царь горы">👑</span>` : ""}
+        ${row.isKingOfHill ? `<span style="font-size:11px;" title="Царь горы">${iconSvg("crown")}</span>` : ""}
       `;
 
       // 2. Команда
@@ -183,10 +183,10 @@
         const img = document.createElement("img");
         img.src = row.logo;
         img.style.cssText = "width:32px;height:32px;object-fit:cover;display:block;";
-        img.onerror = () => { logoEl.textContent = "🛡️"; };
+        img.onerror = () => { logoEl.innerHTML = iconSvg("shield"); };
         logoEl.appendChild(img);
       } else {
-        logoEl.textContent = "🛡️";
+        logoEl.innerHTML = iconSvg("shield");
       }
 
       const nameWrap = document.createElement("div");
@@ -200,7 +200,7 @@
              onmouseover="this.style.color='#e6b022'" onmouseout="this.style.color='#e0e6ed'"
           >${x(row.team)}</a>
           <span style="font-size:11px;color:#4a5568;font-weight:700;">[${x(row.tag)}]</span>
-          ${row.winStreak >= 3 ? `<span style="font-size:11px;background:rgba(255,100,0,0.12);border:1px solid rgba(255,100,0,0.25);color:#ff6400;border-radius:4px;padding:1px 6px;font-family:'Montserrat',sans-serif;font-weight:700;">🔥${row.winStreak}</span>` : ""}
+          ${row.winStreak >= 3 ? `<span style="font-size:11px;background:rgba(255,100,0,0.12);border:1px solid rgba(255,100,0,0.25);color:#ff6400;border-radius:4px;padding:1px 6px;font-family:'Montserrat',sans-serif;font-weight:700;display:inline-flex;align-items:center;gap:2px;">${iconSvg("flame")}${row.winStreak}</span>` : ""}
         </div>
         <div style="font-size:11px;color:#4a5568;margin-top:1px;">${row.rosterSize || 0} игр.</div>
       `;
@@ -306,8 +306,8 @@
     if (lbTeamName) lbTeamName.textContent = name;
     if (lbAvatar) {
       lbAvatar.innerHTML = logo
-        ? `<img src="${x(logo)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='🛡️'">`
-        : "🛡️";
+        ? `<img src="${x(logo)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`
+        : iconSvg("shield");
     }
     if (lbTelegram) {
       lbTelegram.style.display = telegram ? "" : "none";
@@ -315,7 +315,7 @@
         ? `<a href="${x(telegram)}" target="_blank" rel="noopener"
               style="display:inline-flex;align-items:center;gap:5px;color:#aebbc7;text-decoration:none;
                      font-size:12px;background:#1a2128;border:1px solid #2a3340;border-radius:6px;padding:5px 10px;"
-              onmouseover="this.style.color='#e6b022'" onmouseout="this.style.color='#aebbc7'">📣 Telegram</a>`
+              onmouseover="this.style.color='#e6b022'" onmouseout="this.style.color='#aebbc7'">${iconSvg("megaphone")} Telegram</a>`
         : "";
     }
 

@@ -234,7 +234,6 @@ footer {
 .hero {
     text-align: center;
     padding: 120px 20px 80px;
-    background: linear-gradient(0deg, var(--bg) 0%, rgba(11,15,18,0.8) 100%), url('https://cdn.cloudflare.steamstatic.com/apps/csgo/images/csgo_react/blog/giveaway_header.jpg') center/cover no-repeat;
 }
 .page-index h1 {
     font-size: 52px;

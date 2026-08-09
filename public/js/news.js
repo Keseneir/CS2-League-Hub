@@ -5,10 +5,10 @@ if (document.getElementById("newsContainer")) {
     ];
 
     const REACTIONS = [
-        { key: "flame",    icon: "flame",    label: "Огонь" },
-        { key: "sad",      icon: "sad",      label: "Грустно" },
-        { key: "angry",    icon: "angry",    label: "Злит" },
-        { key: "thumbsUp", icon: "thumbsUp", label: "Нравится" },
+        { key: "flame",    emoji: "🔥", label: "Огонь" },
+        { key: "sad",      emoji: "😢", label: "Грустно" },
+        { key: "angry",    emoji: "😡", label: "Злит" },
+        { key: "thumbsUp", emoji: "👍", label: "Нравится" },
     ];
 
     let ALL_NEWS     = [];
@@ -168,15 +168,22 @@ if (document.getElementById("newsContainer")) {
     });
 
     function renderNewsModal(news) {
-        document.getElementById("newsModalImgWrap").innerHTML =
-            news.img ? `<img src="${escNews(news.img)}" class="nm-img" onerror="this.style.display='none'">` : "";
+        const panel = document.getElementById("newsModalPanel");
+        const imgWrap = document.getElementById("newsModalImgWrap");
+        if (news.img) {
+            panel.classList.remove("nm-no-image");
+            imgWrap.innerHTML = `<img src="${escNews(news.img)}" onerror="this.closest('.nm-image-col').style.display='none'; document.getElementById('newsModalPanel').classList.add('nm-no-image')">`;
+        } else {
+            panel.classList.add("nm-no-image");
+            imgWrap.innerHTML = "";
+        }
 
         const reactionsHtml = REACTIONS.map(r => {
             const count  = (news.reactions && news.reactions[r.key]) || 0;
             const active = news.myReaction === r.key;
             return `<button class="nm-react-btn ${active ? "active" : ""}" ${_currentUser ? "" : "disabled"}
                         onclick="reactToNews('${news._id}','${r.key}')" title="${r.label}">
-                        <i class="icon" data-icon="${r.icon}" aria-hidden="true"></i>
+                        <span class="nm-react-emoji">${r.emoji}</span>
                         <span>${count}</span>
                     </button>`;
         }).join("");
@@ -218,6 +225,7 @@ if (document.getElementById("newsContainer")) {
             ${commentFormHtml}
             <div id="nmCommentsList">${commentsHtml}</div>
         `;
+        renderIcons(document.getElementById("newsModalBody"));
     }
 
     window.reactToNews = async function(id, emoji) {

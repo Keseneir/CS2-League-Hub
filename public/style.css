@@ -886,6 +886,7 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     border-bottom: 2px solid var(--border);
     margin-bottom: 28px;
     overflow-x: auto;
+    overflow-y: hidden;
 }
 .profile-tab-btn {
     background: none;

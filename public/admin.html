@@ -222,6 +222,7 @@
         <button class="tab-btn" data-tab="players">👤 Игроки</button>
         <button class="tab-btn" data-tab="ranks">🎖️ Ранги</button>
         <button class="tab-btn" data-tab="tournaments">🎮 Турниры</button>
+        <button class="tab-btn" data-tab="news">📰 Новости</button>
     </nav>
 
     <div class="topbar-user" id="topbarUser" style="margin-left:auto;">
@@ -606,6 +607,73 @@
 
     </div>
 
+    <div class="tab-panel" id="panel-news">
+
+        <!-- ── Создать новость ── -->
+        <div class="cards-grid" style="max-width:680px;margin-bottom:28px;">
+            <div class="form-card">
+                <div class="form-card-header">➕ Опубликовать новость</div>
+                <div class="form-card-body">
+                    <div id="newsCreateError" class="modal-error"></div>
+                    <div>
+                        <label class="field-label">Заголовок <span style="color:var(--red)">*</span></label>
+                        <input type="text" id="nwTitle" class="field-input" placeholder="Итоги четвёртого тура" maxlength="200">
+                    </div>
+                    <div>
+                        <label class="field-label">Текст <span style="color:var(--red)">*</span></label>
+                        <textarea id="nwText" class="field-input" rows="5" style="resize:vertical;min-height:110px;" placeholder="Текст новости..." maxlength="5000"></textarea>
+                    </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Тег</label>
+                            <select id="nwTag" class="field-select">
+                                <option value="Результаты">Результаты</option>
+                                <option value="Анонс">Анонс</option>
+                                <option value="Обновление">Обновление</option>
+                                <option value="Новость">Новость</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label">Дата публикации</label>
+                            <input type="datetime-local" id="nwPublishedAt" class="field-input">
+                            <div style="font-size:11px;color:#5c6b7f;margin-top:4px;">Пусто — опубликуется прямо сейчас.</div>
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Картинка (URL)</label>
+                            <input type="text" id="nwImg" class="field-input" placeholder="https://...">
+                        </div>
+                        <div>
+                            <label class="field-label">Ссылка (необязательно)</label>
+                            <input type="text" id="nwLink" class="field-input" placeholder="https://t.me/...">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-primary" id="btnCreateNews" onclick="createNews()">Опубликовать</button>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--gray);">
+                            <input type="checkbox" id="nwFeatured" style="width:15px;height:15px;accent-color:var(--accent);">
+                            Главная новость (на видном месте)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Список новостей ── -->
+        <div class="section-title">
+            Все новости
+            <span class="count" id="newsCount"></span>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="newsSearchInput" class="field-input" placeholder="🔍 Поиск по заголовку..." oninput="filterNewsTable()" style="max-width:300px;">
+        </div>
+        <div class="data-table-wrap" id="newsTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">📰</div><p>Нажмите на вкладку чтобы загрузить</p></div>
+        </div>
+
+    </div>
+
 </main>
 
 
@@ -827,6 +895,8 @@ let _playerNoticeId  = null;
 let _assignRankUserId = null;
 let _tournaments = [];
 let _editTournamentId = null;
+let _allNews = [];
+let _editNewsId = null;
 
 //инит
 async function init() {
@@ -857,11 +927,12 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         if (this.dataset.tab === "players")      loadAllPlayers();
         if (this.dataset.tab === "ranks")        loadRanks();
         if (this.dataset.tab === "tournaments")  loadTournaments();
+        if (this.dataset.tab === "news")         loadNews();
     });
 });
 
-document.querySelectorAll(".modal-overlay").forEach(o => {
-    o.addEventListener("click", function(e) { if (e.target === this) closeModal(this.id); });
+document.addEventListener("click", e => {
+    if (e.target.classList && e.target.classList.contains("modal-overlay")) closeModal(e.target.id);
 });
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id));
@@ -2040,6 +2111,151 @@ async function removeRegistration(tournamentId, teamId, teamName) {
     });
 }
 
+//новости
+async function loadNews() {
+    const wrap = document.getElementById("newsTableWrap");
+    if (!wrap) return;
+    try {
+        const res = await fetch("/api/admin/news");
+        _allNews = res.ok ? await res.json() : [];
+        document.getElementById("newsCount").textContent = `(${_allNews.length})`;
+        renderNewsTable(_allNews);
+    } catch {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить новости</p></div>`;
+    }
+}
+
+function filterNewsTable() {
+    const q = (document.getElementById("newsSearchInput")?.value || "").toLowerCase().trim();
+    const filtered = _allNews.filter(n => !q || (n.title || "").toLowerCase().includes(q));
+    renderNewsTable(filtered);
+}
+
+function fmtNewsDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" }) +
+           " " + d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderNewsTable(items) {
+    const wrap = document.getElementById("newsTableWrap");
+    if (!items.length) { wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📰</div><p>Новостей не найдено</p></div>`; return; }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr><th>Новость</th><th>Тег</th><th>Дата</th><th>Статус</th><th>Действия</th></tr></thead>
+        <tbody>${items.map(n => `
+        <tr>
+            <td><div style="display:flex;align-items:center;gap:10px;">
+                ${n.img ? `<img src="${escAdmin(n.img)}" style="width:44px;height:32px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;" onerror="this.style.display='none'">` : `<div style="width:44px;height:32px;border-radius:6px;background:var(--accent-d);border:1px solid rgba(230,176,34,0.2);flex-shrink:0;"></div>`}
+                <div style="min-width:0;"><div style="font-weight:700;color:white;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;">${escAdmin(n.title)}</div><div style="font-size:11px;color:var(--gray2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;">${escAdmin(n.text)}</div></div>
+            </div></td>
+            <td><span style="font-size:12px;">${escAdmin(n.tag || "—")}</span></td>
+            <td><span style="font-size:12px;color:var(--gray2);">${fmtNewsDate(n.publishedAt)}</span></td>
+            <td>${n.featured ? `<span class="badge badge-active">⭐ Главная</span>` : `<span style="color:var(--gray2);font-size:12px;">—</span>`}</td>
+            <td><div class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="openEditNews('${n._id}')">✏️ Правка</button>
+                <button class="btn ${n.featured ? "btn-ghost" : "btn-success"} btn-sm" onclick="toggleNewsFeatured('${n._id}',${!n.featured})">${n.featured ? "Снять с главной" : "На главную"}</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteNews('${n._id}','${escAdmin(n.title)}')">🗑</button>
+            </div></td>
+        </tr>`).join("")}</tbody></table>`;
+}
+
+async function createNews() {
+    hideError("newsCreateError");
+    const title = document.getElementById("nwTitle").value.trim();
+    const text  = document.getElementById("nwText").value.trim();
+    const tag   = document.getElementById("nwTag").value;
+    const img   = document.getElementById("nwImg").value.trim();
+    const link  = document.getElementById("nwLink").value.trim();
+    const publishedAtRaw = document.getElementById("nwPublishedAt").value;
+    const featured = document.getElementById("nwFeatured").checked;
+    if (!title) { showError("newsCreateError", "Введите заголовок"); return; }
+    if (!text)  { showError("newsCreateError", "Введите текст новости"); return; }
+
+    const btn = document.getElementById("btnCreateNews");
+    btn.disabled = true; btn.textContent = "Публикуем...";
+    try {
+        const body = { title, text, tag, img, link, featured };
+        if (publishedAtRaw) body.publishedAt = new Date(publishedAtRaw).toISOString();
+        const res = await fetch("/api/admin/news", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const d = await res.json();
+        if (!res.ok) { showError("newsCreateError", d.error || "Ошибка"); return; }
+        toast("✅ Новость опубликована!", "ok");
+        ["nwTitle", "nwText", "nwImg", "nwLink", "nwPublishedAt"].forEach(id => document.getElementById(id).value = "");
+        document.getElementById("nwFeatured").checked = false;
+        document.getElementById("nwTag").value = "Результаты";
+        await loadNews();
+    } catch { showError("newsCreateError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Опубликовать"; }
+}
+
+function _isoToLocalInput(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openEditNews(id) {
+    const n = _allNews.find(x => x._id === id); if (!n) return;
+    _editNewsId = id;
+    document.getElementById("enwTitle").value = n.title || "";
+    document.getElementById("enwText").value  = n.text  || "";
+    document.getElementById("enwTag").value   = n.tag   || "Новость";
+    document.getElementById("enwImg").value   = n.img   || "";
+    document.getElementById("enwLink").value  = n.link  || "";
+    document.getElementById("enwPublishedAt").value = _isoToLocalInput(n.publishedAt);
+    document.getElementById("enwFeatured").checked = !!n.featured;
+    hideError("enwError"); openModal("editNewsModal");
+}
+
+async function submitEditNews() {
+    hideError("enwError"); if (!_editNewsId) return;
+    const title = document.getElementById("enwTitle").value.trim();
+    const text  = document.getElementById("enwText").value.trim();
+    const body = {
+        title, text,
+        tag:      document.getElementById("enwTag").value,
+        img:      document.getElementById("enwImg").value.trim(),
+        link:     document.getElementById("enwLink").value.trim(),
+        featured: document.getElementById("enwFeatured").checked,
+    };
+    const publishedAtRaw = document.getElementById("enwPublishedAt").value;
+    if (publishedAtRaw) body.publishedAt = new Date(publishedAtRaw).toISOString();
+    if (!title) { showError("enwError", "Введите заголовок"); return; }
+    if (!text)  { showError("enwError", "Введите текст новости"); return; }
+
+    const btn = document.getElementById("enwSaveBtn");
+    btn.disabled = true; btn.textContent = "Сохранение...";
+    try {
+        const res = await fetch(`/api/admin/news/${_editNewsId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const d = await res.json();
+        if (!res.ok) { showError("enwError", d.error || "Ошибка"); return; }
+        closeModal("editNewsModal"); toast("✅ Новость обновлена!", "ok"); await loadNews();
+    } catch { showError("enwError", "Ошибка соединения"); }
+    finally { btn.disabled = false; btn.textContent = "Сохранить"; }
+}
+
+async function toggleNewsFeatured(id, setFeatured) {
+    try {
+        const res = await fetch(`/api/admin/news/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ featured: setFeatured }) });
+        if (!res.ok) { toast("Ошибка", "err"); return; }
+        toast(setFeatured ? "Новость закреплена на главной" : "Новость снята с главной", "ok"); await loadNews();
+    } catch { toast("Ошибка соединения", "err"); }
+}
+
+async function deleteNews(id, title) {
+    _confirmAction(`Удалить новость «${title}»?`, async () => {
+        try {
+            const res = await fetch(`/api/admin/news/${id}`, { method: "DELETE" });
+            if (!res.ok) { toast("Ошибка", "err"); return; }
+            toast(`Новость «${title}» удалена`, "ok"); await loadNews();
+        } catch { toast("Ошибка соединения", "err"); }
+    });
+}
+
 function escAdmin(str) {
     return String(str || "")
         .replace(/&/g, "&amp;")
@@ -2050,6 +2266,43 @@ function escAdmin(str) {
 
 init();
 </script>
+
+<!-- ── Модалка редактирования новости ──────────────────────────────────────── -->
+<div class="modal-overlay" id="editNewsModal">
+    <div class="modal-panel" style="max-width:560px;">
+        <div class="modal-head">
+            <span class="modal-head-title">✏️ Редактировать новость</span>
+            <button class="modal-close-btn" onclick="closeModal('editNewsModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="enwError" class="modal-error"></div>
+            <div><label class="field-label">Заголовок</label><input type="text" id="enwTitle" class="field-input" maxlength="200"></div>
+            <div><label class="field-label">Текст</label><textarea id="enwText" class="field-input" rows="5" style="resize:vertical;min-height:110px;" maxlength="5000"></textarea></div>
+            <div class="field-row">
+                <div><label class="field-label">Тег</label>
+                    <select id="enwTag" class="field-select">
+                        <option value="Результаты">Результаты</option>
+                        <option value="Анонс">Анонс</option>
+                        <option value="Обновление">Обновление</option>
+                        <option value="Новость">Новость</option>
+                    </select>
+                </div>
+                <div><label class="field-label">Дата публикации</label><input type="datetime-local" id="enwPublishedAt" class="field-input"></div>
+            </div>
+            <div class="field-row">
+                <div><label class="field-label">Картинка (URL)</label><input type="text" id="enwImg" class="field-input"></div>
+                <div><label class="field-label">Ссылка</label><input type="text" id="enwLink" class="field-input"></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--gray);">
+                <input type="checkbox" id="enwFeatured" style="width:15px;height:15px;accent-color:var(--accent);"> Главная новость
+            </label>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('editNewsModal')">Отмена</button>
+            <button class="btn btn-primary" id="enwSaveBtn" onclick="submitEditNews()">Сохранить</button>
+        </div>
+    </div>
+</div>
 
 <!-- ── Модалка редактирования предмета магазина ───────────────────────────── -->
 <div class="modal-overlay" id="editShopItemModal">

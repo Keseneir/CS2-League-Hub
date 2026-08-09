@@ -11,6 +11,7 @@ const Series               = require("../models/Series");
 const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
 const ShopItem             = require("../models/ShopItem");
+const News                 = require("../models/News");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
 
@@ -1008,5 +1009,66 @@ router.delete("/inventory/:userId/item/:entryId", requireAdmin, async (req, res)
 
 // ─── Авто-начисление монет с бустом ─────────────────────────────────────────
 // (логика уже в router.post("/match") выше — этот комментарий для ориентира)
+
+// ─── Новости (админка) ───────────────────────────────────────────────────
+router.get("/news", requireAdmin, async (req, res) => {
+  try {
+    const news = await News.find().sort({ publishedAt: -1 }).lean();
+    res.json(news);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/news", requireAdmin, async (req, res) => {
+  try {
+    const { title, text, tag, img, link, featured, publishedAt } = req.body;
+    if (!title || !title.trim())  return res.status(400).json({ error: "Введите заголовок" });
+    if (!text  || !text.trim())   return res.status(400).json({ error: "Введите текст новости" });
+
+    const news = await News.create({
+      title: title.trim(),
+      text:  text.trim(),
+      tag:   (tag || "Новость").trim(),
+      img:   (img || "").trim(),
+      link:  (link || "").trim(),
+      featured: !!featured,
+      publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
+      authorId: req.user._id,
+    });
+    res.json(news);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/news/:id", requireAdmin, async (req, res) => {
+  try {
+    const update = {};
+    ["title", "text", "tag", "img", "link"].forEach(k => {
+      if (req.body[k] !== undefined) update[k] = String(req.body[k]).trim();
+    });
+    if (req.body.featured !== undefined) update.featured = !!req.body.featured;
+    if (req.body.publishedAt !== undefined) update.publishedAt = new Date(req.body.publishedAt);
+
+    if (update.title === "") return res.status(400).json({ error: "Заголовок не может быть пустым" });
+    if (update.text  === "") return res.status(400).json({ error: "Текст не может быть пустым" });
+
+    const news = await News.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!news) return res.status(404).json({ error: "Новость не найдена" });
+    res.json(news);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/news/:id", requireAdmin, async (req, res) => {
+  try {
+    await News.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
 module.exports = router;

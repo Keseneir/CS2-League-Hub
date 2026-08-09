@@ -120,6 +120,7 @@ app.use("/api/leaderboard",  require("./routes/leaderboard"));
 app.use("/api/admin",        require("./routes/admin"));
 app.use("/api/tournaments",  require("./routes/tournaments"));
 app.use("/api/shop",         require("./routes/shop"));
+app.use("/api/news",         require("./routes/news"));
 
 app.get("/api/seasons", async (req, res) => {
   try {

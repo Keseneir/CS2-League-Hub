@@ -12,6 +12,7 @@ const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
 const ShopItem             = require("../models/ShopItem");
 const News                 = require("../models/News");
+const { postNewsToDiscord } = require("../utils/discordNews");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
 
@@ -1036,6 +1037,7 @@ router.post("/news", requireAdmin, async (req, res) => {
       publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
       authorId: req.user._id,
     });
+    await postNewsToDiscord(news);
     res.json(news);
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
@@ -1065,6 +1067,18 @@ router.patch("/news/:id", requireAdmin, async (req, res) => {
 router.delete("/news/:id", requireAdmin, async (req, res) => {
   try {
     await News.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Ручная (пере)отправка новости в Discord ──────────────────────────────
+router.post("/news/:id/discord", requireAdmin, async (req, res) => {
+  try {
+    const news = await News.findById(req.params.id).lean();
+    if (!news) return res.status(404).json({ error: "Новость не найдена" });
+    await postNewsToDiscord(news);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });

@@ -31,7 +31,11 @@ function truncate(str, max) {
  */
 async function postNewsToDiscord(news) {
   const webhookUrls = resolveWebhookUrls(news.tag);
-  if (!webhookUrls.length) return;
+  if (!webhookUrls.length) {
+    console.log("Discord webhook: no URL configured for tag \"" + (news.tag || "") + "\", skipping.");
+    return;
+  }
+  console.log(`Discord webhook: sending "${news.title}" to ${webhookUrls.length} channel(s)`);
 
   const siteUrl = news.link || `${process.env.DOMAIN || ""}/news.html`;
 
@@ -52,7 +56,8 @@ async function postNewsToDiscord(news) {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ embeds: [embed] }),
       }).then(async res => {
-        if (!res.ok) console.error("Discord webhook error:", url, res.status, await res.text().catch(() => ""));
+        if (!res.ok) console.error("Discord webhook error:", res.status, await res.text().catch(() => ""));
+        else console.log("Discord webhook: delivered OK");
       })
     )
   );

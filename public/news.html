@@ -7,6 +7,66 @@
     <title>Новости — CS2 League Hub</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Модалка чтения новости ─────────────────────────────────────── */
+        #newsModalPanel { max-width: 680px; max-height: 88vh; display: flex; flex-direction: column; }
+        #newsModalScroll { overflow-y: auto; }
+        #newsModalScroll::-webkit-scrollbar { width: 6px; }
+        #newsModalScroll::-webkit-scrollbar-track { background: #0e1318; }
+        #newsModalScroll::-webkit-scrollbar-thumb { background: #2a3540; border-radius: 3px; }
+
+        .nm-img { width: 100%; max-height: 320px; object-fit: cover; display: block; background: #0e1318; }
+        .nm-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .nm-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 22px; color: white; margin-bottom: 14px; line-height: 1.3; }
+        .nm-text { color: var(--text-gray); font-size: 15px; line-height: 1.75; white-space: pre-wrap; margin-bottom: 4px; }
+        .nm-original-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 13px; color: var(--accent); }
+
+        /* Реакции */
+        .nm-reactions { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 0; margin-top: 8px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .nm-react-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: #1a2128; border: 1px solid var(--border); border-radius: 20px;
+            padding: 7px 14px; cursor: pointer; transition: all 0.2s;
+            font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px; color: var(--text-gray);
+        }
+        .nm-react-btn:hover { border-color: rgba(230,176,34,0.4); color: white; }
+        .nm-react-btn.active { background: var(--accent-dim); border-color: rgba(230,176,34,0.5); color: var(--accent); }
+        .nm-react-btn .icon { width: 16px; height: 16px; }
+        .nm-react-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+        /* Комментарии */
+        .nm-comments-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-gray); margin-top: 18px; margin-bottom: 12px; }
+        .nm-comment-form { display: flex; gap: 10px; margin-bottom: 18px; }
+        .nm-comment-form textarea {
+            flex: 1; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 10px 14px; color: white; font-family: 'Inter', sans-serif; font-size: 13px;
+            resize: none; min-height: 44px; outline: none; transition: border-color 0.2s;
+        }
+        .nm-comment-form textarea:focus { border-color: rgba(230,176,34,0.5); }
+        .nm-comment-form button {
+            background: var(--accent); color: #000; border: none; border-radius: 8px;
+            padding: 0 18px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 12px;
+            text-transform: uppercase; cursor: pointer; flex-shrink: 0;
+        }
+        .nm-comment-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .nm-login-hint { text-align: center; padding: 14px; background: rgba(230,176,34,0.06); border: 1px solid rgba(230,176,34,0.2); border-radius: 8px; font-size: 13px; color: var(--text-gray); margin-bottom: 18px; }
+        .nm-login-hint a { color: var(--accent); font-weight: 700; }
+
+        .nm-comment { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .nm-comment:last-child { border-bottom: none; }
+        .nm-comment-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+        .nm-comment-body { flex: 1; min-width: 0; }
+        .nm-comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+        .nm-comment-author { font-weight: 700; font-size: 13px; color: white; }
+        .nm-comment-date { font-size: 11px; color: #5c6b7f; }
+        .nm-comment-text { font-size: 13px; color: var(--text-gray); line-height: 1.55; word-break: break-word; }
+        .nm-comment-del { background: none; border: none; color: #5c6b7f; cursor: pointer; padding: 2px; flex-shrink: 0; transition: color 0.2s; }
+        .nm-comment-del:hover { color: #e05c5c; }
+        .nm-comment-del .icon { width: 14px; height: 14px; }
+        .nm-comments-empty { text-align: center; color: #5c6b7f; font-size: 13px; padding: 20px 0; }
+
+        .news-card, .news-featured { cursor: pointer; }
+    </style>
 </head>
 <script src="auth.js" defer></script>
 <body class="page-news">
@@ -92,6 +152,24 @@
         </p>
     </div>
 </footer>
+
+<!-- ── Модалка чтения новости ── -->
+<div class="p-modal-overlay p-modal-hidden" id="newsModal">
+    <div class="p-modal-panel" id="newsModalPanel">
+        <div class="p-modal-header">
+            <span class="p-modal-title">Новость</span>
+            <button class="p-modal-close" onclick="closeNewsModal()"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
+        </div>
+        <div id="newsModalScroll">
+            <div id="newsModalImgWrap"></div>
+            <div class="p-modal-body" style="padding-top:20px;">
+                <div id="newsModalBody">
+                    <div class="state-box"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="js/icons.js" defer></script>
 <script src="js/common.js" defer></script>

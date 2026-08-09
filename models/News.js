@@ -10,6 +10,12 @@ const NewsSchema = new mongoose.Schema(
     featured:    { type: Boolean, default: false },
     publishedAt: { type: Date, default: Date.now }, // отображаемая дата — можно задать вручную, отдельно от createdAt
     authorId:    { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    reactions: {
+      flame:    { type: Number, default: 0 },
+      sad:      { type: Number, default: 0 },
+      angry:    { type: Number, default: 0 },
+      thumbsUp: { type: Number, default: 0 },
+    },
   },
   { timestamps: true } // createdAt/updatedAt — служебные, для аудита
 );

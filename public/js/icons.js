@@ -62,6 +62,9 @@ const ICONS = {
   search:        '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>',
   coinL:         '<circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="10" fill="currentColor" stroke="none">L</text>',
   coinH:         '<circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="10" fill="currentColor" stroke="none">H</text>',
+  sad:           '<circle cx="12" cy="12" r="9"/><path d="M8 16c1-1.5 2.5-2 4-2s3 .5 4 2"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="9.5" r="1"/>',
+  angry:         '<circle cx="12" cy="12" r="9"/><path d="M8 16.5c1-1 2.5-1.5 4-1.5s3 .5 4 1.5"/><path d="M7.5 8.5 10.5 10M16.5 8.5 13.5 10"/>',
+  thumbsUp:      '<path d="M7 22V11"/><path d="M2 13v7a2 2 0 0 0 2 2h12.4a2 2 0 0 0 2-1.6l1.4-6A2 2 0 0 0 18 12h-5l1-5a2 2 0 0 0-2-2L9 11H2Z"/>',
 };
 
 // Возвращает <svg> целиком с классом .icon — для использования в JS-шаблонах

@@ -11,60 +11,55 @@
     <link rel="stylesheet" href="style.css">
     <style>
 
-        /* ── Hero: GPU-анимированный фон вместо статичной картинки ─────── */
-        .hero {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(0deg, var(--bg) 0%, rgba(11,15,18,0.92) 100%);
-        }
-        #_heroBgLayer {
-            position: absolute;
-            inset: -10%;
+        /* ── Фон: острые переливающиеся линии на всю страницу ───────────── */
+        .hero { position: relative; }
+        #_pageLineLayer {
+            position: fixed;
+            inset: 0;
             z-index: 0;
+            overflow: hidden;
             pointer-events: none;
-            will-change: transform;
         }
-        #_heroBgLayer .blob {
+        #_pageLineLayer .geo-line {
             position: absolute;
-            border-radius: 50%;
-            filter: blur(60px);
-            opacity: 0.16;
-            will-change: transform;
+            top: -40vh;
+            width: 1.5px;
+            height: 180vh;
+            background-color: rgba(230,176,34,0.14);
+            background-image: linear-gradient(180deg,
+                transparent 0%, transparent 38%,
+                rgba(255,224,138,0.95) 50%,
+                transparent 62%, transparent 100%);
+            background-size: 100% 320%;
+            background-repeat: no-repeat;
+            animation-name: lineShimmer;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+            will-change: background-position;
         }
-        #_heroBgLayer .blob-1 {
-            width: 480px; height: 480px;
-            top: -120px; left: 8%;
-            background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-            animation: heroDrift1 22s ease-in-out infinite;
-        }
-        #_heroBgLayer .blob-2 {
-            width: 380px; height: 380px;
-            top: 40px; right: 6%;
-            background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-            animation: heroDrift2 26s ease-in-out infinite;
-        }
-        #_heroBgLayer .blob-3 {
-            width: 300px; height: 300px;
-            bottom: -140px; left: 42%;
-            background: radial-gradient(circle, #ffc933 0%, transparent 70%);
-            animation: heroDrift3 30s ease-in-out infinite;
-        }
-        @keyframes heroDrift1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50%      { transform: translate(40px, 30px) scale(1.08); }
-        }
-        @keyframes heroDrift2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50%      { transform: translate(-35px, 25px) scale(1.06); }
-        }
-        @keyframes heroDrift3 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50%      { transform: translate(20px, -20px) scale(1.1); }
+        #_pageLineLayer .gl-1 { left: 6%;  transform: rotate(14deg);  animation-duration: 6.5s; animation-delay: 0s; }
+        #_pageLineLayer .gl-2 { left: 18%; transform: rotate(-9deg);  animation-duration: 8s;   animation-delay: 1.2s; width: 2px; }
+        #_pageLineLayer .gl-3 { left: 34%; transform: rotate(20deg);  animation-duration: 7s;   animation-delay: 2.5s; }
+        #_pageLineLayer .gl-4 { left: 55%; transform: rotate(-16deg); animation-duration: 9s;   animation-delay: 0.6s; width: 2px; }
+        #_pageLineLayer .gl-5 { left: 74%; transform: rotate(11deg);  animation-duration: 6s;   animation-delay: 3s; }
+        #_pageLineLayer .gl-6 { left: 90%; transform: rotate(-22deg); animation-duration: 7.5s; animation-delay: 1.8s; }
+        @keyframes lineShimmer {
+            0%   { background-position-y: -260%; }
+            100% { background-position-y: 260%; }
         }
         @media (prefers-reduced-motion: reduce) {
-            #_heroBgLayer .blob { animation: none; }
+            #_pageLineLayer .geo-line { animation: none; }
         }
-        .hero > *:not(#_heroBgLayer) { position: relative; z-index: 1; }
+
+        /* Поднимаем контент над fixed-слоем линий: без явного z-index
+           статичные блоки красились бы поверх/под ним непредсказуемо */
+        body > .hero,
+        body > .main-section,
+        body > .tournaments-section,
+        body > footer {
+            position: relative;
+            z-index: 1;
+        }
 
         /* ── Скролл-reveal для секций ───────────────────────────────────── */
         .reveal-on-scroll {
@@ -224,6 +219,15 @@
 </head>
 <body class="page-index">
 
+<div id="_pageLineLayer" aria-hidden="true">
+    <div class="geo-line gl-1"></div>
+    <div class="geo-line gl-2"></div>
+    <div class="geo-line gl-3"></div>
+    <div class="geo-line gl-4"></div>
+    <div class="geo-line gl-5"></div>
+    <div class="geo-line gl-6"></div>
+</div>
+
 <header>
    <a href="index.html" class="logo"><img src="/assets/logo.png" alt="CS2 League Hub" class="logo-img"></a>
     <div class="header-right">
@@ -256,11 +260,6 @@
 </header>
 
 <div class="hero">
-    <div id="_heroBgLayer" aria-hidden="true">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-    </div>
     <h1>ТВОЯ ИГРА <br><span>ТВОИ ПРАВИЛА</span></h1>
     <div class="cta-buttons">
         <a href="/auth/steam?redirect=/join.html" id="heroBtnApply" class="btn btn-apply" style="padding:10px 20px;border-radius:4px;font-size:14px;">

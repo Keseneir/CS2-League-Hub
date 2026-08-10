@@ -455,3 +455,115 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 })();
+
+// ── Виджет техподдержки (плавающий чат, гостевой, без логина) ─────────────
+(function () {
+    if (location.pathname.toLowerCase().includes("admin")) return;
+
+    function getGuestId() {
+        let id = localStorage.getItem("_supportGuestId");
+        if (!id) {
+            id = (window.crypto && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : "g-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+            localStorage.setItem("_supportGuestId", id);
+        }
+        return id;
+    }
+    const guestId = getGuestId();
+
+    let pollTimer = null;
+    let lastMessageCount = 0;
+    let isOpen = false;
+
+    function escSupport(s) {
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function widgetHtml() {
+        return `
+        <div id="_supportBtn" title="Техподдержка">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+            </svg>
+        </div>
+        <div id="_supportPanel" class="_sp-hidden">
+            <div class="_sp-header">
+                <span>Техподдержка</span>
+                <button id="_supportCloseBtn" aria-label="Закрыть">✕</button>
+            </div>
+            <div id="_supportMessages"></div>
+            <div class="_sp-inputRow">
+                <input id="_supportInput" type="text" placeholder="Напишите сообщение..." maxlength="2000">
+                <button id="_supportSendBtn" aria-label="Отправить">➤</button>
+            </div>
+        </div>`;
+    }
+
+    function init() {
+        document.body.insertAdjacentHTML("beforeend", widgetHtml());
+
+        const btn      = document.getElementById("_supportBtn");
+        const panel    = document.getElementById("_supportPanel");
+        const closeBtn = document.getElementById("_supportCloseBtn");
+        const input    = document.getElementById("_supportInput");
+        const sendBtn  = document.getElementById("_supportSendBtn");
+        const msgsEl   = document.getElementById("_supportMessages");
+
+        function renderMessages(messages) {
+            if (!messages.length) {
+                msgsEl.innerHTML = `<div class="_sp-empty">Напишите нам, если есть вопрос — ответим как можно скорее.</div>`;
+                return;
+            }
+            msgsEl.innerHTML = messages.map(m => `<div class="_sp-msg _sp-${m.from}">${escSupport(m.text)}</div>`).join("");
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+        }
+
+        async function loadThread() {
+            try {
+                const res  = await fetch(`/api/support/thread/${guestId}`);
+                const data = await res.json();
+                if (data.messages.length !== lastMessageCount) {
+                    lastMessageCount = data.messages.length;
+                    renderMessages(data.messages);
+                }
+            } catch {}
+        }
+
+        function openPanel() {
+            isOpen = true;
+            panel.classList.remove("_sp-hidden");
+            loadThread();
+            if (!pollTimer) pollTimer = setInterval(loadThread, 4000);
+        }
+        function closePanel() {
+            isOpen = false;
+            panel.classList.add("_sp-hidden");
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+
+        btn.addEventListener("click", () => (isOpen ? closePanel() : openPanel()));
+        closeBtn.addEventListener("click", closePanel);
+
+        async function sendMsg() {
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            sendBtn.disabled = true;
+            try {
+                await fetch("/api/support/message", {
+                    method:  "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body:    JSON.stringify({ guestId, text }),
+                });
+                await loadThread();
+            } catch {}
+            finally { sendBtn.disabled = false; }
+        }
+        sendBtn.addEventListener("click", sendMsg);
+        input.addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
+})();

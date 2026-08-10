@@ -63,32 +63,53 @@ router.post("/message", async (req, res) => {
 // ─── POST /api/support/telegram-webhook ─── входящее от Telegram ──────────
 // Telegram сам стучится сюда, когда админ отвечает боту. Нужен ТОЛЬКО
 // вебхук — никакого постоянно живого процесса, это отличие от Discord-бота.
+//
+// ВАЖНО: на Vercel serverless функция может "заморозиться" сразу после
+// отправки ответа — поэтому вся обработка идёт ДО res.sendStatus(200),
+// а не после (как было раньше и как чуть не наступило на те же грабли,
+// что и с Discord-вебхуком новостей).
 router.post("/telegram-webhook", async (req, res) => {
-  // Telegram ждёт быстрый 200 независимо от результата обработки
-  res.sendStatus(200);
-
   try {
     if (process.env.TELEGRAM_WEBHOOK_SECRET) {
       const headerSecret = req.get("X-Telegram-Bot-Api-Secret-Token");
-      if (headerSecret !== process.env.TELEGRAM_WEBHOOK_SECRET) return;
+      if (headerSecret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+        console.log("Telegram webhook: secret token mismatch, ignoring.");
+        return res.sendStatus(200);
+      }
     }
 
     const msg = req.body?.message;
-    if (!msg || !msg.text) return;
-    if (String(msg.chat?.id) !== String(process.env.TELEGRAM_SUPPORT_CHAT_ID)) return; // не наш чат — игнор
+    if (!msg || !msg.text) {
+      console.log("Telegram webhook: no message/text in payload, ignoring.");
+      return res.sendStatus(200);
+    }
+    if (String(msg.chat?.id) !== String(process.env.TELEGRAM_SUPPORT_CHAT_ID)) {
+      console.log(`Telegram webhook: chat_id mismatch (got ${msg.chat?.id}, expected ${process.env.TELEGRAM_SUPPORT_CHAT_ID}), ignoring.`);
+      return res.sendStatus(200);
+    }
 
     const replyToId = msg.reply_to_message?.message_id;
-    if (!replyToId) return; // отвечать нужно строго через "Ответить" на сообщение конкретного треда
+    if (!replyToId) {
+      console.log("Telegram webhook: message is not a reply, ignoring (admin must use 'Reply' on the guest's message).");
+      return res.sendStatus(200);
+    }
 
     const thread = await SupportThread.findOne({ telegramMessageIds: replyToId });
-    if (!thread) return;
+    if (!thread) {
+      console.log(`Telegram webhook: no thread found for telegramMessageId=${replyToId}, ignoring.`);
+      return res.sendStatus(200);
+    }
 
     await SupportMessage.create({ threadId: thread._id, from: "admin", text: msg.text });
     thread.telegramMessageIds.push(msg.message_id);
     thread.lastMessageAt = new Date();
     await thread.save();
+
+    console.log(`Telegram webhook: admin reply saved to thread ${thread._id}`);
+    res.sendStatus(200);
   } catch (err) {
     console.error("Telegram webhook handling error:", err.message);
+    res.sendStatus(200); // Telegram всё равно ждёт 200, иначе начнёт ретраить
   }
 });
 

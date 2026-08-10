@@ -70,7 +70,7 @@
 
             <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
                 <div id="pubAvatarFrameWrap" style="position:relative;z-index:0;flex-shrink:0;align-self:flex-start;">
-                    <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.style.display='none'">
+                    <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 fill=%27%231a2128%27/%3E%3Ccircle cx=%2712%27 cy=%278.5%27 r=%274%27 fill=%27%235c6b7f%27/%3E%3Cpath d=%27M4 21a8 8 0 0 1 16 0z%27 fill=%27%235c6b7f%27/%3E%3C/svg%3E'">
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div class="profile-display-name" id="pubName">—</div>
@@ -174,7 +174,7 @@
                 <div id="profileAvatarFrameWrap" style="position:relative;z-index:0;flex-shrink:0;align-self:flex-start;">
                     <img id="profileAvatar" src="" alt="" class="profile-avatar-large"
                          style="border:3px solid var(--bg);transition:box-shadow .3s;"
-                         onerror="this.style.display='none'">
+                         onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 fill=%27%231a2128%27/%3E%3Ccircle cx=%2712%27 cy=%278.5%27 r=%274%27 fill=%27%235c6b7f%27/%3E%3Cpath d=%27M4 21a8 8 0 0 1 16 0z%27 fill=%27%235c6b7f%27/%3E%3C/svg%3E'">
                 </div>
                 <div style="flex:1;min-width:0;">
                     <div class="profile-display-name" id="profileDisplayName">—</div>
@@ -203,6 +203,16 @@
                      style="width:170px;pointer-events:none;user-select:none;
                             mix-blend-mode:screen;position:absolute;bottom:0px;right:24px;
                             filter:drop-shadow(0 4px 16px rgba(0,0,0,0.5));transition:all 0.3s ease;">
+            </div>
+
+            <!-- ── Промокод ── -->
+            <div class="pform-card" style="margin-bottom:14px;">
+                <div class="pform-card-title"><i class="icon" data-icon="gift" aria-hidden="true"></i> Промокод</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+                    <input type="text" id="promoCodeInput" class="p-field-input" placeholder="ВВЕДИТЕ КОД" style="flex:1;min-width:160px;text-transform:uppercase;" maxlength="40">
+                    <button class="btn-team-settings" id="promoRedeemBtn" onclick="redeemPromoCode()">Активировать</button>
+                </div>
+                <div id="promoRedeemResult" style="margin-top:10px;font-size:13px;display:none;"></div>
             </div>
 
             <!-- ── Обзорная статистика: уровень / винрейт сезона / K-D / матчи ── -->

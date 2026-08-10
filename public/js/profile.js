@@ -1605,3 +1605,37 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     });
     
 }
+
+//промокод
+async function redeemPromoCode() {
+    const input  = document.getElementById("promoCodeInput");
+    const btn    = document.getElementById("promoRedeemBtn");
+    const result = document.getElementById("promoRedeemResult");
+    const code = (input.value || "").trim();
+    if (!code) return;
+
+    btn.disabled = true; btn.textContent = "Активация...";
+    result.style.display = "none";
+    try {
+        const res = await fetch("/api/promo/redeem", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+        result.style.display = "block";
+        if (!res.ok) {
+            result.style.color = "#e05c5c";
+            result.textContent = data.error || "Не удалось активировать промокод";
+        } else {
+            result.style.color = "#4caf82";
+            result.innerHTML = "✓ Промокод активирован!<br>" + (data.rewards || []).map(r => "• " + r).join("<br>");
+            input.value = "";
+        }
+    } catch {
+        result.style.display = "block";
+        result.style.color = "#e05c5c";
+        result.textContent = "Ошибка соединения";
+    } finally {
+        btn.disabled = false; btn.textContent = "Активировать";
+    }
+}

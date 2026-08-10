@@ -12,6 +12,8 @@ const Rank                 = require("../models/Rank");
 const Tournament           = require("../models/Tournament");
 const ShopItem             = require("../models/ShopItem");
 const News                 = require("../models/News");
+const PromoCode            = require("../models/PromoCode");
+const DiscordRoleRequest   = require("../models/DiscordRoleRequest");
 const { postNewsToDiscord } = require("../utils/discordNews");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
@@ -1080,6 +1082,96 @@ router.post("/news/:id/discord", requireAdmin, async (req, res) => {
     if (!news) return res.status(404).json({ error: "Новость не найдена" });
     await postNewsToDiscord(news);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Промокоды (админка) ───────────────────────────────────────────────────
+router.get("/promo", requireAdmin, async (req, res) => {
+  try {
+    const codes = await PromoCode.find().sort({ createdAt: -1 }).lean();
+    res.json(codes);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/promo", requireAdmin, async (req, res) => {
+  try {
+    const { code, rewards, maxActivations, expiresAt } = req.body;
+    const normCode = String(code || "").trim().toUpperCase();
+    if (!normCode) return res.status(400).json({ error: "Введите код" });
+    if (!Array.isArray(rewards) || !rewards.length)
+      return res.status(400).json({ error: "Добавьте хотя бы одну награду" });
+
+    for (const r of rewards) {
+      if (!["personalCoins", "teamCoins", "cosmetic", "discordRole"].includes(r.type))
+        return res.status(400).json({ error: "Некорректный тип награды" });
+      if (["personalCoins", "teamCoins"].includes(r.type) && (!r.amount || r.amount < 1))
+        return res.status(400).json({ error: "Укажите количество монет больше 0" });
+      if (r.type === "cosmetic" && !r.itemId)
+        return res.status(400).json({ error: "Выберите предмет косметики" });
+      if (r.type === "discordRole" && !r.roleName?.trim())
+        return res.status(400).json({ error: "Укажите название роли Discord" });
+    }
+
+    const promo = await PromoCode.create({
+      code: normCode,
+      rewards,
+      maxActivations: maxActivations ? Number(maxActivations) : null,
+      expiresAt:      expiresAt ? new Date(expiresAt) : null,
+      createdBy:      req.user._id,
+    });
+    res.json(promo);
+  } catch (err) {
+    if (err.code === 11000) return res.status(400).json({ error: "Такой промокод уже существует" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/promo/:id", requireAdmin, async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.isActive !== undefined) update.isActive = !!req.body.isActive;
+    if (req.body.maxActivations !== undefined) update.maxActivations = req.body.maxActivations ? Number(req.body.maxActivations) : null;
+    if (req.body.expiresAt !== undefined) update.expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
+    if (req.body.rewards !== undefined) update.rewards = req.body.rewards;
+
+    const promo = await PromoCode.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+    if (!promo) return res.status(404).json({ error: "Промокод не найден" });
+    res.json(promo);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/promo/:id", requireAdmin, async (req, res) => {
+  try {
+    await PromoCode.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Заявки на роли Discord (из промокодов) ────────────────────────────────
+router.get("/discord-role-requests", requireAdmin, async (req, res) => {
+  try {
+    const requests = await DiscordRoleRequest.find().sort({ createdAt: -1 }).lean();
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/discord-role-requests/:id", requireAdmin, async (req, res) => {
+  try {
+    const request = await DiscordRoleRequest.findByIdAndUpdate(
+      req.params.id, { $set: { status: "done" } }, { new: true }
+    );
+    if (!request) return res.status(404).json({ error: "Заявка не найдена" });
+    res.json(request);
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }

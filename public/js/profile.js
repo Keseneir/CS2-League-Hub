@@ -615,12 +615,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 }
                 bgLayer.classList.add("active");
             }
-            styles += `#profileCoverArea { opacity: 1 !important; background: transparent !important; border-color: transparent !important; }\n`;
-            styles += `#pubCoverArea     { opacity: 1 !important; background: transparent !important; border-color: transparent !important; }\n`;
+            styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
+            styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
         } else {
             bgLayer.classList.remove("active");
-            styles += `#profileCoverArea { opacity: 0 !important; }\n`;
-            styles += `#pubCoverArea     { opacity: 0 !important; }\n`;
         }
 
         let el = document.getElementById("_cosmetic_styles");

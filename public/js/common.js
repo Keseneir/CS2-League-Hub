@@ -492,7 +492,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div id="_supportPanel" class="_sp-hidden">
             <div class="_sp-header">
-                <span>Техподдержка</span>
+                <span>Техподдержка <span id="_supportStatusBadge" class="_sp-badge" style="display:none;"></span></span>
                 <button id="_supportCloseBtn" aria-label="Закрыть">✕</button>
             </div>
             <div id="_supportMessages"></div>
@@ -535,6 +535,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const attachPreview = document.getElementById("_supportAttachPreview");
 
         let pendingAttachment = null; // { url, publicId }
+        let deliveredNoticeShown = false; // разовая строка "запрос доставлен" за сессию открытия чата
+
+        function renderStatusBadge(thread) {
+            const badge = document.getElementById("_supportStatusBadge");
+            if (!thread) { badge.style.display = "none"; return; }
+            let label;
+            if (thread.isResolved) label = "✅ Решено";
+            else if (thread.hasAdminReply) label = "💬 В диалоге";
+            else label = "🕓 Ожидает ответа";
+            badge.textContent = label;
+            badge.style.display = "inline";
+        }
 
         function avatarHtml(m) {
             if (m.authorAvatar) return `<img class="_sp-avatar" src="${escSupport(m.authorAvatar)}" onerror="this.style.display='none'">`;
@@ -546,7 +558,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 msgsEl.innerHTML = `<div class="_sp-empty">Напишите нам, если есть вопрос — ответим как можно скорее.</div>`;
                 return;
             }
-            msgsEl.innerHTML = messages.map(m => `
+            const rows = messages.map(m => `
                 <div class="_sp-row _sp-row-${m.from}">
                     ${avatarHtml(m)}
                     <div class="_sp-col">
@@ -557,7 +569,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         </div>
                     </div>
                 </div>
-            `).join("");
+            `);
+            // Разовая строка "запрос доставлен" — сразу после первого сообщения гостя,
+            // один раз за это открытие виджета (не хранится в БД, чисто UI-приветствие).
+            if (deliveredNoticeShown && messages.length === 1 && messages[0].from === "guest") {
+                rows.push(`<div class="_sp-system">Ваш запрос доставлен и рассматривается</div>`);
+            }
+            msgsEl.innerHTML = rows.join("");
             msgsEl.scrollTop = msgsEl.scrollHeight;
         }
 
@@ -565,6 +583,7 @@ document.addEventListener("DOMContentLoaded", function () {
             try {
                 const res  = await fetch(`/api/support/thread/${guestId}`);
                 const data = await res.json();
+                renderStatusBadge(data.thread);
                 if (data.messages.length !== lastMessageCount) {
                     lastMessageCount = data.messages.length;
                     renderMessages(data.messages);
@@ -621,6 +640,7 @@ document.addEventListener("DOMContentLoaded", function () {
         async function sendMsg() {
             const text = input.value.trim();
             if (!text && !pendingAttachment) return;
+            const isFirstMessage = lastMessageCount === 0;
             input.value = "";
             sendBtn.disabled = true;
             try {
@@ -640,6 +660,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     alert(d.error || "Слишком часто, подождите немного");
                     return;
                 }
+                if (res.status === 403) {
+                    const d = await res.json();
+                    alert(d.error || "Чат временно недоступен");
+                    return;
+                }
+                if (isFirstMessage) deliveredNoticeShown = true;
                 pendingAttachment = null;
                 attachPreview.style.display = "none";
                 attachPreview.innerHTML = "";

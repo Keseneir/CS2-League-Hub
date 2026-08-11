@@ -8,6 +8,7 @@ const SupportThreadSchema = new mongoose.Schema(
     guestSteamId:       { type: String, trim: true, default: "" },
     lastMessageAt:       { type: Date, default: Date.now },
     isResolved:          { type: Boolean, default: false },
+    isBlocked:           { type: Boolean, default: false },
     // ID всех сообщений, отправленных в Telegram по этому треду — чтобы
     // "Ответить" на ЛЮБОЕ из них (даже старое) корректно долетало обратно.
     telegramMessageIds:  { type: [Number], default: [] },

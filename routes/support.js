@@ -44,8 +44,16 @@ router.get("/thread/:guestId", async (req, res) => {
       .select("from text authorName authorAvatar attachmentUrl createdAt")
       .lean();
 
+    const hasAdminReply = messages.some(m => m.from === "admin");
+
     res.json({
-      thread: { guestName: thread.guestName, guestAvatar: thread.guestAvatar, isResolved: thread.isResolved },
+      thread: {
+        guestName: thread.guestName,
+        guestAvatar: thread.guestAvatar,
+        isResolved: thread.isResolved,
+        isBlocked: thread.isBlocked,
+        hasAdminReply,
+      },
       messages,
     });
   } catch (err) {
@@ -68,6 +76,10 @@ router.post("/message", async (req, res) => {
     if (text.length > 2000) return res.status(400).json({ error: "Слишком длинное сообщение" });
 
     let thread = await SupportThread.findOne({ guestId });
+
+    if (thread && thread.isBlocked) {
+      return res.status(403).json({ error: "Чат временно недоступен" });
+    }
 
     // Рейт-лимит: не чаще одного сообщения раз в RATE_LIMIT_MS
     if (thread && thread.lastMessageAt && Date.now() - thread.lastMessageAt.getTime() < RATE_LIMIT_MS) {
@@ -158,6 +170,28 @@ router.post("/telegram-webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Служебные команды: админ отвечает "/block", "/unblock" или "/resolve"
+    // на сообщение гостя вместо обычного текстового ответа. Это НЕ создаёт
+    // SupportMessage — гость не должен видеть служебные команды в чате.
+    const command = /^\/(block|unblock|resolve)\s*$/i.exec(msg.text.trim())?.[1]?.toLowerCase();
+    if (command) {
+      let confirmText;
+      if (command === "block") {
+        thread.isBlocked = true;
+        confirmText = `🚫 Гость ${thread.guestName} заблокирован.`;
+      } else if (command === "unblock") {
+        thread.isBlocked = false;
+        confirmText = `✅ Гость ${thread.guestName} разблокирован.`;
+      } else {
+        thread.isResolved = true;
+        confirmText = `✅ Тред ${thread.guestName} помечен решённым.`;
+      }
+      await thread.save();
+      await sendTelegramMessage(confirmText, msg.message_id);
+      console.log(`Telegram webhook: command /${command} applied to thread ${thread._id}`);
+      return res.sendStatus(200);
+    }
+
     // Имя админа: предпочитаем first_name (то, что видно в Telegram), можно
     // добавить username в скобках, если есть — для различения нескольких админов
     const adminName = msg.from?.username
@@ -167,6 +201,7 @@ router.post("/telegram-webhook", async (req, res) => {
     await SupportMessage.create({ threadId: thread._id, from: "admin", text: msg.text, authorName: adminName });
     thread.telegramMessageIds.push(msg.message_id);
     thread.lastMessageAt = new Date();
+    thread.isResolved = false; // новый ответ админа — тред снова "в диалоге", не решён
     await thread.save();
 
     console.log(`Telegram webhook: admin reply saved to thread ${thread._id}`);

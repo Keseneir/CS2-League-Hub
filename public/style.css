@@ -2014,6 +2014,16 @@ i.icon { display: inline-flex; }
 }
 ._sp-header button:hover { background: #e05c5c; color: white; }
 
+._sp-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #8b96a5;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
 #_supportMessages {
     flex: 1;
     overflow-y: auto;
@@ -2027,6 +2037,7 @@ i.icon { display: inline-flex; }
 #_supportMessages::-webkit-scrollbar-thumb { background: #2a3540; border-radius: 3px; }
 
 ._sp-empty { color: #5c6b7f; font-size: 13px; text-align: center; padding: 30px 10px; }
+._sp-system { color: #5c6b7f; font-size: 11px; text-align: center; padding: 4px 10px 2px; }
 ._sp-msg {
     max-width: 100%;
     padding: 9px 13px;

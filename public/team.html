@@ -417,6 +417,17 @@
             </div>
         </div>
 
+        <!-- ── Инвентарь команды ── -->
+        <div id="teamInventorySection" style="display:none;margin-bottom:32px;">
+            <div class="section-label"><i class="icon" data-icon="gift" aria-hidden="true"></i> Инвентарь команды</div>
+            <div id="teamInventoryGrid" class="cosmetic-inv-grid"></div>
+            <div id="teamInventoryEmptyNote"
+                 style="font-size:12px;color:#5c6b7f;padding:10px 0;display:none;">
+                Инвентарь пуст —
+                <a href="/shop.html" style="color:var(--accent);text-decoration:none;">зайди в магазин</a>
+            </div>
+        </div>
+
         <!-- ── Состав ── -->
         <div style="margin-bottom:32px;">
             <div class="section-label"><i class="icon" data-icon="swords" aria-hidden="true"></i> Основной состав</div>
@@ -677,6 +688,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderStats(_team, true);
     renderMatches(_team);
     renderWallet(_team, canEdit);
+    if (canEdit) renderTeamInventory(_team);
 
     // Применяем надетый косметический фон команды
     if (_team.equippedCosmetics?.teamBg) {
@@ -885,6 +897,124 @@ function renderWallet(team, canEdit) {
     if (!canEdit && !(team.balance > 0)) return;
     document.getElementById("walletSection").style.display = "";
     document.getElementById("walletBal").textContent = team.balance || 0;
+}
+
+// ─── Инвентарь команды (только капитан/менеджер видят и могут надевать) ───
+async function renderTeamInventory(team) {
+    const section   = document.getElementById("teamInventorySection");
+    const grid      = document.getElementById("teamInventoryGrid");
+    const emptyNote = document.getElementById("teamInventoryEmptyNote");
+    if (!section || !grid) return;
+
+    section.style.display = "";
+    grid.innerHTML = `<div style="color:var(--text-gray);font-size:13px;padding:8px 0;">Загрузка...</div>`;
+
+    let shopInv = null;
+    try {
+        const r = await fetch("/api/shop/inventory");
+        if (r.ok) shopInv = await r.json();
+    } catch {}
+
+    grid.innerHTML = "";
+
+    // Инвентарь команды в /api/shop/inventory уже отфильтрован по teamId
+    // текущего пользователя на бэкенде — здесь просто отбрасываем расходники
+    // без itemId и держим только непотреблённые (consumed=false для билетов и т.п.)
+    const teamItems = (shopInv?.team || []).filter(e => e && e.itemId && !e.consumed);
+
+    if (teamItems.length === 0) {
+        if (emptyNote) emptyNote.style.display = "";
+        return;
+    }
+    if (emptyNote) emptyNote.style.display = "none";
+
+    const equippedTeamBg = shopInv?.equippedTeam?.teamBg;
+
+    teamItems.forEach(({ itemId }) => {
+        // На команду сейчас можно надеть только фон (teamBg) — остальные
+        // командные предметы (билеты, слоты и т.п.) показываем без кнопки.
+        if (itemId.cosmeticType !== "team_bg") {
+            const card = document.createElement("div");
+            card.className = "cosmetic-inv-card";
+            card.innerHTML = `
+                <div class="cic-icon">${itemId.icon || iconSvg("gift")}</div>
+                <div class="cic-meta">
+                    <div class="cic-name">${escHtmlTeam(itemId.name)}</div>
+                    <div class="cic-type">${iconSvg("gift")} Предмет команды</div>
+                </div>
+                <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;
+                     border:none;font-size:11px;color:var(--text-gray);">—</div>
+            `;
+            grid.appendChild(card);
+            return;
+        }
+
+        const isEquipped = equippedTeamBg &&
+            (equippedTeamBg._id || equippedTeamBg).toString() === (itemId._id || itemId).toString();
+
+        const card = document.createElement("div");
+        card.className = "cosmetic-inv-card" + (isEquipped ? " is-equipped" : "");
+        card.innerHTML = `
+            <div class="cic-icon">${itemId.icon || iconSvg("palette")}</div>
+            <div class="cic-meta">
+                <div class="cic-name">${escHtmlTeam(itemId.name)}</div>
+                <div class="cic-type">${iconSvg("shield")} Фон команды</div>
+            </div>
+            <button class="cic-btn ${isEquipped ? "cic-btn-off" : "cic-btn-on"}"
+                onclick="${isEquipped
+                    ? `unequipTeamCosmetic('teamBg')`
+                    : `equipTeamCosmetic('${itemId._id}', 'teamBg', this)`}">
+                ${isEquipped ? "Снять" : "Надеть"}
+            </button>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+async function equipTeamCosmetic(itemId, slot, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = "..."; }
+    try {
+        const r = await fetch("/api/shop/equip/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId, slot }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            alert(data.error || "Ошибка");
+            if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
+            return;
+        }
+        // Перезагружаем данные команды, чтобы обновить и applyTeamCosmetic, и грид
+        const profileRes = await fetch("/api/profile");
+        const profile = await profileRes.json();
+        _team = profile.team;
+        if (_team.equippedCosmetics?.teamBg) applyTeamCosmetic(_team.equippedCosmetics.teamBg);
+        await renderTeamInventory(_team);
+    } catch (e) {
+        console.error("equipTeamCosmetic:", e);
+        if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
+    }
+}
+
+async function unequipTeamCosmetic(slot) {
+    try {
+        const r = await fetch("/api/shop/equip/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId: null, slot }),
+        });
+        const data = await r.json();
+        if (!r.ok) { alert(data.error || "Ошибка"); return; }
+        const profileRes = await fetch("/api/profile");
+        const profile = await profileRes.json();
+        _team = profile.team;
+        const el = document.getElementById("_team_cosmetic");
+        if (el) el.textContent = ""; // сняли фон — убираем инлайновый <style>
+        await renderTeamInventory(_team);
+    } catch (e) {
+        console.error("unequipTeamCosmetic:", e);
+    }
 }
 
 // ─── Форма редактирования ───────────────────────────────────────────────────

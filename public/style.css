@@ -948,6 +948,10 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     padding: 20px 24px;
     margin-bottom: 20px;
 }
+a.team-card-header:hover {
+    border-color: rgba(230,176,34,0.5);
+    background: #171d24;
+}
 .team-logo-circle {
     width: 52px;
     height: 52px;

@@ -13,6 +13,18 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         return `<div class="${ph}">${initials}</div>`;
     }
 
+    // ── Палитра уровней FACEIT ──────────────────────────────────────────────
+    // 1 — белый, 2-3 — лайм, 4-7 — жёлтый, 8-9 — оранжевый, 10 — красный.
+    // Уровень 0 ("нет аккаунта") и отсутствие уровня — нейтральный серый.
+    function faceitLevelColor(level) {
+        if (level === null || level === undefined || level === 0) return "#5c6b7f";
+        if (level === 1) return "#e8ecf0";
+        if (level <= 3) return "#8bc543";
+        if (level <= 7) return "#e6b022";
+        if (level <= 9) return "#ff8a1f";
+        return "#e14b4b"; // level 10
+    }
+
     
 
     function showToast(msg, type) {
@@ -218,9 +230,11 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (faceitDonut && faceitVal) {
             if (hasFaceit) {
                 faceitDonut.style.setProperty("--pct", (data.faceitLevel / 10) * 100);
+                faceitDonut.style.setProperty("--donut-color", faceitLevelColor(data.faceitLevel));
                 faceitVal.textContent = data.faceitLevel;
             } else {
                 faceitDonut.style.setProperty("--pct", 0);
+                faceitDonut.style.setProperty("--donut-color", faceitLevelColor(null));
                 faceitVal.textContent = "—";
             }
         }
@@ -340,7 +354,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const faceitBadge = document.getElementById("pubFaceitBadge");
         if (faceitBadge && data.faceitLevel !== null && data.faceitLevel !== undefined) {
             const label = data.faceitLevel === 0 ? "FACEIT: нет аккаунта" : `FACEIT lv${data.faceitLevel}`;
-            faceitBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,95,31,0.12);border:1px solid rgba(255,95,31,0.3);color:#ff5f1f;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${label}</span>`;
+            const color = faceitLevelColor(data.faceitLevel);
+            faceitBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:${color}20;border:1px solid ${color}55;color:${color};border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${label}</span>`;
             faceitBadge.style.display = "block";
         }
 
@@ -387,7 +402,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 const logoHtml = data.team.logo
                     ? `<img src="${data.team.logo}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
                     : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.25);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--accent);flex-shrink:0;">${(data.team.tag || "?").slice(0, 2)}</div>`;
-                teamCard.innerHTML = `${logoHtml}<div><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;">${data.team.name}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${data.team.tag}]</div></div>`;
+                teamCard.href = `/team.html?tag=${encodeURIComponent(data.team.tag)}`;
+                teamCard.innerHTML = `${logoHtml}<div style="flex:1;min-width:0;"><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;">${data.team.name}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${data.team.tag}]</div></div><div style="display:flex;align-items:center;gap:6px;color:#5c6b7f;font-size:12px;font-weight:600;flex-shrink:0;">Перейти на страницу команды ${iconSvg("link")}</div>`;
             }
         }
 
@@ -599,10 +615,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 }
                 bgLayer.classList.add("active");
             }
-            styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
-            styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
+            styles += `#profileCoverArea { opacity: 1 !important; background: transparent !important; border-color: transparent !important; }\n`;
+            styles += `#pubCoverArea     { opacity: 1 !important; background: transparent !important; border-color: transparent !important; }\n`;
         } else {
             bgLayer.classList.remove("active");
+            styles += `#profileCoverArea { opacity: 0 !important; }\n`;
+            styles += `#pubCoverArea     { opacity: 0 !important; }\n`;
         }
 
         let el = document.getElementById("_cosmetic_styles");
@@ -631,14 +649,15 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             group.innerHTML = levels.map(lv => {
                 const label = lv === 0 ? "Нет" : `lv${lv}`;
                 const sel   = faceit === lv;
+                const color = faceitLevelColor(lv === 0 ? null : lv);
                 return `<button type="button"
                     data-level="${lv}"
                     onclick="selectFaceit(${lv})"
                     style="padding:7px 13px;border-radius:6px;cursor:pointer;transition:all 0.2s;
                            font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
-                           border:1px solid ${sel ? "var(--accent)" : "var(--border)"};
-                           background:${sel ? "rgba(230,176,34,0.15)" : "#0e1318"};
-                           color:${sel ? "var(--accent)" : "var(--text-gray)"};"
+                           border:1px solid ${sel ? color : "var(--border)"};
+                           background:${sel ? color + "26" : "#0e1318"};
+                           color:${sel ? color : "var(--text-gray)"};"
                 >${label}</button>`;
             }).join("");
         }
@@ -823,9 +842,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         document.querySelectorAll("#faceitBtnGroup button").forEach(btn => {
             const lv  = parseInt(btn.dataset.level);
             const sel = lv === level;
-            btn.style.border     = `1px solid ${sel ? "var(--accent)" : "var(--border)"}`;
-            btn.style.background = sel ? "rgba(230,176,34,0.15)" : "#0e1318";
-            btn.style.color      = sel ? "var(--accent)" : "var(--text-gray)";
+            const color = faceitLevelColor(lv === 0 ? null : lv);
+            btn.style.border     = `1px solid ${sel ? color : "var(--border)"}`;
+            btn.style.background = sel ? color + "26" : "#0e1318";
+            btn.style.color      = sel ? color : "var(--text-gray)";
         });
     };
 

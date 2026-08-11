@@ -98,7 +98,7 @@
 
             <div id="pubTeamBlock" style="display:none;margin-top:14px;">
                 <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Команда</div>
-                <div class="team-card-header" id="pubTeamCard"></div>
+                <a class="team-card-header" id="pubTeamCard" style="text-decoration:none;cursor:pointer;transition:border-color .2s,background .2s;"></a>
             </div>
 
             <!-- ── Обзорная статистика ── -->
@@ -163,6 +163,7 @@
 
             <!-- ── Обложка профиля (прозрачная, оживает только при надетом cosmetic profileBg) ── -->
             <div id="profileCoverArea" style="
+                opacity: 0; pointer-events: none;
                 height:130px;margin:-20px -20px 0;
                 background:transparent;border:none;border-radius:0;
                 position:relative;overflow:hidden;transition:all .3s;

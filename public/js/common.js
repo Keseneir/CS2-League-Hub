@@ -456,7 +456,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 })();
 
-// ── Виджет техподдержки (плавающий чат, гостевой, без логина) ─────────────
+// ── Виджет техподдержки: система тикетов (список + чат конкретного тикета) ─
 (function () {
     if (location.pathname.toLowerCase().includes("admin")) return;
 
@@ -479,8 +479,20 @@ document.addEventListener("DOMContentLoaded", function () {
     let _cloudinaryPreset = null;
     let _identity = { displayName: "", avatar: "" }; // подтягивается из checkAuth(), если юзер залогинен через Steam
 
+    let view = "list";        // "list" (список тикетов) | "chat" (переписка конкретного тикета)
+    let currentTicketId = null;
+    let deliveredNoticeShown = false; // разовая строка "запрос доставлен" за сессию открытия конкретного тикета
+
     function escSupport(s) {
         return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function fmtDate(iso) {
+        try {
+            const d = new Date(iso);
+            return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) + " " +
+                   d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+        } catch { return ""; }
     }
 
     function widgetHtml() {
@@ -492,18 +504,42 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <div id="_supportPanel" class="_sp-hidden">
             <div class="_sp-header">
-                <span>Техподдержка <span id="_supportStatusBadge" class="_sp-badge" style="display:none;"></span></span>
+                <button id="_supportBackBtn" class="_sp-backBtn" aria-label="Назад" style="display:none;">←</button>
+                <span id="_supportHeaderTitle">Техподдержка <span id="_supportStatusBadge" class="_sp-badge" style="display:none;"></span></span>
                 <button id="_supportCloseBtn" aria-label="Закрыть">✕</button>
             </div>
-            <div id="_supportMessages"></div>
-            <div id="_supportAttachPreview" class="_sp-attach-preview" style="display:none;"></div>
-            <div class="_sp-inputRow">
-                <label class="_sp-attachBtn" title="Прикрепить файл">
-                    <input type="file" id="_supportFileInput" accept="image/*" style="display:none;">
-                    📎
-                </label>
-                <input id="_supportInput" type="text" placeholder="Напишите сообщение..." maxlength="2000">
-                <button id="_supportSendBtn" aria-label="Отправить">➤</button>
+
+            <div id="_supportListScreen">
+                <div id="_supportTicketList"></div>
+                <div class="_sp-newTicketRow">
+                    <button id="_supportNewTicketBtn" class="_sp-newTicketBtn">+ Новое обращение</button>
+                </div>
+                <form id="_supportNewTicketForm" class="_sp-newTicketForm" style="display:none;">
+                    <input id="_supportSubjectInput" type="text" placeholder="Кратко опишите тему..." maxlength="120">
+                    <div class="_sp-newTicketFormRow">
+                        <button type="button" id="_supportNewTicketCancel">Отмена</button>
+                        <button type="submit" id="_supportNewTicketSubmit">Создать</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="_supportChatScreen" style="display:none;">
+                <div id="_supportMessages"></div>
+                <div id="_supportAttachPreview" class="_sp-attach-preview" style="display:none;"></div>
+                <div id="_supportResolvedNotice" class="_sp-resolvedNotice" style="display:none;">
+                    Тикет закрыт. <button type="button" id="_supportReopenAsNewBtn">Создать новый</button>
+                </div>
+                <div id="_supportInputRow" class="_sp-inputRow">
+                    <label class="_sp-attachBtn" title="Прикрепить файл">
+                        <input type="file" id="_supportFileInput" accept="image/*" style="display:none;">
+                        📎
+                    </label>
+                    <input id="_supportInput" type="text" placeholder="Напишите сообщение..." maxlength="2000">
+                    <button id="_supportSendBtn" aria-label="Отправить">➤</button>
+                </div>
+                <div class="_sp-resolveRow">
+                    <button type="button" id="_supportResolveBtn" class="_sp-resolveBtn">✓ Пометить решённым</button>
+                </div>
             </div>
         </div>`;
     }
@@ -525,27 +561,146 @@ document.addEventListener("DOMContentLoaded", function () {
         document.body.insertAdjacentHTML("beforeend", widgetHtml());
         loadIdentity();
 
-        const btn       = document.getElementById("_supportBtn");
-        const panel     = document.getElementById("_supportPanel");
-        const closeBtn  = document.getElementById("_supportCloseBtn");
-        const input     = document.getElementById("_supportInput");
-        const sendBtn   = document.getElementById("_supportSendBtn");
-        const msgsEl    = document.getElementById("_supportMessages");
-        const fileInput = document.getElementById("_supportFileInput");
-        const attachPreview = document.getElementById("_supportAttachPreview");
+        const btn        = document.getElementById("_supportBtn");
+        const panel       = document.getElementById("_supportPanel");
+        const backBtn     = document.getElementById("_supportBackBtn");
+        const headerTitle = document.getElementById("_supportHeaderTitle");
+        const closeBtn    = document.getElementById("_supportCloseBtn");
+
+        const listScreen  = document.getElementById("_supportListScreen");
+        const ticketListEl = document.getElementById("_supportTicketList");
+        const newTicketBtn  = document.getElementById("_supportNewTicketBtn");
+        const newTicketForm = document.getElementById("_supportNewTicketForm");
+        const subjectInput  = document.getElementById("_supportSubjectInput");
+        const newTicketCancel = document.getElementById("_supportNewTicketCancel");
+
+        const chatScreen  = document.getElementById("_supportChatScreen");
+        const input       = document.getElementById("_supportInput");
+        const sendBtn     = document.getElementById("_supportSendBtn");
+        const msgsEl      = document.getElementById("_supportMessages");
+        const fileInput   = document.getElementById("_supportFileInput");
+        const attachPreview   = document.getElementById("_supportAttachPreview");
+        const inputRow         = document.getElementById("_supportInputRow");
+        const resolvedNotice   = document.getElementById("_supportResolvedNotice");
+        const reopenAsNewBtn   = document.getElementById("_supportReopenAsNewBtn");
+        const resolveBtn       = document.getElementById("_supportResolveBtn");
+        const resolveRow       = document.querySelector("._sp-resolveRow");
 
         let pendingAttachment = null; // { url, publicId }
-        let deliveredNoticeShown = false; // разовая строка "запрос доставлен" за сессию открытия чата
 
+        // ── Переключение экранов ──────────────────────────────────────────
+        function showListScreen() {
+            view = "list";
+            currentTicketId = null;
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            backBtn.style.display = "none";
+            headerTitle.innerHTML = `Техподдержка <span id="_supportStatusBadge" class="_sp-badge" style="display:none;"></span>`;
+            listScreen.style.display = "";
+            chatScreen.style.display = "none";
+            loadTicketList();
+        }
+
+        function showChatScreen(ticketId) {
+            view = "chat";
+            currentTicketId = ticketId;
+            lastMessageCount = 0;
+            deliveredNoticeShown = false;
+            backBtn.style.display = "";
+            listScreen.style.display = "none";
+            chatScreen.style.display = "";
+            loadThread();
+            if (!pollTimer) pollTimer = setInterval(loadThread, 4000);
+        }
+
+        // ── Список тикетов ─────────────────────────────────────────────────
+        function ticketStatusLabel(t) {
+            return t.status === "resolved" ? "✅ Решено" : "🕓 Открыт";
+        }
+
+        function renderTicketList(tickets) {
+            if (!tickets.length) {
+                ticketListEl.innerHTML = `<div class="_sp-empty">У вас пока нет обращений. Создайте новое, если есть вопрос.</div>`;
+                return;
+            }
+            ticketListEl.innerHTML = tickets.map(t => `
+                <div class="_sp-ticketRow _sp-ticketRow-${t.status}" data-id="${t.id}">
+                    <div class="_sp-ticketSubject">${escSupport(t.subject || "Без темы")}</div>
+                    <div class="_sp-ticketMeta">
+                        <span class="_sp-ticketStatus _sp-ticketStatus-${t.status}">${ticketStatusLabel(t)}</span>
+                        <span class="_sp-ticketDate">${fmtDate(t.lastMessageAt)}</span>
+                    </div>
+                </div>
+            `).join("");
+            ticketListEl.querySelectorAll("._sp-ticketRow").forEach(row => {
+                row.addEventListener("click", () => showChatScreen(row.dataset.id));
+            });
+        }
+
+        async function loadTicketList() {
+            try {
+                const res  = await fetch(`/api/support/tickets/${guestId}`);
+                const data = await res.json();
+                renderTicketList(data.tickets || []);
+                const blocked = !!(data.guest && data.guest.isBlocked);
+                newTicketBtn.style.display = blocked ? "none" : "";
+                if (blocked && !ticketListEl.querySelector("._sp-blockedNotice")) {
+                    ticketListEl.insertAdjacentHTML("beforeend", `<div class="_sp-blockedNotice">Чат временно недоступен</div>`);
+                }
+            } catch {}
+        }
+
+        newTicketBtn.addEventListener("click", () => {
+            newTicketForm.style.display = "";
+            newTicketBtn.style.display = "none";
+            subjectInput.focus();
+        });
+        newTicketCancel.addEventListener("click", () => {
+            newTicketForm.style.display = "none";
+            newTicketBtn.style.display = "";
+            subjectInput.value = "";
+        });
+        newTicketForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const subject = subjectInput.value.trim();
+            if (!subject) return;
+            const submitBtn = document.getElementById("_supportNewTicketSubmit");
+            submitBtn.disabled = true;
+            try {
+                const res = await fetch("/api/support/ticket", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        guestId, subject,
+                        guestName:   _identity.displayName,
+                        guestAvatar: _identity.avatar,
+                    }),
+                });
+                const data = await res.json();
+                if (res.status === 403) { alert(data.error || "Чат временно недоступен"); return; }
+                if (!data.ok) { alert(data.error || "Не удалось создать обращение"); return; }
+                subjectInput.value = "";
+                newTicketForm.style.display = "none";
+                newTicketBtn.style.display = "";
+                showChatScreen(data.ticket.id);
+            } catch {
+                alert("Не удалось создать обращение");
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // ── Экран чата конкретного тикета ───────────────────────────────────
         function renderStatusBadge(thread) {
             const badge = document.getElementById("_supportStatusBadge");
             if (!thread) { badge.style.display = "none"; return; }
-            let label;
-            if (thread.isResolved) label = "✅ Решено";
-            else if (thread.hasAdminReply) label = "💬 В диалоге";
-            else label = "🕓 Ожидает ответа";
-            badge.textContent = label;
+            headerTitle.firstChild.textContent = `Тикет #${thread.number} `;
+            badge.textContent = thread.status === "resolved" ? "✅ Решено" : "🕓 Открыт";
             badge.style.display = "inline";
+
+            const isResolved = thread.status === "resolved";
+            inputRow.style.display    = isResolved ? "none" : "";
+            resolveRow.style.display  = isResolved ? "none" : "";
+            resolvedNotice.style.display = isResolved ? "flex" : "none";
         }
 
         function avatarHtml(m) {
@@ -555,7 +710,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         function renderMessages(messages) {
             if (!messages.length) {
-                msgsEl.innerHTML = `<div class="_sp-empty">Напишите нам, если есть вопрос — ответим как можно скорее.</div>`;
+                msgsEl.innerHTML = `<div class="_sp-empty">Опишите ваш вопрос — ответим как можно скорее.</div>`;
                 return;
             }
             const rows = messages.map(m => `
@@ -570,8 +725,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                 </div>
             `);
-            // Разовая строка "запрос доставлен" — сразу после первого сообщения гостя,
-            // один раз за это открытие виджета (не хранится в БД, чисто UI-приветствие).
+            // Разовая строка "запрос доставлен" — сразу после первого сообщения в тикете,
+            // один раз за это открытие тикета (не хранится в БД, чисто UI-приветствие).
             if (deliveredNoticeShown && messages.length === 1 && messages[0].from === "guest") {
                 rows.push(`<div class="_sp-system">Ваш запрос доставлен и рассматривается</div>`);
             }
@@ -580,8 +735,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         async function loadThread() {
+            if (!currentTicketId) return;
             try {
-                const res  = await fetch(`/api/support/thread/${guestId}`);
+                const res  = await fetch(`/api/support/thread/${currentTicketId}`);
+                if (res.status === 404) { showListScreen(); return; }
                 const data = await res.json();
                 renderStatusBadge(data.thread);
                 if (data.messages.length !== lastMessageCount) {
@@ -591,20 +748,21 @@ document.addEventListener("DOMContentLoaded", function () {
             } catch {}
         }
 
+        backBtn.addEventListener("click", showListScreen);
+
+        btn.addEventListener("click", () => (isOpen ? closePanel() : openPanel()));
+        closeBtn.addEventListener("click", closePanel);
+
         function openPanel() {
             isOpen = true;
             panel.classList.remove("_sp-hidden");
-            loadThread();
-            if (!pollTimer) pollTimer = setInterval(loadThread, 4000);
+            showListScreen();
         }
         function closePanel() {
             isOpen = false;
             panel.classList.add("_sp-hidden");
             if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
         }
-
-        btn.addEventListener("click", () => (isOpen ? closePanel() : openPanel()));
-        closeBtn.addEventListener("click", closePanel);
 
         fileInput.addEventListener("change", async () => {
             const file = fileInput.files[0];
@@ -640,6 +798,7 @@ document.addEventListener("DOMContentLoaded", function () {
         async function sendMsg() {
             const text = input.value.trim();
             if (!text && !pendingAttachment) return;
+            if (!currentTicketId) return;
             const isFirstMessage = lastMessageCount === 0;
             input.value = "";
             sendBtn.disabled = true;
@@ -648,7 +807,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     method:  "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        guestId, text,
+                        ticketId: currentTicketId, guestId, text,
                         guestName:   _identity.displayName,
                         guestAvatar: _identity.avatar,
                         attachmentUrl:      pendingAttachment?.url || "",
@@ -665,6 +824,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     alert(d.error || "Чат временно недоступен");
                     return;
                 }
+                if (res.status === 409) {
+                    // тикет успели закрыть, пока гость печатал
+                    await loadThread();
+                    return;
+                }
                 if (isFirstMessage) deliveredNoticeShown = true;
                 pendingAttachment = null;
                 attachPreview.style.display = "none";
@@ -675,6 +839,23 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         sendBtn.addEventListener("click", sendMsg);
         input.addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
+
+        // ── Гость закрывает тикет ────────────────────────────────────────
+        resolveBtn.addEventListener("click", async () => {
+            if (!currentTicketId) return;
+            resolveBtn.disabled = true;
+            try {
+                const res = await fetch(`/api/support/ticket/${currentTicketId}/resolve`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ guestId }),
+                });
+                if (res.ok) await loadThread();
+            } catch {}
+            finally { resolveBtn.disabled = false; }
+        });
+
+        reopenAsNewBtn.addEventListener("click", showListScreen);
     }
 
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

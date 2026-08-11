@@ -1,5 +1,6 @@
 const express         = require("express");
 const router          = express.Router();
+const SupportGuest    = require("../models/SupportGuest");
 const SupportThread   = require("../models/SupportThread");
 const SupportMessage  = require("../models/SupportMessage");
 const { sendTelegramMessage }     = require("../utils/telegramSupport");
@@ -31,28 +32,95 @@ async function expireOldAttachments() {
   }
 }
 
-// ─── GET /api/support/thread/:guestId ─── история переписки гостя ─────────
-router.get("/thread/:guestId", async (req, res) => {
+// Короткий человекочитаемый номер тикета — последние 6 символов ObjectId,
+// используется и в UI, и в тексте Telegram-сообщений.
+function ticketNumber(id) {
+  return id.toString().slice(-6);
+}
+
+// ─── GET /api/support/tickets/:guestId ─── список тикетов гостя ───────────
+router.get("/tickets/:guestId", async (req, res) => {
+  try {
+    const guest = await SupportGuest.findOne({ guestId: req.params.guestId }).lean();
+    if (!guest) return res.json({ guest: null, tickets: [] });
+
+    const threads = await SupportThread.find({ guestId: req.params.guestId })
+      .sort({ updatedAt: -1 })
+      .select("subject status lastMessageAt createdAt")
+      .lean();
+
+    const tickets = threads.map(t => ({
+      id: t._id,
+      number: ticketNumber(t._id),
+      subject: t.subject,
+      status: t.status,
+      lastMessageAt: t.lastMessageAt,
+      createdAt: t.createdAt,
+    }));
+
+    res.json({ guest: { isBlocked: guest.isBlocked }, tickets });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── POST /api/support/ticket ─── создать новый тикет ─────────────────────
+router.post("/ticket", async (req, res) => {
+  try {
+    const guestId     = String(req.body.guestId || "").trim();
+    const subject     = String(req.body.subject || "").trim().slice(0, 120);
+    const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
+    const guestAvatar = String(req.body.guestAvatar || "").trim();
+
+    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!subject) return res.status(400).json({ error: "Укажите тему обращения" });
+
+    let guest = await SupportGuest.findOne({ guestId });
+    if (guest && guest.isBlocked) {
+      return res.status(403).json({ error: "Чат временно недоступен" });
+    }
+
+    if (!guest) {
+      guest = await SupportGuest.create({
+        guestId, guestName: guestName || "Гость", guestAvatar: guestAvatar || "",
+      });
+    } else {
+      if (guestName)   guest.guestName   = guestName;
+      if (guestAvatar) guest.guestAvatar = guestAvatar;
+      await guest.save();
+    }
+
+    const thread = await SupportThread.create({ guestId, subject });
+
+    res.json({
+      ok: true,
+      ticket: { id: thread._id, number: ticketNumber(thread._id), subject: thread.subject, status: thread.status },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── GET /api/support/thread/:ticketId ─── история переписки по тикету ────
+router.get("/thread/:ticketId", async (req, res) => {
   try {
     await expireOldAttachments();
 
-    const thread = await SupportThread.findOne({ guestId: req.params.guestId }).lean();
-    if (!thread) return res.json({ thread: null, messages: [] });
+    const thread = await SupportThread.findById(req.params.ticketId).lean();
+    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
 
     const messages = await SupportMessage.find({ threadId: thread._id })
       .sort({ createdAt: 1 })
       .select("from text authorName authorAvatar attachmentUrl createdAt")
       .lean();
 
-    const hasAdminReply = messages.some(m => m.from === "admin");
-
     res.json({
       thread: {
-        guestName: thread.guestName,
-        guestAvatar: thread.guestAvatar,
-        isResolved: thread.isResolved,
-        isBlocked: thread.isBlocked,
-        hasAdminReply,
+        id: thread._id,
+        number: ticketNumber(thread._id),
+        subject: thread.subject,
+        status: thread.status,
       },
       messages,
     });
@@ -61,62 +129,67 @@ router.get("/thread/:guestId", async (req, res) => {
   }
 });
 
-// ─── POST /api/support/message ─── гость отправляет сообщение ─────────────
+// ─── POST /api/support/message ─── гость отправляет сообщение в тикет ─────
 router.post("/message", async (req, res) => {
   try {
-    const guestId    = String(req.body.guestId || "").trim();
-    const text       = String(req.body.text || "").trim();
-    const guestName  = String(req.body.guestName || "").trim().slice(0, 60);
-    const guestAvatar  = String(req.body.guestAvatar || "").trim();
+    const ticketId    = String(req.body.ticketId || "").trim();
+    const guestId     = String(req.body.guestId || "").trim();
+    const text        = String(req.body.text || "").trim();
+    const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
+    const guestAvatar = String(req.body.guestAvatar || "").trim();
     const attachmentUrl      = String(req.body.attachmentUrl || "").trim();
     const attachmentPublicId = String(req.body.attachmentPublicId || "").trim();
 
-    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!guestId)  return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!ticketId) return res.status(400).json({ error: "Не указан тикет" });
     if (!text && !attachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
     if (text.length > 2000) return res.status(400).json({ error: "Слишком длинное сообщение" });
 
-    let thread = await SupportThread.findOne({ guestId });
-
-    if (thread && thread.isBlocked) {
+    const guest = await SupportGuest.findOne({ guestId });
+    if (guest && guest.isBlocked) {
       return res.status(403).json({ error: "Чат временно недоступен" });
     }
 
-    // Рейт-лимит: не чаще одного сообщения раз в RATE_LIMIT_MS
-    if (thread && thread.lastMessageAt && Date.now() - thread.lastMessageAt.getTime() < RATE_LIMIT_MS) {
+    const thread = await SupportThread.findOne({ _id: ticketId, guestId });
+    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
+    if (thread.status === "resolved") {
+      return res.status(409).json({ error: "Тикет закрыт. Создайте новый." });
+    }
+
+    // Рейт-лимит: не чаще одного сообщения раз в RATE_LIMIT_MS (на весь гостевой аккаунт)
+    if (thread.lastMessageAt && Date.now() - thread.lastMessageAt.getTime() < RATE_LIMIT_MS) {
       return res.status(429).json({ error: "Слишком часто. Подождите пару секунд." });
     }
 
-    if (!thread) {
-      thread = await SupportThread.create({
-        guestId, guestName: guestName || "Гость", guestAvatar: guestAvatar || "",
-      });
-    } else {
-      if (guestName)   thread.guestName   = guestName;
-      if (guestAvatar) thread.guestAvatar = guestAvatar;
+    if (guest && (guestName || guestAvatar)) {
+      if (guestName)   guest.guestName   = guestName;
+      if (guestAvatar) guest.guestAvatar = guestAvatar;
+      await guest.save();
     }
+    const authorName   = guest?.guestName   || guestName   || "Гость";
+    const authorAvatar = guest?.guestAvatar || guestAvatar || "";
 
     const message = await SupportMessage.create({
       threadId: thread._id,
       from: "guest",
       text: text || "📎 Вложение",
-      authorName: thread.guestName,
-      authorAvatar: thread.guestAvatar,
+      authorName,
+      authorAvatar,
       attachmentUrl,
       attachmentPublicId,
       attachmentExpiresAt: attachmentUrl ? new Date(Date.now() + ATTACHMENT_TTL_MS) : null,
     });
 
     // Отвечаем в Telegram цепочкой (reply на предыдущее сообщение этого же
-    // треда, если оно есть) — так все сообщения одного гостя визуально
-    // группируются в Telegram, даже если гостей пишет одновременно много.
+    // тикета, если оно есть) — так все сообщения одного тикета визуально
+    // группируются в Telegram, даже если тикетов и гостей одновременно много.
     const lastTgId = thread.telegramMessageIds[thread.telegramMessageIds.length - 1];
-    let tgText = `💬 ${thread.guestName} (#${thread._id.toString().slice(-6)})\n\n${text}`;
+    let tgText = `💬 ${authorName} — тикет #${ticketNumber(thread._id)} «${thread.subject}»\n\n${text}`;
     if (attachmentUrl) tgText += `\n\n📎 Вложение (ссылка активна ~30 мин): ${attachmentUrl}`;
     const sentId = await sendTelegramMessage(tgText, lastTgId);
     if (sentId) thread.telegramMessageIds.push(sentId);
 
     thread.lastMessageAt = new Date();
-    thread.isResolved = false;
     await thread.save();
 
     res.json({
@@ -126,6 +199,26 @@ router.post("/message", async (req, res) => {
         authorAvatar: message.authorAvatar, attachmentUrl: message.attachmentUrl, createdAt: message.createdAt,
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── POST /api/support/ticket/:ticketId/resolve ─── гость закрывает тикет ─
+router.post("/ticket/:ticketId/resolve", async (req, res) => {
+  try {
+    const guestId = String(req.body.guestId || "").trim();
+    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
+
+    const thread = await SupportThread.findOne({ _id: req.params.ticketId, guestId });
+    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
+
+    thread.status = "resolved";
+    await thread.save();
+    await sendTelegramMessage(`✅ Гость пометил тикет #${ticketNumber(thread._id)} «${thread.subject}» как решённый.`);
+
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
@@ -173,22 +266,23 @@ router.post("/telegram-webhook", async (req, res) => {
     // Служебные команды: админ отвечает "/block", "/unblock" или "/resolve"
     // на сообщение гостя вместо обычного текстового ответа. Это НЕ создаёт
     // SupportMessage — гость не должен видеть служебные команды в чате.
+    // /block и /unblock действуют на ГОСТЯ целиком (все его тикеты), не только на этот тикет.
     const command = /^\/(block|unblock|resolve)\s*$/i.exec(msg.text.trim())?.[1]?.toLowerCase();
     if (command) {
       let confirmText;
-      if (command === "block") {
-        thread.isBlocked = true;
-        confirmText = `🚫 Гость ${thread.guestName} заблокирован.`;
-      } else if (command === "unblock") {
-        thread.isBlocked = false;
-        confirmText = `✅ Гость ${thread.guestName} разблокирован.`;
+      if (command === "block" || command === "unblock") {
+        const isBlocked = command === "block";
+        await SupportGuest.updateOne({ guestId: thread.guestId }, { $set: { isBlocked } }, { upsert: true });
+        confirmText = isBlocked
+          ? `🚫 Гость заблокирован (все тикеты).`
+          : `✅ Гость разблокирован.`;
       } else {
-        thread.isResolved = true;
-        confirmText = `✅ Тред ${thread.guestName} помечен решённым.`;
+        thread.status = "resolved";
+        await thread.save();
+        confirmText = `✅ Тикет #${ticketNumber(thread._id)} «${thread.subject}» помечен решённым.`;
       }
-      await thread.save();
       await sendTelegramMessage(confirmText, msg.message_id);
-      console.log(`Telegram webhook: command /${command} applied to thread ${thread._id}`);
+      console.log(`Telegram webhook: command /${command} applied (thread ${thread._id}, guest ${thread.guestId})`);
       return res.sendStatus(200);
     }
 
@@ -201,7 +295,7 @@ router.post("/telegram-webhook", async (req, res) => {
     await SupportMessage.create({ threadId: thread._id, from: "admin", text: msg.text, authorName: adminName });
     thread.telegramMessageIds.push(msg.message_id);
     thread.lastMessageAt = new Date();
-    thread.isResolved = false; // новый ответ админа — тред снова "в диалоге", не решён
+    if (thread.status === "resolved") thread.status = "open"; // новый ответ админа — тикет снова открыт
     await thread.save();
 
     console.log(`Telegram webhook: admin reply saved to thread ${thread._id}`);

@@ -2028,15 +2028,15 @@ i.icon { display: inline-flex; }
 
 ._sp-empty { color: #5c6b7f; font-size: 13px; text-align: center; padding: 30px 10px; }
 ._sp-msg {
-    max-width: 82%;
+    max-width: 100%;
     padding: 9px 13px;
     border-radius: 12px;
     font-size: 13px;
     line-height: 1.5;
     word-break: break-word;
 }
-._sp-guest { align-self: flex-end; background: var(--accent); color: #000; border-bottom-right-radius: 3px; }
-._sp-admin { align-self: flex-start; background: #1a2128; color: white; border-bottom-left-radius: 3px; }
+._sp-guest { background: var(--accent); color: #000; border-bottom-right-radius: 3px; }
+._sp-admin { background: #1a2128; color: white; border-bottom-left-radius: 3px; }
 
 ._sp-inputRow {
     display: flex;
@@ -2074,4 +2074,33 @@ i.icon { display: inline-flex; }
 @media (max-width: 480px) {
     #_supportBtn { bottom: 20px; left: 20px; }
     #_supportPanel { bottom: 88px; left: 12px; right: 12px; width: auto; }
+}
+
+/* ── Идентичность отправителя, вложения (доп. к виджету поддержки) ─────── */
+._sp-row { display: flex; gap: 8px; align-items: flex-start; }
+._sp-row-guest { flex-direction: row-reverse; }
+._sp-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; margin-top: 16px; }
+._sp-avatar-ph { background: #1a2128; border: 1px solid var(--border); }
+._sp-col { display: flex; flex-direction: column; max-width: 82%; }
+._sp-row-guest ._sp-col { align-items: flex-end; }
+._sp-name { font-size: 10px; color: #5c6b7f; margin-bottom: 2px; padding: 0 4px; }
+
+._sp-attach-img { max-width: 180px; max-height: 140px; border-radius: 8px; display: block; margin-bottom: 4px; }
+
+._sp-attachBtn {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; flex-shrink: 0;
+    background: #1a2128; border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; font-size: 15px; transition: border-color 0.2s;
+}
+._sp-attachBtn:hover { border-color: rgba(230,176,34,0.4); }
+
+._sp-attach-preview {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; margin: 0 12px;
+    background: #0e1318; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 12px; color: var(--text-gray);
+}
+._sp-attach-preview button {
+    background: none; border: none; color: #e05c5c; cursor: pointer; font-size: 13px; margin-left: auto;
 }

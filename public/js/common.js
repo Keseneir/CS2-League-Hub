@@ -475,6 +475,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let pollTimer = null;
     let lastMessageCount = 0;
     let isOpen = false;
+    let _cloudinaryCloud  = null;
+    let _cloudinaryPreset = null;
+    let _identity = { displayName: "", avatar: "" }; // подтягивается из checkAuth(), если юзер залогинен через Steam
 
     function escSupport(s) {
         return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -493,29 +496,68 @@ document.addEventListener("DOMContentLoaded", function () {
                 <button id="_supportCloseBtn" aria-label="Закрыть">✕</button>
             </div>
             <div id="_supportMessages"></div>
+            <div id="_supportAttachPreview" class="_sp-attach-preview" style="display:none;"></div>
             <div class="_sp-inputRow">
+                <label class="_sp-attachBtn" title="Прикрепить файл">
+                    <input type="file" id="_supportFileInput" accept="image/*" style="display:none;">
+                    📎
+                </label>
                 <input id="_supportInput" type="text" placeholder="Напишите сообщение..." maxlength="2000">
                 <button id="_supportSendBtn" aria-label="Отправить">➤</button>
             </div>
         </div>`;
     }
 
+    async function loadIdentity() {
+        try {
+            const user = await checkAuth();
+            if (user) _identity = { displayName: user.displayName || "", avatar: user.avatar || "" };
+        } catch {}
+        try {
+            const res = await fetch("/api/config");
+            const cfg = await res.json();
+            _cloudinaryCloud  = cfg.cloudinaryCloud;
+            _cloudinaryPreset = cfg.cloudinaryPreset;
+        } catch {}
+    }
+
     function init() {
         document.body.insertAdjacentHTML("beforeend", widgetHtml());
+        loadIdentity();
 
-        const btn      = document.getElementById("_supportBtn");
-        const panel    = document.getElementById("_supportPanel");
-        const closeBtn = document.getElementById("_supportCloseBtn");
-        const input    = document.getElementById("_supportInput");
-        const sendBtn  = document.getElementById("_supportSendBtn");
-        const msgsEl   = document.getElementById("_supportMessages");
+        const btn       = document.getElementById("_supportBtn");
+        const panel     = document.getElementById("_supportPanel");
+        const closeBtn  = document.getElementById("_supportCloseBtn");
+        const input     = document.getElementById("_supportInput");
+        const sendBtn   = document.getElementById("_supportSendBtn");
+        const msgsEl    = document.getElementById("_supportMessages");
+        const fileInput = document.getElementById("_supportFileInput");
+        const attachPreview = document.getElementById("_supportAttachPreview");
+
+        let pendingAttachment = null; // { url, publicId }
+
+        function avatarHtml(m) {
+            if (m.authorAvatar) return `<img class="_sp-avatar" src="${escSupport(m.authorAvatar)}" onerror="this.style.display='none'">`;
+            return `<div class="_sp-avatar _sp-avatar-ph"></div>`;
+        }
 
         function renderMessages(messages) {
             if (!messages.length) {
                 msgsEl.innerHTML = `<div class="_sp-empty">Напишите нам, если есть вопрос — ответим как можно скорее.</div>`;
                 return;
             }
-            msgsEl.innerHTML = messages.map(m => `<div class="_sp-msg _sp-${m.from}">${escSupport(m.text)}</div>`).join("");
+            msgsEl.innerHTML = messages.map(m => `
+                <div class="_sp-row _sp-row-${m.from}">
+                    ${avatarHtml(m)}
+                    <div class="_sp-col">
+                        <div class="_sp-name">${escSupport(m.authorName || (m.from === "admin" ? "Поддержка" : "Гость"))}</div>
+                        <div class="_sp-msg _sp-${m.from}">
+                            ${m.attachmentUrl ? `<a href="${escSupport(m.attachmentUrl)}" target="_blank"><img class="_sp-attach-img" src="${escSupport(m.attachmentUrl)}"></a>` : ""}
+                            ${m.text && m.text !== "📎 Вложение" ? escSupport(m.text) : ""}
+                        </div>
+                    </div>
+                </div>
+            `).join("");
             msgsEl.scrollTop = msgsEl.scrollHeight;
         }
 
@@ -545,17 +587,62 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.addEventListener("click", () => (isOpen ? closePanel() : openPanel()));
         closeBtn.addEventListener("click", closePanel);
 
+        fileInput.addEventListener("change", async () => {
+            const file = fileInput.files[0];
+            fileInput.value = "";
+            if (!file) return;
+            if (!_cloudinaryCloud || !_cloudinaryPreset) {
+                attachPreview.style.display = "block";
+                attachPreview.textContent = "Загрузка файлов недоступна (не настроено)";
+                return;
+            }
+            attachPreview.style.display = "block";
+            attachPreview.textContent = "Загрузка...";
+            try {
+                const fd = new FormData();
+                fd.append("file", file);
+                fd.append("upload_preset", _cloudinaryPreset);
+                const res  = await fetch(`https://api.cloudinary.com/v1_1/${_cloudinaryCloud}/image/upload`, { method: "POST", body: fd });
+                const data = await res.json();
+                if (!data.secure_url) throw new Error("upload failed");
+                pendingAttachment = { url: data.secure_url, publicId: data.public_id };
+                attachPreview.innerHTML = `<img src="${data.secure_url}" style="height:40px;border-radius:6px;"> <span>Прикреплено (~30 мин)</span> <button type="button" id="_supportAttachRemove">✕</button>`;
+                document.getElementById("_supportAttachRemove").addEventListener("click", () => {
+                    pendingAttachment = null;
+                    attachPreview.style.display = "none";
+                    attachPreview.innerHTML = "";
+                });
+            } catch {
+                attachPreview.textContent = "Не удалось загрузить файл";
+                pendingAttachment = null;
+            }
+        });
+
         async function sendMsg() {
             const text = input.value.trim();
-            if (!text) return;
+            if (!text && !pendingAttachment) return;
             input.value = "";
             sendBtn.disabled = true;
             try {
-                await fetch("/api/support/message", {
+                const res = await fetch("/api/support/message", {
                     method:  "POST",
                     headers: { "Content-Type": "application/json" },
-                    body:    JSON.stringify({ guestId, text }),
+                    body: JSON.stringify({
+                        guestId, text,
+                        guestName:   _identity.displayName,
+                        guestAvatar: _identity.avatar,
+                        attachmentUrl:      pendingAttachment?.url || "",
+                        attachmentPublicId: pendingAttachment?.publicId || "",
+                    }),
                 });
+                if (res.status === 429) {
+                    const d = await res.json();
+                    alert(d.error || "Слишком часто, подождите немного");
+                    return;
+                }
+                pendingAttachment = null;
+                attachPreview.style.display = "none";
+                attachPreview.innerHTML = "";
                 await loadThread();
             } catch {}
             finally { sendBtn.disabled = false; }

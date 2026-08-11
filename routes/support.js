@@ -2,20 +2,52 @@ const express         = require("express");
 const router          = express.Router();
 const SupportThread   = require("../models/SupportThread");
 const SupportMessage  = require("../models/SupportMessage");
-const { sendTelegramMessage } = require("../utils/telegramSupport");
+const { sendTelegramMessage }     = require("../utils/telegramSupport");
+const { destroyCloudinaryAsset }  = require("../utils/cloudinaryCleanup");
+
+const RATE_LIMIT_MS       = 3000;       // не чаще одного сообщения раз в 3 секунды
+const ATTACHMENT_TTL_MS   = 30 * 60 * 1000; // вложения живут 30 минут
+
+// ─── Ленивая очистка просроченных вложений ─────────────────────────────────
+// Без Vercel Cron (на бесплатном тарифе он сильно ограничен) — вместо этого
+// проверяем и подчищаем протухшие вложения при каждом обращении к треду.
+// Не идеально точно по времени, но для "пары десятков минут" более чем ок.
+async function expireOldAttachments() {
+  try {
+    const expired = await SupportMessage.find({
+      attachmentUrl: { $ne: "" },
+      attachmentExpiresAt: { $lt: new Date() },
+    }).select("_id attachmentPublicId").lean();
+
+    for (const m of expired) {
+      if (m.attachmentPublicId) await destroyCloudinaryAsset(m.attachmentPublicId);
+      await SupportMessage.updateOne(
+        { _id: m._id },
+        { $set: { attachmentUrl: "", attachmentPublicId: "", attachmentExpiresAt: null } }
+      );
+    }
+  } catch (err) {
+    console.error("expireOldAttachments error:", err.message);
+  }
+}
 
 // ─── GET /api/support/thread/:guestId ─── история переписки гостя ─────────
 router.get("/thread/:guestId", async (req, res) => {
   try {
+    await expireOldAttachments();
+
     const thread = await SupportThread.findOne({ guestId: req.params.guestId }).lean();
     if (!thread) return res.json({ thread: null, messages: [] });
 
     const messages = await SupportMessage.find({ threadId: thread._id })
       .sort({ createdAt: 1 })
-      .select("from text createdAt")
+      .select("from text authorName authorAvatar attachmentUrl createdAt")
       .lean();
 
-    res.json({ thread: { guestName: thread.guestName, isResolved: thread.isResolved }, messages });
+    res.json({
+      thread: { guestName: thread.guestName, guestAvatar: thread.guestAvatar, isResolved: thread.isResolved },
+      messages,
+    });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }
@@ -27,25 +59,47 @@ router.post("/message", async (req, res) => {
     const guestId    = String(req.body.guestId || "").trim();
     const text       = String(req.body.text || "").trim();
     const guestName  = String(req.body.guestName || "").trim().slice(0, 60);
+    const guestAvatar  = String(req.body.guestAvatar || "").trim();
+    const attachmentUrl      = String(req.body.attachmentUrl || "").trim();
+    const attachmentPublicId = String(req.body.attachmentPublicId || "").trim();
 
     if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
-    if (!text)    return res.status(400).json({ error: "Введите сообщение" });
+    if (!text && !attachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
     if (text.length > 2000) return res.status(400).json({ error: "Слишком длинное сообщение" });
 
     let thread = await SupportThread.findOne({ guestId });
-    if (!thread) {
-      thread = await SupportThread.create({ guestId, guestName: guestName || "Гость" });
-    } else if (guestName && thread.guestName === "Гость") {
-      thread.guestName = guestName;
+
+    // Рейт-лимит: не чаще одного сообщения раз в RATE_LIMIT_MS
+    if (thread && thread.lastMessageAt && Date.now() - thread.lastMessageAt.getTime() < RATE_LIMIT_MS) {
+      return res.status(429).json({ error: "Слишком часто. Подождите пару секунд." });
     }
 
-    const message = await SupportMessage.create({ threadId: thread._id, from: "guest", text });
+    if (!thread) {
+      thread = await SupportThread.create({
+        guestId, guestName: guestName || "Гость", guestAvatar: guestAvatar || "",
+      });
+    } else {
+      if (guestName)   thread.guestName   = guestName;
+      if (guestAvatar) thread.guestAvatar = guestAvatar;
+    }
+
+    const message = await SupportMessage.create({
+      threadId: thread._id,
+      from: "guest",
+      text: text || "📎 Вложение",
+      authorName: thread.guestName,
+      authorAvatar: thread.guestAvatar,
+      attachmentUrl,
+      attachmentPublicId,
+      attachmentExpiresAt: attachmentUrl ? new Date(Date.now() + ATTACHMENT_TTL_MS) : null,
+    });
 
     // Отвечаем в Telegram цепочкой (reply на предыдущее сообщение этого же
     // треда, если оно есть) — так все сообщения одного гостя визуально
     // группируются в Telegram, даже если гостей пишет одновременно много.
     const lastTgId = thread.telegramMessageIds[thread.telegramMessageIds.length - 1];
-    const tgText = `💬 ${thread.guestName} (#${thread._id.toString().slice(-6)})\n\n${text}`;
+    let tgText = `💬 ${thread.guestName} (#${thread._id.toString().slice(-6)})\n\n${text}`;
+    if (attachmentUrl) tgText += `\n\n📎 Вложение (ссылка активна ~30 мин): ${attachmentUrl}`;
     const sentId = await sendTelegramMessage(tgText, lastTgId);
     if (sentId) thread.telegramMessageIds.push(sentId);
 
@@ -53,7 +107,13 @@ router.post("/message", async (req, res) => {
     thread.isResolved = false;
     await thread.save();
 
-    res.json({ ok: true, message: { from: message.from, text: message.text, createdAt: message.createdAt } });
+    res.json({
+      ok: true,
+      message: {
+        from: message.from, text: message.text, authorName: message.authorName,
+        authorAvatar: message.authorAvatar, attachmentUrl: message.attachmentUrl, createdAt: message.createdAt,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });
@@ -65,9 +125,7 @@ router.post("/message", async (req, res) => {
 // вебхук — никакого постоянно живого процесса, это отличие от Discord-бота.
 //
 // ВАЖНО: на Vercel serverless функция может "заморозиться" сразу после
-// отправки ответа — поэтому вся обработка идёт ДО res.sendStatus(200),
-// а не после (как было раньше и как чуть не наступило на те же грабли,
-// что и с Discord-вебхуком новостей).
+// отправки ответа — поэтому вся обработка идёт ДО res.sendStatus(200).
 router.post("/telegram-webhook", async (req, res) => {
   try {
     if (process.env.TELEGRAM_WEBHOOK_SECRET) {
@@ -100,7 +158,13 @@ router.post("/telegram-webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
-    await SupportMessage.create({ threadId: thread._id, from: "admin", text: msg.text });
+    // Имя админа: предпочитаем first_name (то, что видно в Telegram), можно
+    // добавить username в скобках, если есть — для различения нескольких админов
+    const adminName = msg.from?.username
+      ? `${msg.from.first_name || "Админ"} (@${msg.from.username})`
+      : (msg.from?.first_name || "Администрация");
+
+    await SupportMessage.create({ threadId: thread._id, from: "admin", text: msg.text, authorName: adminName });
     thread.telegramMessageIds.push(msg.message_id);
     thread.lastMessageAt = new Date();
     await thread.save();

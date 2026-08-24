@@ -14,6 +14,83 @@ const ITEMS = [
   // РАМКИ АВАТАРКИ (avatar_frame) — только профиль
   // ════════════════════════════════════════════════
   {
+  name: "Близнецы",
+  description: "Две вращающиеся голубые дуги с живым свечением вокруг аватарки.",
+  icon: "♊",
+  price: 180,
+  category: "personal",
+  type: "cosmetic",
+  cosmeticType: "avatar_frame",
+  css: `
+    %SEL%::before {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 5px solid transparent;
+      border-top-color: #42d9ff;
+      border-right-color: #00aeea;
+      box-shadow:
+        0 0 6px #42d9ff,
+        0 0 14px rgba(0,200,255,0.9),
+        0 0 25px rgba(0,140,255,0.55);
+      z-index: -1;
+      pointer-events: none;
+      animation: twinsSpin 2.4s linear infinite,
+                 twinsFlicker 0.5s ease-in-out infinite alternate;
+    }
+
+    %SEL%::after {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 5px solid transparent;
+      border-bottom-color: #00aeea;
+      border-left-color: #42d9ff;
+      box-shadow:
+        0 0 6px #7de9ff,
+        0 0 14px rgba(0,200,255,0.9),
+        0 0 25px rgba(0,140,255,0.55);
+      z-index: -1;
+      pointer-events: none;
+      animation: twinsSpinReverse 2.4s linear infinite,
+                 twinsFlicker 0.5s ease-in-out infinite alternate-reverse;
+    }
+  `,
+  keyframes: `
+    @keyframes twinsSpin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes twinsSpinReverse {
+      from {
+        transform: rotate(180deg);
+      }
+      to {
+        transform: rotate(-180deg);
+      }
+    }
+
+    @keyframes twinsFlicker {
+      0% {
+        opacity: 0.7;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+  `,
+  isConsumable: false,
+  order: 3,
+},
+  {
     name:         "Золотая корона",
     description:  "Вращающиеся золотые лучи и пульсирующее кольцо — как нимб чемпиона.",
     icon:         "👑",
@@ -311,7 +388,7 @@ const ITEMS = [
     name:         "Буст монет",
     description:  "Следующий матч принесёт x2 личных монет (10 вместо 5). Одноразовый.",
     icon:         "💰",
-    price:        50,
+    price:        5,
     category:     "personal",
     type:         "boost",
     cosmeticType: null,

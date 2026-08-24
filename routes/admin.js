@@ -657,15 +657,52 @@ router.delete("/ranks/:id", requireAdmin, async (req, res) => {
 
 // ─── Турниры ──────────────────────────────────────────────────────────────────
 
+// ── Хелпер: считает разрыв (макс - мин) в часах и faceit-уровне среди
+// игроков ростера. null, если данных недостаточно (меньше 2 игроков или
+// у кого-то не указана характеристика).
+function computeRosterGap(rosterUsers) {
+  if (!rosterUsers || rosterUsers.length < 2) return { hoursGap: null, faceitGap: null };
+
+  const hours  = rosterUsers.map(u => u.hoursInCS2).filter(h => h !== null && h !== undefined);
+  const faceit = rosterUsers.map(u => u.faceitLevel).filter(f => f !== null && f !== undefined);
+
+  const hoursGap  = hours.length  === rosterUsers.length ? Math.max(...hours)  - Math.min(...hours)  : null;
+  const faceitGap = faceit.length === rosterUsers.length ? Math.max(...faceit) - Math.min(...faceit) : null;
+
+  return { hoursGap, faceitGap };
+}
+
 router.get("/tournaments", requireAdmin, async (req, res) => {
   try {
     const tournaments = await Tournament.find().sort({ createdAt: -1 }).lean();
     const teamIds = [...new Set(tournaments.flatMap(t => (t.registrations || []).map(r => r.teamId.toString())))];
     const teams   = await Team.find({ _id: { $in: teamIds } }).select("name tag logo").lean();
     const teamMap = Object.fromEntries(teams.map(t => [t._id.toString(), t]));
-    const result  = tournaments.map(t => ({
+
+    // Собираем всех игроков во всех roster'ах разом — один запрос вместо N
+    const rosterUserIds = [...new Set(
+      tournaments.flatMap(t => (t.registrations || []).flatMap(r => (r.roster || []).map(String)))
+    )];
+    const rosterUsers = await User.find({ _id: { $in: rosterUserIds } })
+      .select("displayName avatar hoursInCS2 faceitLevel").lean();
+    const userMap = Object.fromEntries(rosterUsers.map(u => [u._id.toString(), u]));
+
+    const result = tournaments.map(t => ({
       ...t,
-      registrations: (t.registrations || []).map(r => ({ ...r, team: teamMap[r.teamId.toString()] || null })),
+      registrations: (t.registrations || []).map(r => {
+        const rosterDetails = (r.roster || []).map(id => userMap[id.toString()]).filter(Boolean);
+        const { hoursGap, faceitGap } = computeRosterGap(rosterDetails);
+        return {
+          ...r,
+          team: teamMap[r.teamId.toString()] || null,
+          rosterDetails,
+          hoursGap,
+          faceitGap,
+          // Предупреждение только если порог настроен (не null/0) и превышен
+          hoursGapWarning:  t.maxHoursGap  ? (hoursGap  !== null && hoursGap  > t.maxHoursGap)  : false,
+          faceitGapWarning: t.maxFaceitGap ? (faceitGap !== null && faceitGap > t.maxFaceitGap) : false,
+        };
+      }),
     }));
     res.json(result);
   } catch (err) {
@@ -675,16 +712,24 @@ router.get("/tournaments", requireAdmin, async (req, res) => {
 
 router.post("/tournaments", requireAdmin, async (req, res) => {
   try {
-    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    const { name, description, startDate, status, minMembers, maxMembers, maxTeams, prize, maxHoursGap, maxFaceitGap } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: "Название обязательно" });
+
+    const min = minMembers ? Math.max(1, Number(minMembers)) : 5;
+    const max = maxMembers ? Math.max(1, Number(maxMembers)) : Math.max(min, 5);
+    if (max < min) return res.status(400).json({ error: "Макс. состав не может быть меньше мин. состава" });
+
     const tournament = await Tournament.create({
       name:        String(name).trim(),
       description: description ? String(description).trim() : "",
       startDate:   startDate || null,
       status:      ["upcoming","active","finished"].includes(status) ? status : "upcoming",
-      minMembers:  minMembers ? Math.min(5, Math.max(1, Number(minMembers))) : 5,
-      maxTeams:    maxTeams   ? Math.max(2, Number(maxTeams)) : 16,
+      minMembers:  min,
+      maxMembers:  max,
+      maxTeams:    maxTeams ? Math.max(2, Number(maxTeams)) : 16,
       prize:       prize ? String(prize).trim() : "",
+      maxHoursGap:  maxHoursGap  !== undefined && maxHoursGap  !== "" ? Math.max(0, Number(maxHoursGap))  : null,
+      maxFaceitGap: maxFaceitGap !== undefined && maxFaceitGap !== "" ? Math.max(0, Number(maxFaceitGap)) : null,
     });
     res.json({ ok: true, tournament });
   } catch (err) {
@@ -694,15 +739,20 @@ router.post("/tournaments", requireAdmin, async (req, res) => {
 
 router.patch("/tournaments/:id", requireAdmin, async (req, res) => {
   try {
-    const { name, description, startDate, status, minMembers, maxTeams, prize } = req.body;
+    const { name, description, startDate, status, minMembers, maxMembers, maxTeams, prize, maxHoursGap, maxFaceitGap } = req.body;
     const update = {};
     if (name        !== undefined) update.name        = String(name).trim();
     if (description !== undefined) update.description = String(description).trim();
     if (startDate   !== undefined) update.startDate   = startDate || null;
     if (status      !== undefined && ["upcoming","active","finished"].includes(status)) update.status = status;
-    if (minMembers  !== undefined) update.minMembers  = Math.min(5, Math.max(1, Number(minMembers)));
+    if (minMembers  !== undefined) update.minMembers  = Math.max(1, Number(minMembers));
+    if (maxMembers  !== undefined) update.maxMembers  = Math.max(1, Number(maxMembers));
+    if (update.minMembers !== undefined && update.maxMembers !== undefined && update.maxMembers < update.minMembers)
+      return res.status(400).json({ error: "Макс. состав не может быть меньше мин. состава" });
     if (maxTeams    !== undefined) update.maxTeams    = Math.max(2, Number(maxTeams));
     if (prize       !== undefined) update.prize       = String(prize).trim();
+    if (maxHoursGap  !== undefined) update.maxHoursGap  = maxHoursGap  === "" || maxHoursGap  === null ? null : Math.max(0, Number(maxHoursGap));
+    if (maxFaceitGap !== undefined) update.maxFaceitGap = maxFaceitGap === "" || maxFaceitGap === null ? null : Math.max(0, Number(maxFaceitGap));
     const tournament = await Tournament.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
     if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
     res.json({ ok: true, tournament });

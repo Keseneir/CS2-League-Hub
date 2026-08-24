@@ -161,6 +161,50 @@
         }
         .tc-check-label a:hover { text-decoration: underline; }
 
+        .tc-roster-picker {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .tc-roster-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .tc-roster-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+            font-size: 13px;
+            color: #d5dce3;
+            transition: background 0.15s;
+        }
+        .tc-roster-item:hover { background: rgba(255,255,255,0.06); }
+        .tc-roster-item input[type="checkbox"] {
+            accent-color: #e6b022;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .tc-roster-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.08);
+        }
+        .tc-roster-error {
+            color: #e05c5c;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
         .tc-footer {
             padding: 0 20px 20px;
         }
@@ -525,12 +569,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const grid = $("tournamentsGrid");
 
     tournaments.forEach(t => {
-        const card = buildTournamentCard(t, memberCount);
+        const card = buildTournamentCard(t, memberCount, team);
         grid.appendChild(card);
     });
 });
 
-function buildTournamentCard(t, memberCount) {
+function buildTournamentCard(t, memberCount, team) {
     const card = document.createElement("div");
     card.className = "tournament-card" + (t.isRegistered ? " registered" : "");
     card.dataset.id = t._id;
@@ -544,6 +588,27 @@ function buildTournamentCard(t, memberCount) {
 
     const slotsLeft = t.maxTeams - t.teamsCount;
 
+    // Все игроки команды, из которых капитан выбирает состав на турнир
+    // (основные + запасные — резерв тоже может закрывать состав).
+    const rosterPool = [...(team.members || []), ...(team.subs || [])];
+    const rangeLabel = t.minMembers === t.maxMembers ? `${t.minMembers}` : `${t.minMembers}–${t.maxMembers}`;
+    const canEditRoster = t.status !== "active"; // фикс: было можно даже когда турнир уже идёт
+
+    const rosterPickerHtml = `
+        <div class="tc-roster-picker" data-tid="${t._id}">
+            <div style="font-size:12px;color:#5c6b7f;margin-bottom:8px;">Выберите состав на турнир (${rangeLabel} игрока):</div>
+            <div class="tc-roster-list">
+                ${rosterPool.map(p => `
+                    <label class="tc-roster-item">
+                        <input type="checkbox" class="tc-roster-chk" data-tid="${t._id}" value="${p._id}"
+                            ${(t.roster || []).includes(p._id) ? "checked" : ""}>
+                        <img src="${p.avatar || ""}" onerror="this.style.visibility='hidden'" class="tc-roster-avatar">
+                        <span>${escHtml(p.displayName || "?")}</span>
+                    </label>`).join("")}
+            </div>
+            <div class="tc-roster-error" style="display:none;"></div>
+        </div>`;
+
     card.innerHTML = `
         <div class="tc-header">
             <div class="tc-name">${escHtml(t.name)}</div>
@@ -556,14 +621,19 @@ function buildTournamentCard(t, memberCount) {
                 <div class="tc-meta-item"><span class="icon">${iconSvg("calendar")}</span> <strong>${dateStr}</strong></div>
                 ${countdownHtml(t.startDate)}
                 <div class="tc-meta-item"><span class="icon">${iconSvg("users")}</span> Заявок: <strong>${t.teamsCount} / ${t.maxTeams}</strong></div>
-                <div class="tc-meta-item"><span class="icon">${iconSvg("gamepad")}</span> Мин. состав: <strong>${t.minMembers}/5</strong></div>
+                <div class="tc-meta-item"><span class="icon">${iconSvg("gamepad")}</span> Состав на турнир: <strong>${rangeLabel}</strong></div>
             </div>
 
             ${t.isRegistered
                 ? `<div class="tc-registered-banner">
                        ${iconSvg("checkCircle")} Ваша команда зарегистрирована
                        <button onclick="unregister('${t._id}', this)">Отменить</button>
-                   </div>`
+                   </div>
+                   ${canEditRoster
+                       ? `${rosterPickerHtml}
+                          <button class="tc-btn-register" style="margin-top:10px;" onclick="saveRoster('${t._id}', this)">Сохранить состав</button>
+                          <div class="tc-error-msg"></div>`
+                       : `<div style="font-size:12px;color:#5c6b7f;margin-top:8px;">Турнир уже идёт — состав зафиксирован.</div>`}`
                 : `<div class="tc-checkboxes">
                        <label class="tc-check-label">
                            <input type="checkbox" class="chk-age" data-id="${t._id}">
@@ -577,7 +647,8 @@ function buildTournamentCard(t, memberCount) {
                            и <a href="terms.html">Пользовательским соглашением</a>.
                            Подтверждаю, что данные команды верны.
                        </label>
-                   </div>`
+                   </div>
+                   ${rosterPickerHtml}`
             }
         </div>
         ${!t.isRegistered
@@ -595,18 +666,28 @@ function buildTournamentCard(t, memberCount) {
     return card;
 }
 
+function getSelectedRoster(tournamentId, card) {
+    return [...card.querySelectorAll(`.tc-roster-chk[data-tid="${tournamentId}"]:checked`)].map(el => el.value);
+}
+
 async function register(tournamentId, btn) {
     const card     = btn.closest(".tournament-card");
     const chkAge   = card.querySelector(".chk-age");
     const chkRules = card.querySelector(".chk-rules");
     const errDiv   = card.querySelector(".tc-error-msg");
-    const sucDiv   = card.querySelector(".tc-success-msg");
 
     errDiv.style.display = "none";
 
     if (!chkAge.checked || !chkRules.checked) {
         errDiv.textContent    = "Отметьте обе галочки перед регистрацией.";
         errDiv.style.display  = "block";
+        return;
+    }
+
+    const roster = getSelectedRoster(tournamentId, card);
+    if (!roster.length) {
+        errDiv.textContent   = "Выберите состав, который будет играть на турнире.";
+        errDiv.style.display = "block";
         return;
     }
 
@@ -618,7 +699,7 @@ async function register(tournamentId, btn) {
         const r = await fetch(`/api/tournaments/${tournamentId}/register`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ ageConfirmed: true, rulesAccepted: true }),
+            body:    JSON.stringify({ ageConfirmed: true, rulesAccepted: true, roster }),
         });
         const data = await r.json();
         if (!r.ok) {
@@ -637,6 +718,47 @@ async function register(tournamentId, btn) {
         btn.disabled         = false;
         btn.classList.remove("loading");
         btn.textContent      = "Зарегистрировать команду";
+    }
+}
+
+async function saveRoster(tournamentId, btn) {
+    const card   = btn.closest(".tournament-card");
+    const picker = card.querySelector(`.tc-roster-picker[data-tid="${tournamentId}"]`);
+    const errDiv = picker.querySelector(".tc-roster-error");
+    errDiv.style.display = "none";
+
+    const roster = getSelectedRoster(tournamentId, card);
+    if (!roster.length) {
+        errDiv.textContent   = "Выберите хотя бы одного игрока.";
+        errDiv.style.display = "block";
+        return;
+    }
+
+    btn.disabled    = true;
+    const oldText   = btn.textContent;
+    btn.textContent = "Сохраняем...";
+
+    try {
+        const r = await fetch(`/api/tournaments/${tournamentId}/register`, {
+            method:  "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ roster }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            errDiv.textContent   = data.error || "Ошибка при сохранении состава.";
+            errDiv.style.display = "block";
+            btn.disabled         = false;
+            btn.textContent      = oldText;
+            return;
+        }
+        btn.textContent = "Сохранено!";
+        setTimeout(() => { btn.textContent = oldText; btn.disabled = false; }, 1500);
+    } catch {
+        errDiv.textContent   = "Ошибка соединения.";
+        errDiv.style.display = "block";
+        btn.disabled         = false;
+        btn.textContent      = oldText;
     }
 }
 

@@ -3,13 +3,14 @@ const router          = express.Router();
 const Team            = require("../models/Team");
 const Tournament      = require("../models/Tournament");
 const Match           = require("../models/Match");
+const User            = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
 
 
 router.get("/", async (req, res) => {
   try {
     const tournaments = await Tournament.find({ status: { $in: ["upcoming", "active"] } })
-      .select("name description startDate status minMembers maxTeams prize registrations")
+      .select("name description startDate status minMembers maxMembers maxTeams prize registrations")
       .sort({ startDate: 1, createdAt: -1 })
       .lean();
     const result = tournaments.map(t => ({
@@ -19,6 +20,7 @@ router.get("/", async (req, res) => {
       startDate:   t.startDate,
       status:      t.status,
       minMembers:  t.minMembers,
+      maxMembers:  t.maxMembers,
       maxTeams:    t.maxTeams,
       prize:       t.prize,
       teamsCount:  (t.registrations || []).length,
@@ -39,7 +41,7 @@ router.get("/my", requireAuth, async (req, res) => {
     if (!req.user.teamId) return res.json(tournaments.map(t => ({
       _id: t._id, name: t.name, description: t.description,
       startDate: t.startDate, status: t.status, minMembers: t.minMembers,
-      maxTeams: t.maxTeams, prize: t.prize,
+      maxMembers: t.maxMembers, maxTeams: t.maxTeams, prize: t.prize,
       teamsCount: (t.registrations || []).length, isRegistered: false,
     })));
 
@@ -49,9 +51,12 @@ router.get("/my", requireAuth, async (req, res) => {
       return {
         _id: t._id, name: t.name, description: t.description,
         startDate: t.startDate, status: t.status, minMembers: t.minMembers,
-        maxTeams: t.maxTeams, prize: t.prize,
+        maxMembers: t.maxMembers, maxTeams: t.maxTeams, prize: t.prize,
         teamsCount: (t.registrations || []).length,
         isRegistered: !!reg,
+        // Отдаём выбранный ростер и статус, чтобы join.html мог показать
+        // текущий выбор и решить, можно ли его ещё менять (status !== active).
+        roster: reg ? (reg.roster || []).map(id => id.toString()) : [],
       };
     });
     res.json(result);
@@ -87,7 +92,7 @@ router.get("/:id", async (req, res) => {
   try {
     const t = await Tournament.findById(req.params.id)
       .populate("registrations.teamId", "name tag logo")
-      .select("name description startDate status minMembers maxTeams prize registrations")
+      .select("name description startDate status minMembers maxMembers maxTeams prize registrations")
       .lean();
     if (!t) return res.status(404).json({ error: "Турнир не найден" });
     res.json({
@@ -97,6 +102,7 @@ router.get("/:id", async (req, res) => {
       startDate:   t.startDate,
       status:      t.status,
       minMembers:  t.minMembers,
+      maxMembers:  t.maxMembers,
       maxTeams:    t.maxTeams,
       prize:       t.prize,
       teams: (t.registrations || []).map(r => r.teamId).filter(Boolean),
@@ -121,6 +127,34 @@ router.get("/:id/matches", async (req, res) => {
   }
 });
 
+// ── Хелпер: проверяет, что каждый userId в roster реально состоит в
+// команде (основной либо запасной состав), и что размер укладывается в
+// [minMembers, maxMembers] турнира. Бросает { status, error } при ошибке.
+function validateRoster(roster, team, tournament) {
+  if (!Array.isArray(roster) || roster.length === 0) {
+    throw { status: 400, error: "Выберите состав на турнир" };
+  }
+  const uniqueRoster = [...new Set(roster.map(String))];
+  if (uniqueRoster.length !== roster.length) {
+    throw { status: 400, error: "В составе не может быть повторяющихся игроков" };
+  }
+  if (uniqueRoster.length < tournament.minMembers || uniqueRoster.length > tournament.maxMembers) {
+    const range = tournament.minMembers === tournament.maxMembers
+      ? `${tournament.minMembers}`
+      : `${tournament.minMembers}–${tournament.maxMembers}`;
+    throw { status: 400, error: `Состав на турнир должен быть из ${range} игроков` };
+  }
+  const teamPlayerIds = new Set([
+    ...(team.members || []).map(String),
+    ...(team.subs    || []).map(String),
+  ]);
+  const invalid = uniqueRoster.filter(id => !teamPlayerIds.has(id));
+  if (invalid.length > 0) {
+    throw { status: 400, error: "В составе указан игрок, не состоящий в команде" };
+  }
+  return uniqueRoster;
+}
+
 router.post("/:id/register", requireAuth, async (req, res) => {
   try {
     if (!req.user.teamId) return res.status(400).json({ error: "Вы не состоите в команде" });
@@ -132,12 +166,14 @@ router.post("/:id/register", requireAuth, async (req, res) => {
 
     const tournament = await Tournament.findById(req.params.id);
     if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
-    if (!["upcoming", "active"].includes(tournament.status))
+    // ФИКС: регистрация была возможна даже когда турнир уже "active" —
+    // разрешена только пока турнир "upcoming".
+    if (tournament.status !== "upcoming")
       return res.status(400).json({ error: "Регистрация на этот турнир закрыта" });
 
     if ((team.members || []).length < tournament.minMembers)
       return res.status(400).json({
-        error: `Недостаточно игроков. Нужно минимум ${tournament.minMembers}/5 в основном составе`,
+        error: `Недостаточно игроков в команде. Нужно минимум ${tournament.minMembers} в основном составе`,
         code:  "TEAM_INCOMPLETE",
       });
 
@@ -147,14 +183,60 @@ router.post("/:id/register", requireAuth, async (req, res) => {
     if ((tournament.registrations || []).some(r => r.teamId.toString() === req.user.teamId.toString()))
       return res.status(400).json({ error: "Ваша команда уже зарегистрирована" });
 
-    const { ageConfirmed, rulesAccepted } = req.body;
+    const { ageConfirmed, rulesAccepted, roster } = req.body;
     if (!ageConfirmed || !rulesAccepted)
       return res.status(400).json({ error: "Необходимо подтвердить возраст и принять правила" });
+
+    let validRoster;
+    try {
+      validRoster = validateRoster(roster, team, tournament);
+    } catch (e) {
+      return res.status(e.status || 400).json({ error: e.error || "Ошибка состава" });
+    }
 
     tournament.registrations.push({
       teamId: req.user.teamId, captainId: req.user._id,
       ageConfirmed: true, rulesAccepted: true,
+      roster: validRoster,
     });
+    await tournament.save();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// PATCH /api/tournaments/:id/register — капитан меняет состав на турнир.
+// Разрешено только пока турнир не "active" (после старта состав фиксирован).
+router.patch("/:id/register", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId) return res.status(400).json({ error: "Вы не в команде" });
+
+    const team = await Team.findById(req.user.teamId).lean();
+    if (!team || team.captainId.toString() !== req.user._id.toString())
+      return res.status(403).json({ error: "Только капитан может менять состав" });
+
+    const tournament = await Tournament.findById(req.params.id);
+    if (!tournament) return res.status(404).json({ error: "Турнир не найден" });
+    if (tournament.status === "active")
+      return res.status(400).json({ error: "Турнир уже идёт — состав менять нельзя" });
+    if (tournament.status === "finished")
+      return res.status(400).json({ error: "Турнир завершён" });
+
+    const reg = (tournament.registrations || []).find(
+      r => r.teamId.toString() === req.user.teamId.toString()
+    );
+    if (!reg) return res.status(400).json({ error: "Ваша команда не зарегистрирована" });
+
+    let validRoster;
+    try {
+      validRoster = validateRoster(req.body.roster, team, tournament);
+    } catch (e) {
+      return res.status(e.status || 400).json({ error: e.error || "Ошибка состава" });
+    }
+
+    reg.roster = validRoster;
     await tournament.save();
     res.json({ ok: true });
   } catch (err) {

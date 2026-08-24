@@ -569,14 +569,32 @@
                     </div>
                     <div class="field-row">
                         <div>
-                            <label class="field-label">Мин. состав (основных)</label>
-                            <input type="number" id="tnMinMembers" class="field-input" value="5" min="1" max="5">
+                            <label class="field-label">Мин. состав на турнир</label>
+                            <input type="number" id="tnMinMembers" class="field-input" value="5" min="1">
                         </div>
+                        <div>
+                            <label class="field-label">Макс. состав на турнир</label>
+                            <input type="number" id="tnMaxMembers" class="field-input" value="5" min="1">
+                        </div>
+                    </div>
+                    <div class="field-row">
                         <div>
                             <label class="field-label">Макс. команд</label>
                             <input type="number" id="tnMaxTeams" class="field-input" value="16" min="2">
                         </div>
+                        <div></div>
                     </div>
+                    <div class="field-row">
+                        <div>
+                            <label class="field-label">Порог разрыва в часах</label>
+                            <input type="number" id="tnMaxHoursGap" class="field-input" placeholder="не проверять" min="0">
+                        </div>
+                        <div>
+                            <label class="field-label">Порог разрыва FACEIT</label>
+                            <input type="number" id="tnMaxFaceitGap" class="field-input" placeholder="не проверять" min="0">
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#5c6b7f;margin-top:-8px;">Пусто = проверка выключена. При превышении разница подсвечивается в заявках, регистрация не блокируется.</div>
                     <div>
                         <label class="field-label">Призовой фонд / Приз</label>
                         <input type="text" id="tnPrize" class="field-input" placeholder="например: 3000 грн + медали" maxlength="256">
@@ -2012,9 +2030,11 @@ function renderTournamentsTable() {
             <th>Приз</th>
             <th>Действия</th>
         </tr></thead>
-        <tbody>${_tournaments.map(t => `
+        <tbody>${_tournaments.map(t => {
+            const hasWarnings = (t.registrations || []).some(r => r.hoursGapWarning || r.faceitGapWarning);
+            return `
         <tr>
-            <td><strong style="color:white;">${escAdmin(t.name)}</strong></td>
+            <td><strong style="color:white;">${escAdmin(t.name)}</strong> ${hasWarnings ? `<span title="Есть команды с большим разрывом в составе" style="color:#e65a22;">⚠️</span>` : ""}</td>
             <td><span style="color:${statusColor[t.status] || "var(--gray)"};">${statusLabel[t.status] || t.status}</span></td>
             <td class="num">${(t.registrations || []).length}</td>
             <td class="num">${t.maxTeams}</td>
@@ -2025,27 +2045,34 @@ function renderTournamentsTable() {
                 <button class="btn btn-ghost btn-sm" onclick="openEditTournament('${t._id}')">✏️</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteTournament('${t._id}','${escAdmin(t.name).replace(/'/g,"\\'")}')">✕</button>
             </div></td>
-        </tr>`).join("")}
+        </tr>`;
+        }).join("")}
         </tbody>
     </table>`;
 }
 
 async function createTournament() {
     hideError("tnCreateError");
-    const name       = document.getElementById("tnName").value.trim();
-    const desc       = document.getElementById("tnDesc").value.trim();
-    const dateVal    = document.getElementById("tnDate").value;
-    const status     = document.getElementById("tnStatus").value;
-    const minMembers = document.getElementById("tnMinMembers").value;
-    const maxTeams   = document.getElementById("tnMaxTeams").value;
-    const prize      = document.getElementById("tnPrize").value.trim();
+    const name          = document.getElementById("tnName").value.trim();
+    const desc           = document.getElementById("tnDesc").value.trim();
+    const dateVal         = document.getElementById("tnDate").value;
+    const status          = document.getElementById("tnStatus").value;
+    const minMembers      = document.getElementById("tnMinMembers").value;
+    const maxMembers      = document.getElementById("tnMaxMembers").value;
+    const maxTeams        = document.getElementById("tnMaxTeams").value;
+    const prize           = document.getElementById("tnPrize").value.trim();
+    const maxHoursGap     = document.getElementById("tnMaxHoursGap").value;
+    const maxFaceitGap    = document.getElementById("tnMaxFaceitGap").value;
     if (!name) { showError("tnCreateError", "Введите название турнира"); return; }
     const btn = document.getElementById("tnCreateBtn");
     btn.disabled = true; btn.textContent = "Создаём...";
     try {
         const res = await fetch("/api/admin/tournaments", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null, status, minMembers, maxTeams, prize })
+            body: JSON.stringify({
+                name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null,
+                status, minMembers, maxMembers, maxTeams, prize, maxHoursGap, maxFaceitGap,
+            })
         });
         const d = await res.json();
         if (!res.ok) { showError("tnCreateError", d.error || "Ошибка"); return; }
@@ -2054,6 +2081,8 @@ async function createTournament() {
         document.getElementById("tnDesc").value  = "";
         document.getElementById("tnDate").value  = "";
         document.getElementById("tnPrize").value = "";
+        document.getElementById("tnMaxHoursGap").value  = "";
+        document.getElementById("tnMaxFaceitGap").value = "";
         await loadTournaments();
     } catch { showError("tnCreateError", "Ошибка соединения"); }
     finally { btn.disabled = false; btn.textContent = "Создать турнир"; }
@@ -2072,33 +2101,42 @@ function openEditTournament(id) {
     const t = _tournaments.find(x => x._id === id);
     if (!t) return;
     _editTournamentId = id;
-    document.getElementById("etName").value       = t.name;
-    document.getElementById("etDesc").value       = t.description || "";
-    document.getElementById("etDate").value       = toDatetimeLocalValue(t.startDate);
-    document.getElementById("etStatus").value     = t.status;
-    document.getElementById("etMinMembers").value = t.minMembers;
-    document.getElementById("etMaxTeams").value   = t.maxTeams;
-    document.getElementById("etPrize").value      = t.prize || "";
+    document.getElementById("etName").value        = t.name;
+    document.getElementById("etDesc").value        = t.description || "";
+    document.getElementById("etDate").value        = toDatetimeLocalValue(t.startDate);
+    document.getElementById("etStatus").value      = t.status;
+    document.getElementById("etMinMembers").value  = t.minMembers;
+    document.getElementById("etMaxMembers").value  = t.maxMembers;
+    document.getElementById("etMaxTeams").value    = t.maxTeams;
+    document.getElementById("etPrize").value       = t.prize || "";
+    document.getElementById("etMaxHoursGap").value  = t.maxHoursGap  ?? "";
+    document.getElementById("etMaxFaceitGap").value = t.maxFaceitGap ?? "";
     hideError("etError");
     openModal("editTournamentModal");
 }
 
 async function submitEditTournament() {
     hideError("etError");
-    const name       = document.getElementById("etName").value.trim();
-    const desc       = document.getElementById("etDesc").value.trim();
-    const dateVal    = document.getElementById("etDate").value;
-    const status     = document.getElementById("etStatus").value;
-    const minMembers = document.getElementById("etMinMembers").value;
-    const maxTeams   = document.getElementById("etMaxTeams").value;
-    const prize      = document.getElementById("etPrize").value.trim();
+    const name          = document.getElementById("etName").value.trim();
+    const desc           = document.getElementById("etDesc").value.trim();
+    const dateVal         = document.getElementById("etDate").value;
+    const status          = document.getElementById("etStatus").value;
+    const minMembers      = document.getElementById("etMinMembers").value;
+    const maxMembers      = document.getElementById("etMaxMembers").value;
+    const maxTeams        = document.getElementById("etMaxTeams").value;
+    const prize           = document.getElementById("etPrize").value.trim();
+    const maxHoursGap     = document.getElementById("etMaxHoursGap").value;
+    const maxFaceitGap    = document.getElementById("etMaxFaceitGap").value;
     if (!name) { showError("etError", "Введите название"); return; }
     const btn = document.getElementById("etSaveBtn");
     btn.disabled = true; btn.textContent = "Сохранение...";
     try {
         const res = await fetch(`/api/admin/tournaments/${_editTournamentId}`, {
             method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null, status, minMembers, maxTeams, prize })
+            body: JSON.stringify({
+                name, description: desc, startDate: dateVal ? new Date(dateVal).toISOString() : null,
+                status, minMembers, maxMembers, maxTeams, prize, maxHoursGap, maxFaceitGap,
+            })
         });
         const d = await res.json();
         if (!res.ok) { showError("etError", d.error || "Ошибка"); return; }
@@ -2136,8 +2174,22 @@ function openTournamentRegistrations(id, name) {
         return;
     }
     wrap.innerHTML = `<table class="data-table">
-        <thead><tr><th>#</th><th>Команда</th><th>Дата заявки</th><th>Действия</th></tr></thead>
-        <tbody>${regs.map((r, i) => `
+        <thead><tr><th>#</th><th>Команда</th><th>Состав на турнир</th><th>Дата заявки</th><th>Действия</th></tr></thead>
+        <tbody>${regs.map((r, i) => {
+            const rosterHtml = (r.rosterDetails || []).length
+                ? `<div style="display:flex;flex-direction:column;gap:2px;">${(r.rosterDetails || []).map(u => `
+                    <div style="font-size:12px;color:var(--gray2);">
+                        ${escAdmin(u.displayName || "?")}
+                        <span style="color:#5c6b7f;">— ${u.hoursInCS2 ?? "?"}ч, faceit ${u.faceitLevel ?? "?"}</span>
+                    </div>`).join("")}</div>`
+                : `<span style="color:#5c6b7f;font-size:12px;">не выбран</span>`;
+            const warnings = [];
+            if (r.hoursGapWarning)  warnings.push(`⚠️ Разрыв в часах: ${r.hoursGap}`);
+            if (r.faceitGapWarning) warnings.push(`⚠️ Разрыв FACEIT: ${r.faceitGap}`);
+            const warningHtml = warnings.length
+                ? `<div style="margin-top:4px;padding:4px 8px;background:rgba(230,90,34,0.12);border:1px solid rgba(230,90,34,0.3);border-radius:6px;color:#e65a22;font-size:11px;font-weight:700;">${warnings.join(" · ")}</div>`
+                : "";
+            return `
         <tr>
             <td style="color:var(--gray2);font-weight:700;">${i + 1}</td>
             <td><div class="team-cell">
@@ -2147,11 +2199,13 @@ function openTournamentRegistrations(id, name) {
                     <div class="team-tag-cell">${r.team ? `[${r.team.tag}]` : ""}</div>
                 </div>
             </div></td>
+            <td>${rosterHtml}${warningHtml}</td>
             <td>${new Date(r.registeredAt).toLocaleDateString("ru-RU")}</td>
             <td>
                 <button class="btn btn-danger btn-sm" onclick="removeRegistration('${id}','${r.teamId}','${r.team?.name || "команду"}')">✕ Удалить заявку</button>
             </td>
-        </tr>`).join("")}
+        </tr>`;
+        }).join("")}
         </tbody>
     </table>`;
     section.scrollIntoView({ behavior: "smooth" });
@@ -2626,11 +2680,28 @@ init();
             <div class="field-row">
                 <div>
                     <label class="field-label">Мин. состав</label>
-                    <input type="number" id="etMinMembers" class="field-input" min="1" max="5">
+                    <input type="number" id="etMinMembers" class="field-input" min="1">
                 </div>
+                <div>
+                    <label class="field-label">Макс. состав</label>
+                    <input type="number" id="etMaxMembers" class="field-input" min="1">
+                </div>
+            </div>
+            <div class="field-row">
                 <div>
                     <label class="field-label">Макс. команд</label>
                     <input type="number" id="etMaxTeams" class="field-input" min="2">
+                </div>
+                <div></div>
+            </div>
+            <div class="field-row">
+                <div>
+                    <label class="field-label">Порог разрыва в часах</label>
+                    <input type="number" id="etMaxHoursGap" class="field-input" placeholder="не проверять" min="0">
+                </div>
+                <div>
+                    <label class="field-label">Порог разрыва FACEIT</label>
+                    <input type="number" id="etMaxFaceitGap" class="field-input" placeholder="не проверять" min="0">
                 </div>
             </div>
             <div>

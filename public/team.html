@@ -1317,6 +1317,19 @@ function applyTeamCosmetic(item) {
     el.textContent = styleContent;
 }
 
+// ─── Нормализация Telegram-юзернейма ───────────────────────────────────────
+// Капитан может ввести @team, t.me/team, https://t.me/team или просто team —
+// всегда приводим к чистому юзернейму, ссылку собираем на рендере.
+function normalizeTelegram(raw) {
+    if (!raw) return "";
+    return raw
+        .trim()
+        .replace(/^https?:\/\/(www\.)?t\.me\//i, "")
+        .replace(/^t\.me\//i, "")
+        .replace(/^@/, "")
+        .replace(/\/+$/, "");
+}
+
 // ─── Обновлённое сохранение (с учётом логотипа) ────────────────────────────
 async function saveTeamSettings() {
     const body = {
@@ -1324,7 +1337,7 @@ async function saveTeamSettings() {
         tag:         document.getElementById("editTag").value.trim(),
         quote:       document.getElementById("editQuote").value.trim(),
         description: document.getElementById("editDesc").value.trim(),
-        telegram:    document.getElementById("editTelegram").value.trim(),
+        telegram:    normalizeTelegram(document.getElementById("editTelegram").value),
         privacySettings: {
             showStats:   document.getElementById("privStats").checked,
             showHistory: document.getElementById("privHistory").checked,

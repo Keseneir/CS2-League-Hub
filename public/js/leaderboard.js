@@ -427,7 +427,7 @@
     if (lbTelegram) {
       lbTelegram.style.display = telegram ? "" : "none";
       lbTelegram.innerHTML = telegram
-        ? `<a href="${x(telegram)}" target="_blank" rel="noopener"
+        ? `<a href="${x(telegramUrl(telegram))}" target="_blank" rel="noopener"
               style="display:inline-flex;align-items:center;gap:5px;color:#aebbc7;text-decoration:none;
                      font-size:12px;background:#1a2128;border:1px solid #2a3340;border-radius:6px;padding:5px 10px;"
               onmouseover="this.style.color='#e6b022'" onmouseout="this.style.color='#aebbc7'">${iconSvg("megaphone")} Telegram</a>`
@@ -496,6 +496,20 @@
   // ── Helpers ───────────────────────────────────────────────────────────────
   function x(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // team.telegram в базе может лежать в разных форматах (юзернейм, @юзернейм,
+  // t.me/юзернейм, полная https-ссылка — у старых команд, сохранённых до фикса
+  // на странице команды) — всегда приводим к полноценной ссылке t.me/username,
+  // иначе браузер трактует "@name" как относительный путь и ломает ссылку.
+  function telegramUrl(raw) {
+    const clean = String(raw || "")
+      .trim()
+      .replace(/^https?:\/\/(www\.)?t\.me\//i, "")
+      .replace(/^t\.me\//i, "")
+      .replace(/^@/, "")
+      .replace(/\/+$/, "");
+    return clean ? `https://t.me/${clean}` : "";
   }
 
   // ── Пересобираем таблицу/карточки при повороте телефона или ресайзе окна,

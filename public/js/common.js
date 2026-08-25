@@ -424,6 +424,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const user = e.detail;
         const nav = document.getElementById("_dynMobileUserNav");
         if (!nav || !user) return;
+        nav.innerHTML = ""; // checkAuth() может сработать больше 1 раза (виджет поддержки дёргает его повторно) — без очистки блок дублировался
         const div = document.createElement("div");
         div.innerHTML = `
             <div class="mobile-nav-divider"></div>

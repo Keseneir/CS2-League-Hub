@@ -51,6 +51,21 @@ if (document.getElementById("newsContainer")) {
                d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     }
 
+    // ── Строка "комментарии / топ-реакция" под карточкой ────────────────
+    function newsFooterMeta(n) {
+        const commentsCount = n.commentsCount || 0;
+        let topReaction = null, topCount = 0;
+        if (n.reactions) {
+            REACTIONS.forEach(r => {
+                const c = n.reactions[r.key] || 0;
+                if (c > topCount) { topCount = c; topReaction = r; }
+            });
+        }
+        const parts = [`<span class="news-meta-comments">💬 ${commentsCount}</span>`];
+        if (topReaction) parts.push(`<span class="news-meta-reaction">${topReaction.emoji} ${topCount}</span>`);
+        return `<div class="news-footer-meta">${parts.join("")}</div>`;
+    }
+
     // ── Список новостей ─────────────────────────────────────────────────
     function applyNewsFilters() {
         let data = [...ALL_NEWS];
@@ -83,6 +98,7 @@ if (document.getElementById("newsContainer")) {
                     <div class="featured-title">${escNews(featured.title)}</div>
                     <div class="featured-excerpt">${escNews(featured.text)}</div>
                     <div class="news-readmore">Читать далее</div>
+                    ${newsFooterMeta(featured)}
                 </div>
             </div>`;
         }
@@ -96,6 +112,7 @@ if (document.getElementById("newsContainer")) {
                         <div class="card-title">${escNews(n.title)}</div>
                         <div class="card-excerpt">${escNews(n.text)}</div>
                         <div class="card-readmore">Подробнее</div>
+                        ${newsFooterMeta(n)}
                     </div>
                 </div>`;
             });

@@ -11,9 +11,23 @@ router.get("/", async (req, res) => {
   try {
     const news = await News.find()
       .sort({ publishedAt: -1 })
-      .select("title text tag img link featured publishedAt")
+      .select("title text tag img link featured publishedAt reactions")
       .lean();
-    res.json(news);
+
+    // считаем комментарии одним агрегейтом на все новости разом,
+    // а не отдельным запросом на каждую — иначе N+1
+    const counts = await NewsComment.aggregate([
+      { $group: { _id: "$newsId", count: { $sum: 1 } } },
+    ]);
+    const countMap = new Map(counts.map(c => [String(c._id), c.count]));
+
+    const withMeta = news.map(n => ({
+      ...n,
+      reactions: n.reactions || { flame: 0, sad: 0, angry: 0, thumbsUp: 0 },
+      commentsCount: countMap.get(String(n._id)) || 0,
+    }));
+
+    res.json(withMeta);
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });
   }

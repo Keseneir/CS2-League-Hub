@@ -17,12 +17,23 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+    /* Не даём странице расползаться вширь на мобильных — любой отдельный
+       элемент, который случайно оказался шире экрана (широкая сетка,
+       фиксированные колонки и т.п.), больше не тащит за собой весь layout
+       viewport и не сдвигает header/fixed-слои в сторону. */
+    overflow-x: hidden;
+    width: 100%;
+}
+
 body {
     font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
+    overflow-x: hidden;
+    width: 100%;
 }
 
 h1, h2, h3, .logo, .field-label { font-family: 'Montserrat', sans-serif; }
@@ -384,6 +395,7 @@ footer {
 #seasonSelect option { background: #12171d; color: var(--text); font-size: 13px; }
 .no-results-row td { text-align: center; color: var(--text-gray); font-size: 14px; padding: 40px 20px; }
 .table-wrapper { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.table-wrapper table { overflow-x: auto; -webkit-overflow-scrolling: touch; display: block; }
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
 thead tr { background: #0e1318; border-bottom: 2px solid var(--accent); }
 thead th { padding: 16px 20px; text-align: left; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-gray); white-space: nowrap; }

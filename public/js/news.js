@@ -134,6 +134,29 @@ if (document.getElementById("newsContainer")) {
     });
 
     // ── Модалка чтения новости ──────────────────────────────────────────
+    // ── Блокировка скролла фона под модалкой ────────────────────────────
+    // body.style.overflow="hidden" не блокирует "резиновый" scroll-bounce
+    // на iOS Safari надёжно (а иногда вместе с ним ломает touch-скролл
+    // внутри самой модалки). Фиксируем body через position:fixed с
+    // запоминанием текущей прокрутки — это работает кросс-браузерно.
+    let _scrollY = 0;
+    function lockBodyScroll() {
+        _scrollY = window.scrollY;
+        document.body.style.position = "fixed";
+        document.body.style.top      = `-${_scrollY}px`;
+        document.body.style.left     = "0";
+        document.body.style.right    = "0";
+        document.body.style.width    = "100%";
+    }
+    function unlockBodyScroll() {
+        document.body.style.position = "";
+        document.body.style.top      = "";
+        document.body.style.left     = "";
+        document.body.style.right    = "";
+        document.body.style.width    = "";
+        window.scrollTo(0, _scrollY);
+    }
+
     window.openNewsModal = async function(id) {
         if (id === "demo") return; // демо-заглушка при недоступном API — открывать нечего
         _modalNewsId = id;
@@ -143,7 +166,7 @@ if (document.getElementById("newsContainer")) {
         imgWrap.innerHTML = "";
         body.innerHTML = `<div class="state-box"><div class="spinner"></div></div>`;
         modal.classList.remove("p-modal-hidden");
-        document.body.style.overflow = "hidden";
+        lockBodyScroll();
 
         try {
             const res = await fetch(`/api/news/${id}`);
@@ -157,7 +180,7 @@ if (document.getElementById("newsContainer")) {
 
     window.closeNewsModal = function() {
         document.getElementById("newsModal").classList.add("p-modal-hidden");
-        document.body.style.overflow = "";
+        unlockBodyScroll();
         _modalNewsId = null;
     };
     document.getElementById("newsModal").addEventListener("click", e => {

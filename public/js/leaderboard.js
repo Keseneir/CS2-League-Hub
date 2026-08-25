@@ -107,11 +107,106 @@
   }
 
   // ── Table ─────────────────────────────────────────────────────────────────
+  // ── Карточное отображение для мобильных (вместо grid-таблицы с
+  // фиксированными пиксельными колонками, которая не сжимается уже
+  // текста и толкает всю страницу в горизонтальный overflow) ──────────────
+  function renderCards(rows) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+
+    rows.forEach((row, i) => {
+      const rank = i + 1;
+      const rankColors = { 1: "#e6b022", 2: "#b0b8c8", 3: "#c07840" };
+      const rankColor  = rankColors[rank] || "#5c6b7f";
+      const rowBg      = rank === 1 ? "rgba(230,176,34,0.05)"
+                       : rank === 2 ? "rgba(176,184,200,0.04)"
+                       : rank === 3 ? "rgba(192,120,64,0.04)"
+                       : "rgba(255,255,255,0.015)";
+      const wr      = row.wr || 0;
+      const barColor = wr >= 60 ? "#4caf82" : wr >= 40 ? "#e6b022" : "#e05c5c";
+      const rd    = row.roundDiff || 0;
+      const rdCol = rd >= 0 ? "#4caf82" : "#e05c5c";
+
+      const card = document.createElement("div");
+      card.dataset.teamId  = row.teamId || "";
+      card.dataset.teamTag = row.tag    || "";
+      card.style.cssText = `
+        background:${rowBg};
+        border:1px solid rgba(255,255,255,0.05);
+        border-radius:10px;
+        padding:12px 14px;
+      `;
+
+      const logoHtml = row.logo
+        ? `<img src="${x(row.logo)}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;display:block;" onerror="this.parentElement.innerHTML=teamInitialsHtml('${x(row.tag)}','${x(row.team)}',13)">`
+        : teamInitialsHtml(row.tag, row.team, 13);
+
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0;width:22px;">
+            <span style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;color:${rankColor};">${rank}</span>
+            ${row.isKingOfHill ? `<span style="font-size:10px;" title="Царь горы">${iconSvg("crown")}</span>` : ""}
+          </div>
+          <div style="width:36px;height:36px;border-radius:6px;background:#1a2128;border:1px solid #2a3340;flex-shrink:0;overflow:hidden;">${logoHtml}</div>
+          <div style="min-width:0;flex:1;overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <a href="/team.html?tag=${x(row.tag)}"
+                 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:14px;color:#e0e6ed;text-decoration:none;">${x(row.team)}</a>
+              <span style="font-size:11px;color:#4a5568;font-weight:700;">[${x(row.tag)}]</span>
+              ${row.winStreak >= 3 ? `<span style="font-size:10px;background:rgba(255,100,0,0.12);border:1px solid rgba(255,100,0,0.25);color:#ff6400;border-radius:4px;padding:1px 5px;font-family:'Montserrat',sans-serif;font-weight:700;display:inline-flex;align-items:center;gap:2px;">${iconSvg("flame")}${row.winStreak}</span>` : ""}
+            </div>
+            <div style="font-size:11px;color:#4a5568;margin-top:1px;">${row.rosterSize || 0} игр.</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:#e6b022;">${row.pts}</div>
+            <div style="font-size:10px;color:#5c6b7f;text-transform:uppercase;letter-spacing:0.5px;">очков</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:14px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;gap:8px;font-size:12px;font-weight:700;flex-shrink:0;">
+            <span style="color:#4caf82;">${row.wins}В</span>
+            <span style="color:#3a4552;">·</span>
+            <span style="color:#e05c5c;">${row.losses}П</span>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;gap:6px;min-width:0;">
+            <div style="flex:1;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;">
+              <div style="width:${wr}%;height:100%;background:${barColor};border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0;">${wr}%</span>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:${rdCol};flex-shrink:0;">${(rd > 0 ? "+" : "") + rd} RD</div>
+        </div>
+
+        <button class="btn-roster"
+          data-team-id="${row.teamId || ""}"
+          data-team-name="${x(row.team || "")}"
+          data-team-tag="${x(row.tag || "")}"
+          data-team-logo="${x(row.logo || "")}"
+          data-team-telegram="${x(row.telegram || "")}"
+          style="
+            width:100%;margin-top:10px;
+            background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+            color:#aebbc7;border-radius:6px;padding:8px;
+            font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
+          "
+        >Состав команды</button>
+      `;
+      wrap.appendChild(card);
+    });
+
+    tableContainer.innerHTML = "";
+    tableContainer.appendChild(wrap);
+  }
+
   function renderRows(rows) {
     if (!rows.length) {
       tableContainer.innerHTML = `<div class="state-box"><p>Нет команд для отображения.</p></div>`;
       return;
     }
+
+    const isMobile = window.matchMedia("(max-width: 640px)").matches;
+    if (isMobile) { renderCards(rows); return; }
 
     // Обёртка таблицы
     const wrap = document.createElement("div");
@@ -402,6 +497,21 @@
   function x(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   }
+
+  // ── Пересобираем таблицу/карточки при повороте телефона или ресайзе окна,
+  // раз выбор между ними зависит от ширины экрана.
+  let _resizeTimer = null;
+  let _wasMobile = window.matchMedia("(max-width: 640px)").matches;
+  window.addEventListener("resize", () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => {
+      const isMobileNow = window.matchMedia("(max-width: 640px)").matches;
+      if (isMobileNow !== _wasMobile && allRows.length) {
+        _wasMobile = isMobileNow;
+        renderRows(allRows);
+      }
+    }, 200);
+  });
 
   init();
 })();

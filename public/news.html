@@ -12,7 +12,7 @@
         #newsModalPanel.nm-panel {
             width: 94vw;
             max-width: 1180px;
-            height: 88vh;
+            height: 88dvh;
             max-height: 920px;
             display: flex;
             flex-direction: row;
@@ -39,9 +39,18 @@
             flex-direction: column;
         }
         .nm-content-col .p-modal-header { flex-shrink: 0; }
-        #newsModalScroll { flex: 1; overflow-y: auto; }
+        #newsModalScroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
         @media (max-width: 860px) {
-            #newsModalPanel.nm-panel { flex-direction: column; width: 96vw; height: 92vh; }
+            #newsModalPanel.nm-panel {
+                flex-direction: column;
+                width: 96vw;
+                /* dvh вместо vh — vh на мобильных считается по высоте экрана
+                   БЕЗ учёта адресной строки браузера, из-за чего низ модалки
+                   уезжал под системный UI и часть контента была недоступна.
+                   dvh пересчитывается динамически при появлении/скрытии панели. */
+                height: 92dvh;
+                max-height: none;
+            }
             .nm-image-col { flex: 0 0 auto; max-height: 34vh; }
         }
         #newsModalScroll::-webkit-scrollbar { width: 6px; }

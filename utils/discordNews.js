@@ -18,7 +18,46 @@ function resolveWebhookUrls(tag) {
   return [...urls];
 }
 
-function truncate(str, max) {
+// Именованные каналы — те же переменные окружения, что и раньше, но теперь
+// с человекочитаемым названием и ключом, чтобы конструктор в админке мог
+// предложить их списком, не раскрывая сами webhook URL на клиент.
+const CHANNELS = {
+  news:     { label: "Общий (новости)", env: "DISCORD_WEBHOOK_NEWS" },
+  results:  { label: "Результаты",      env: "DISCORD_WEBHOOK_RESULTS" },
+  announce: { label: "Анонсы",          env: "DISCORD_WEBHOOK_ANNOUNCE" },
+  updates:  { label: "Обновления",      env: "DISCORD_WEBHOOK_UPDATES" },
+};
+
+function listConfiguredChannels() {
+  return Object.entries(CHANNELS)
+    .filter(([, c]) => !!process.env[c.env])
+    .map(([key, c]) => ({ key, label: c.label }));
+}
+
+/**
+ * Отправляет готовый набор embed'ов (до 10 штук — лимит Discord на сообщение)
+ * в конкретный именованный канал. В отличие от postNewsToDiscord, бросает
+ * исключение наружу — вызывающая сторона (ручная отправка из конструктора)
+ * должна показать админу, что именно пошло не так.
+ */
+async function sendEmbedsToChannel(channelKey, embeds) {
+  const chan = CHANNELS[channelKey];
+  if (!chan) throw new Error("Неизвестный канал");
+  const url = process.env[chan.env];
+  if (!url) throw new Error(`Webhook для канала «${chan.label}» не настроен`);
+
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ embeds }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Discord вернул ${res.status}: ${text || "без деталей"}`);
+  }
+}
+
+
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1).trimEnd() + "…" : str;
 }
@@ -64,4 +103,4 @@ async function postNewsToDiscord(news) {
   results.forEach(r => { if (r.status === "rejected") console.error("Discord webhook request failed:", r.reason?.message); });
 }
 
-module.exports = { postNewsToDiscord };
+module.exports = { postNewsToDiscord, listConfiguredChannels, sendEmbedsToChannel };

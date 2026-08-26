@@ -2615,6 +2615,14 @@ function renderDiscordPreview() {
 async function loadDiscordChannels() {
     try {
         const res = await fetch("/api/admin/discord-channels");
+        if (!res.ok) {
+            // отдельно от "каналы не настроены" — это значит, что сам эндпоинт
+            // недоступен (например, на сервере ещё старая версия routes/admin.js)
+            const sel = document.getElementById("dcChannelSelect");
+            if (sel) sel.innerHTML = `<option value="">Ошибка загрузки (${res.status})</option>`;
+            toast("Не удалось загрузить каналы — проверь, что сервер обновлён", "err");
+            return;
+        }
         const channels = await res.json();
         const sel = document.getElementById("dcChannelSelect");
         if (!sel) return;

@@ -14,7 +14,8 @@ const ShopItem             = require("../models/ShopItem");
 const News                 = require("../models/News");
 const PromoCode            = require("../models/PromoCode");
 const DiscordRoleRequest   = require("../models/DiscordRoleRequest");
-const { postNewsToDiscord } = require("../utils/discordNews");
+const DiscordEmbedTemplate = require("../models/DiscordEmbedTemplate");
+const { postNewsToDiscord, listConfiguredChannels, sendEmbedsToChannel } = require("../utils/discordNews");
 const { requireAdmin }     = require("../middleware/auth");
 const { disbandTeam }      = require("./teams");
 
@@ -1131,6 +1132,115 @@ router.post("/news/:id/discord", requireAdmin, async (req, res) => {
     const news = await News.findById(req.params.id).lean();
     if (!news) return res.status(404).json({ error: "Новость не найдена" });
     await postNewsToDiscord(news);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── Discord-конструктор (произвольные multi-embed сообщения) ─────────────
+
+// Список каналов, для которых реально настроен webhook (без самих URL —
+// клиенту достаточно ключа и названия, чтобы выбрать канал в конструкторе).
+router.get("/discord-channels", requireAdmin, async (req, res) => {
+  try {
+    res.json(listConfiguredChannels());
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// Собираем embed'ы заново на сервере из присланных полей — не доверяем телу
+// запроса напрямую, чтобы конструктор не мог протащить произвольные ключи
+// в Discord-запрос (webhook-эксплойты, спам полями и т.п.).
+function buildEmbedsPayload(rawEmbeds) {
+  if (!Array.isArray(rawEmbeds) || !rawEmbeds.length) {
+    throw new Error("Добавьте хотя бы один embed");
+  }
+  if (rawEmbeds.length > 10) {
+    throw new Error("Discord позволяет максимум 10 embed'ов в одном сообщении");
+  }
+  return rawEmbeds.map(e => {
+    const out = {};
+    if (e.title)       out.title       = String(e.title).trim().slice(0, 256);
+    if (e.description) out.description = String(e.description).trim().slice(0, 4090);
+    if (e.color) {
+      const parsed = parseInt(String(e.color).replace("#", ""), 16);
+      if (!Number.isNaN(parsed)) out.color = parsed;
+    }
+    if (e.thumbnail) out.thumbnail = { url: String(e.thumbnail).trim() };
+    if (e.footerText || e.footerIcon) {
+      out.footer = {};
+      if (e.footerText) out.footer.text     = String(e.footerText).trim().slice(0, 2048);
+      if (e.footerIcon) out.footer.icon_url = String(e.footerIcon).trim();
+    }
+    return out;
+  });
+}
+
+// Отправить составленное в конструкторе сообщение (без сохранения как шаблон).
+router.post("/discord-send", requireAdmin, async (req, res) => {
+  try {
+    const { channel, embeds } = req.body;
+    if (!channel) return res.status(400).json({ error: "Укажите канал" });
+
+    let built;
+    try { built = buildEmbedsPayload(embeds); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+
+    await sendEmbedsToChannel(channel, built);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Ошибка отправки в Discord" });
+  }
+});
+
+// Шаблоны (сохранённые пресеты конструктора)
+router.get("/discord-templates", requireAdmin, async (req, res) => {
+  try {
+    const templates = await DiscordEmbedTemplate.find().sort({ name: 1 }).lean();
+    res.json(templates);
+  } catch (err) {
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.post("/discord-templates", requireAdmin, async (req, res) => {
+  try {
+    const { name, embeds } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: "Введите название шаблона" });
+    if (!Array.isArray(embeds) || !embeds.length) return res.status(400).json({ error: "Добавьте хотя бы один embed" });
+    if (embeds.length > 10) return res.status(400).json({ error: "Максимум 10 embed'ов в шаблоне" });
+
+    const tpl = await DiscordEmbedTemplate.create({ name: name.trim(), embeds });
+    res.json(tpl);
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: "Шаблон с таким названием уже есть" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.patch("/discord-templates/:id", requireAdmin, async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.name   !== undefined) update.name   = String(req.body.name).trim();
+    if (req.body.embeds !== undefined) {
+      if (!Array.isArray(req.body.embeds) || !req.body.embeds.length)
+        return res.status(400).json({ error: "Добавьте хотя бы один embed" });
+      update.embeds = req.body.embeds;
+    }
+    const tpl = await DiscordEmbedTemplate.findByIdAndUpdate(req.params.id, { $set: update }, { new: true, runValidators: true });
+    if (!tpl) return res.status(404).json({ error: "Шаблон не найден" });
+    res.json(tpl);
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: "Шаблон с таким названием уже есть" });
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+router.delete("/discord-templates/:id", requireAdmin, async (req, res) => {
+  try {
+    await DiscordEmbedTemplate.findByIdAndDelete(req.params.id);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "Ошибка сервера" });

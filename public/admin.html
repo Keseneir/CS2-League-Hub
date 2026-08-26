@@ -203,9 +203,54 @@
         .color-preview-row { display: flex; align-items: center; gap: 10px; }
         .color-preview-swatch { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); flex-shrink: 0; transition: background 0.2s; }
 
+        .topbar-burger {
+            display: none;
+            background: none; border: 1px solid var(--border); color: var(--gray);
+            width: 34px; height: 34px; border-radius: 6px; cursor: pointer;
+            font-size: 16px; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .topbar-burger:hover { color: var(--text); border-color: #aebbc7; }
+
+        /* Таблицы скроллятся по горизонтали вместо того, чтобы обрезаться —
+           колонкам задан разумный минимальный размер, чтобы они не схлопывались
+           до нечитаемой ширины и вместо этого появлялся понятный скролл. */
+        .data-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .data-table { min-width: 640px; }
+
         @media (max-width: 680px) {
-            .topbar-nav { display: none; }
+            .topbar { padding: 0 14px; gap: 10px; }
+            .topbar-badge { display: none; } /* экономим место — с бургером и так очевидно, что это админка */
+            .topbar-burger { display: flex; }
+
+            .topbar-nav {
+                display: none;
+                position: absolute;
+                top: 56px; left: 0; right: 0;
+                flex-direction: column;
+                gap: 2px;
+                background: var(--card2);
+                border-bottom: 1px solid var(--border);
+                padding: 10px;
+                margin-left: 0;
+                max-height: calc(100vh - 56px);
+                overflow-y: auto;
+                box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+            }
+            .topbar-nav.open { display: flex; }
+            .topbar-nav .tab-btn { width: 100%; text-align: left; padding: 12px 14px; font-size: 12px; }
+
+            .topbar-user { margin-left: auto; }
+            .topbar-name { display: none; } /* при узком экране оставляем только аватар и выход */
+
             .field-row { grid-template-columns: 1fr; }
+
+            .main { padding: 20px 14px 60px; }
+            .cards-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 420px) {
+            .topbar-logo { font-size: 13px; }
         }
     </style>
 </head>
@@ -215,7 +260,9 @@
     <span class="topbar-logo">CS2 League Hub</span>
     <span class="topbar-badge">ADMIN</span>
 
-    <nav class="topbar-nav">
+    <button class="topbar-burger" id="topbarBurger" onclick="toggleMobileNav(event)" aria-label="Меню">☰</button>
+
+    <nav class="topbar-nav" id="topbarNav">
         <button class="tab-btn active" data-tab="leaderboard">🏆 Лидерборд</button>
         <button class="tab-btn" data-tab="teams">🛡️ Команды</button>
         <button class="tab-btn" data-tab="shop">🛒 Магазин</button>
@@ -1059,11 +1106,21 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         if (this.dataset.tab === "news")         loadNews();
         if (this.dataset.tab === "promo")        { loadPromo(); loadRoleRequests(); if (!_allShopItems.length) loadShopItems(); }
         if (this.dataset.tab === "discord")      initDiscordTab();
+        document.getElementById("topbarNav")?.classList.remove("open"); // выбрали раздел — сворачиваем мобильное меню
     });
 });
 
+function toggleMobileNav(e) {
+    e.stopPropagation();
+    document.getElementById("topbarNav")?.classList.toggle("open");
+}
+
 document.addEventListener("click", e => {
     if (e.target.classList && e.target.classList.contains("modal-overlay")) closeModal(e.target.id);
+    const nav = document.getElementById("topbarNav");
+    if (nav && nav.classList.contains("open") && !nav.contains(e.target) && e.target.id !== "topbarBurger") {
+        nav.classList.remove("open"); // клик вне меню — закрываем
+    }
 });
 document.addEventListener("keydown", e => {
     if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id));

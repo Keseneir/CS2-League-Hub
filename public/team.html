@@ -1258,7 +1258,13 @@ function renderMemberManagement(team) {
                 style="background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.25);color:var(--red);border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
                 onmouseover="this.style.background='rgba(224,92,92,0.18)'" onmouseout="this.style.background='rgba(224,92,92,0.08)'">
                 Кик
-            </button>` : `<span style="font-size:11px;color:var(--text-gray);">вы</span>`}
+            </button>` : `
+            <span style="font-size:11px;color:var(--text-gray);margin-right:2px;">вы</span>
+            <button onclick="changeRole('${mid}','${member.slot === "main" ? "sub" : "main"}')"
+                style="background:rgba(91,141,232,0.1);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:6px 12px;font-size:11px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;"
+                onmouseover="this.style.background='rgba(91,141,232,0.2)'" onmouseout="this.style.background='rgba(91,141,232,0.1)'">
+                ${member.slot === "main" ? "Перейти в замены" : "Перейти в основной состав"}
+            </button>`}
         `;
         list.appendChild(row);
     });

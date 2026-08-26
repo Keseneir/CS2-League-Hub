@@ -102,6 +102,19 @@
             gap: 8px;
         }
 
+        .tc-permission-note {
+            background: rgba(230,176,34,0.06);
+            border: 1px solid rgba(230,176,34,0.2);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #c9b06a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tc-permission-note .icon { width: 16px; height: 16px; flex-shrink: 0; }
+
         .tc-registered-banner {
             background: rgba(76,175,130,0.1);
             border: 1px solid rgba(76,175,130,0.3);
@@ -447,7 +460,7 @@
 <div class="page-hero">
     <div class="hero-eyebrow">Регистрация команд</div>
     <h1>АКТИВНЫЕ <span>ТУРНИРЫ</span></h1>
-    <p>Только капитан может зарегистрировать команду на турнир</p>
+    <p>Только капитан или менеджер команды может зарегистрировать команду на турнир</p>
     <p style="margin-top:10px;"><a href="archive.html" style="color:#e6b022;font-size:13px;font-weight:600;text-decoration:none;"><i class="icon" data-icon="scroll" aria-hidden="true"></i> Архив прошедших турниров →</a></p>
 </div>
 
@@ -473,19 +486,7 @@
         </div>
     </div>
 
-    
-    <div id="notCaptainState" style="display:none;">
-        <div class="info-banner">
-            <div class="info-banner-icon icon" data-icon="shield" aria-hidden="true"></div>
-            <div class="info-banner-text">
-                <strong>Только для капитанов</strong>
-                <p>Регистрацию команды на турнир может подать только капитан. Попросите капитана вашей команды зайти на эту страницу, или создайте собственную команду.</p>
-                <a href="/profile.html" class="btn-mt">Мой профиль</a>
-            </div>
-        </div>
-    </div>
 
-    
     <div id="noTeamState" style="display:none;">
         <div class="info-banner">
             <div class="info-banner-icon icon" data-icon="users" aria-hidden="true"></div>
@@ -588,15 +589,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    if (!user.isCaptain) {
-        show("notCaptainState");
-        return;
-    }
+    // Регистрировать команду может капитан или назначенный менеджер —
+    // остальным (игрокам основного состава/заменам) страница всё равно
+    // доступна для просмотра турниров, просто без формы регистрации.
+    const team = user.team;
+    const isManager = !!(team.managerId && String(team.managerId) === String(user._id || ""));
+    const canManage = !!(user.isCaptain || isManager);
 
     
     show("captainState");
 
-    const team = user.team;
     const memberCount = (team.members || []).length;
 
     if (team) {
@@ -633,7 +635,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const grid = $("tournamentsGrid");
 
     tournaments.forEach(t => {
-        const card = buildTournamentCard(t, memberCount, team);
+        const card = buildTournamentCard(t, memberCount, team, canManage);
         grid.appendChild(card);
     });
 });
@@ -648,7 +650,7 @@ function toggleCollapse(btn) {
     if (panel) panel.classList.toggle("open");
 }
 
-function buildTournamentCard(t, memberCount, team) {
+function buildTournamentCard(t, memberCount, team, canManage) {
     const card = document.createElement("div");
     card.className = "tournament-card" + (t.isRegistered ? " registered" : "");
     card.dataset.id = t._id;
@@ -698,7 +700,12 @@ function buildTournamentCard(t, memberCount, team) {
                 <div class="tc-meta-item"><span class="icon">${iconSvg("gamepad")}</span> Состав на турнир: <strong>${rangeLabel}</strong></div>
             </div>
 
-            ${t.isRegistered
+            ${!canManage
+                ? `<div class="tc-permission-note">
+                       ${iconSvg("shield")} Регистрировать команду на турнир может только капитан или менеджер команды.
+                   </div>
+                   ${t.isRegistered ? `<div class="tc-registered-banner" style="margin-top:10px;">${iconSvg("checkCircle")} Ваша команда зарегистрирована</div>` : ""}`
+                : t.isRegistered
                 ? `<div class="tc-registered-banner">
                        ${iconSvg("checkCircle")} Ваша команда зарегистрирована
                        <button onclick="unregister('${t._id}', this)">Отменить</button>

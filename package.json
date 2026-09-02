@@ -11,6 +11,7 @@
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
     "express-session": "^1.19.0",
+    "leo-profanity": "^1.9.0",
     "mongodb": "^6.10.0",
     "mongoose": "^8.23.0",
     "passport": "^0.7.0",

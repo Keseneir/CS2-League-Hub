@@ -174,6 +174,19 @@ async function checkAuth() {
                     dropdown.appendChild(teamItem);
                 }
 
+                // Пункт — Мои объявления
+                const listingsItem = document.createElement("a");
+                listingsItem.href = "/listings.html?tab=mine";
+                listingsItem.style.cssText = [
+                    "display:flex","align-items:center","gap:8px","padding:10px 14px",
+                    "color:#ffffff","text-decoration:none","font-size:13px",
+                    "transition:background .15s","cursor:pointer",
+                ].join(";");
+                listingsItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> Мои объявления`;
+                listingsItem.onmouseover = () => listingsItem.style.background = "#12171d";
+                listingsItem.onmouseout  = () => listingsItem.style.background = "transparent";
+                dropdown.appendChild(listingsItem);
+
                 // Пункт — Магазин
                 const shopItem = document.createElement("a");
                 shopItem.href = "/shop.html";
@@ -265,6 +278,19 @@ document.addEventListener("DOMContentLoaded", function () {
         else navContainer.appendChild(rulesLink);
     }
 
+    // ─── Ссылка «Объявления» в хедере ─────────────────────────────────────────
+    if (navContainer && !navContainer.querySelector('a[href="listings.html"]')) {
+        const listingsLink = document.createElement("a");
+        listingsLink.href        = "listings.html";
+        listingsLink.textContent = "Объявления";
+        if (currentPage === "listings.html") listingsLink.style.color = "var(--accent)";
+
+        const newsLink = [...navContainer.querySelectorAll("a")]
+            .find(a => a.href.includes("news.html"));
+        if (newsLink) newsLink.after(listingsLink);
+        else navContainer.appendChild(listingsLink);
+    }
+
 
     // ─── Контакты в футере ───────────────────────────────────────────────────
     const footerInner = document.querySelector(".footer-inner");
@@ -319,10 +345,17 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!res.ok) return;
             const d = await res.json();
 
+            let listingUnread = 0;
+            try {
+                const lr = await fetch("/api/listings/unread-count");
+                if (lr.ok) listingUnread = (await lr.json()).count || 0;
+            } catch {}
+
             const total =
                 (d.teamInvites    || []).length +
                 (d.applications   || []).filter(a => a.status !== "pending").length +
-                (d.adminNotices   || []).length;
+                (d.adminNotices   || []).length +
+                listingUnread;
 
             if (_globalPrevCount >= 0 && total > _globalPrevCount) {
                 _globalAudio.play().catch(() => {});
@@ -375,6 +408,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { href: "index.html",       label: "Главная" },
         { href: "leaderboard.html", label: "Рейтинг" },
         { href: "news.html",        label: "Новости" },
+        { href: "listings.html",    label: "Объявления" },
         { href: "rules.html",       label: "Правила" },
         { href: "join.html",        label: "Подать заявку" },
     ];
@@ -430,6 +464,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="mobile-nav-divider"></div>
             <a href="/profile.html">${iconSvg("user")} Профиль</a>
             ${user.team ? `<a href="/team.html">${iconSvg("shield")} Моя команда</a>` : ""}
+            <a href="/listings.html?tab=mine">${iconSvg("clipboard")} Мои объявления</a>
             <a href="/shop.html" style="color:#e6b022;">${iconSvg("cart")} Магазин</a>
             <a href="/logout" style="color:#e05c5c;">Выйти</a>
         `;

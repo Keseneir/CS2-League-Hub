@@ -5,12 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Объявления — CS2 League Hub</title>
 <meta name="description" content="Доска объявлений CS2 League Hub: ищи команду, игрока или спарринг.">
-<link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="/style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+/* ── Sticky footer — только для этой страницы, на глобальный style.css не влияет ── */
+html, body{ height:100%; }
+body{ display:flex; flex-direction:column; }
+main.lh-page{ flex:1 0 auto; width:100%; }
+footer{ flex-shrink:0; }
+
 /* ── Только то, чего нет в общем style.css: сетка объявлений, вкладки, бейджи типов, отклики ── */
 .lh-page{ max-width:1160px; margin:0 auto; padding:40px 24px 90px; }
 .lh-head{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:26px; }
@@ -23,9 +28,20 @@
 .lh-tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
 
 .lh-toolbar{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:24px; }
-.lh-toolbar select, .lh-toolbar input[type="text"]{ margin:0; }
-.lh-toolbar input[type="text"]{ flex:1; min-width:200px; }
-.lh-toolbar select{ min-width:200px; width:auto; cursor:pointer; }
+.lh-toolbar input[type="text"]{ flex:1; min-width:200px; margin:0; }
+.lh-toolbar .select-wrap{ min-width:200px; }
+
+/* Нативный select не подхватывает общие input-стили (они висят только на .page-join select) —
+   дублируем их точечно здесь + убираем родную стрелку браузера, чтобы не спорила с кастомной. */
+.select-wrap select{
+  width:100%; appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  padding:11px 36px 11px 14px; background:var(--input-bg); border:1px solid var(--border);
+  border-radius:var(--radius); color:var(--text); font-family:'Inter',sans-serif; font-size:14px;
+  outline:none; cursor:pointer; transition:border-color .2s, box-shadow .2s;
+}
+.select-wrap select::-ms-expand{ display:none; }
+.select-wrap select:focus{ border-color:var(--border-focus); box-shadow:0 0 0 3px rgba(230,176,34,0.09); }
+.select-wrap select option{ background:#12171d; }
 
 .lh-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(270px,1fr)); gap:20px; }
 
@@ -46,7 +62,14 @@
 .lh-flag-hidden{ color:var(--red); }
 .lh-flag-inactive{ color:var(--text-gray); }
 
-.lh-empty{ text-align:center; padding:70px 20px; color:var(--text-gray); font-size:14px; }
+/* ── Пустое состояние — переиспользую вид .no-team-banner из общего style.css ── */
+.lh-empty{ display:flex; align-items:center; gap:20px; background:var(--card-bg); border:1px solid var(--border);
+  border-left:4px solid var(--accent); border-radius:12px; padding:28px; flex-wrap:wrap; }
+.lh-empty-icon{ width:52px; height:52px; border-radius:12px; background:var(--accent-dim); border:1px solid rgba(230,176,34,0.3);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--accent); }
+.lh-empty-text{ flex:1; min-width:200px; }
+.lh-empty-text strong{ display:block; font-family:'Montserrat',sans-serif; font-weight:800; font-size:16px; color:white; margin-bottom:4px; }
+.lh-empty-text p{ font-size:14px; color:var(--text-gray); margin:0; }
 
 /* ── Модалка (переиспользую .modal-box/.modal-header/.modal-title/.modal-body) ── */
 .lh-overlay{ display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.78); backdrop-filter:blur(6px);
@@ -124,7 +147,7 @@
   <div class="lh-head">
     <div>
       <h1>Доска объявлений</h1>
-      <p>Ищи команду, игрока или спарринг — как OLX, только без продаж.</p>
+      <p>Ищи команду, игрока или спарринг по всему комьюнити CS2 League Hub — быстро и бесплатно.</p>
     </div>
     <button class="btn-nav" id="lhBtnCreate">+ Разместить объявление</button>
   </div>
@@ -147,7 +170,15 @@
   </div>
 
   <div class="lh-grid" id="lhGrid"></div>
-  <div class="lh-empty" id="lhEmpty" style="display:none;">Пока ничего нет. Будь первым — разместите объявление.</div>
+  <div class="lh-empty" id="lhEmpty" style="display:none;">
+    <div class="lh-empty-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div class="lh-empty-text" id="lhEmptyText">
+      <strong>Пока ничего нет</strong>
+      <p>Будь первым — разместите объявление, и его увидит всё комьюнити.</p>
+    </div>
+  </div>
 </main>
 
 <footer>
@@ -180,7 +211,6 @@
         </p>
     </div>
 </footer>
-
 
 <!-- ── Модалка: детали объявления ──────────────────────────────────────── -->
 <div class="lh-overlay" id="lhDetailOverlay">

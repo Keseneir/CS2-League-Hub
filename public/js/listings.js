@@ -59,7 +59,7 @@
     document.querySelectorAll("[data-close]").forEach(btn => {
       btn.addEventListener("click", () => closeAllModals());
     });
-    document.querySelectorAll(".lh-modal-overlay").forEach(ov => {
+    document.querySelectorAll(".lh-overlay").forEach(ov => {
       ov.addEventListener("click", e => { if (e.target === ov) closeAllModals(); });
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeAllModals(); });
@@ -82,7 +82,7 @@
   }
 
   function closeAllModals() {
-    document.querySelectorAll(".lh-modal-overlay").forEach(ov => ov.classList.remove("open"));
+    document.querySelectorAll(".lh-overlay").forEach(ov => ov.classList.remove("open"));
   }
 
   function switchTab(tab) {
@@ -103,10 +103,17 @@
 
   // ── Загрузка и рендер списка ─────────────────────────────────────────
   async function loadAndRender() {
-    const grid  = document.getElementById("lhGrid");
-    const empty = document.getElementById("lhEmpty");
+    const grid     = document.getElementById("lhGrid");
+    const empty    = document.getElementById("lhEmpty");
+    const emptyTxt = document.getElementById("lhEmptyText");
     grid.innerHTML = "";
     empty.style.display = "none";
+
+    function showEmpty(title, text) {
+      emptyTxt.querySelector("strong").textContent = title;
+      emptyTxt.querySelector("p").textContent = text;
+      empty.style.display = "flex";
+    }
 
     try {
       let url;
@@ -124,11 +131,17 @@
       const data = await res.json();
       const listings = data.listings || [];
 
-      if (!listings.length) { empty.style.display = "block"; return; }
+      if (!listings.length) {
+        if (currentTab === "mine") {
+          showEmpty("У вас пока нет объявлений", "Разместите первое — это займёт меньше минуты.");
+        } else {
+          showEmpty("Пока ничего нет", "Будь первым — разместите объявление, и его увидит всё комьюнити.");
+        }
+        return;
+      }
       listings.forEach(l => grid.appendChild(renderCard(l)));
     } catch {
-      empty.style.display = "block";
-      empty.textContent = "Не удалось загрузить объявления.";
+      showEmpty("Не удалось загрузить", "Попробуйте обновить страницу чуть позже.");
     }
   }
 

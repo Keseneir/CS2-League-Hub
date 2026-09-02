@@ -154,7 +154,7 @@ async function checkAuth() {
                     "transition:background .15s",
                     "cursor:pointer",
                 ].join(";");
-                profileItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Профиль`;
+                profileItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Профиль <span class="notif-dot-profile" style="display:none;margin-left:auto;background:#e05c5c;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;padding:1px 6px;border-radius:999px;line-height:1.5;"></span>`;
                 profileItem.onmouseover = () => profileItem.style.background = "#12171d";
                 profileItem.onmouseout  = () => profileItem.style.background = "transparent";
                 dropdown.appendChild(profileItem);
@@ -182,7 +182,7 @@ async function checkAuth() {
                     "color:#ffffff","text-decoration:none","font-size:13px",
                     "transition:background .15s","cursor:pointer",
                 ].join(";");
-                listingsItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> Мои объявления`;
+                listingsItem.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg> Мои объявления <span class="notif-dot-listings" style="display:none;margin-left:auto;background:#e05c5c;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;padding:1px 6px;border-radius:999px;line-height:1.5;"></span>`;
                 listingsItem.onmouseover = () => listingsItem.style.background = "#12171d";
                 listingsItem.onmouseout  = () => listingsItem.style.background = "transparent";
                 dropdown.appendChild(listingsItem);
@@ -225,6 +225,59 @@ async function checkAuth() {
                 dropdown.appendChild(logoutItem);
 
                 wrap.appendChild(dropdown);
+
+                // Иконка быстрого доступа к объявлениям — отдельно от дропдауна,
+                // чтобы не плодить лишний текстовый пункт в и без того плотной шапке
+                const listingsQuickLink = document.createElement("a");
+                listingsQuickLink.href = "/listings.html";
+                listingsQuickLink.title = "Объявления";
+                listingsQuickLink.style.cssText = [
+                    "position:relative",
+                    "display:inline-flex",
+                    "align-items:center",
+                    "justify-content:center",
+                    "width:34px",
+                    "height:34px",
+                    "border-radius:50%",
+                    "background:#12171d",
+                    "border:1px solid #1f252c",
+                    "color:#aebbc7",
+                    "flex-shrink:0",
+                    "transition:color .15s, border-color .15s",
+                ].join(";");
+                const currentPageForIcon = window.location.pathname.split("/").pop() || "index.html";
+                if (currentPageForIcon === "listings.html") {
+                    listingsQuickLink.style.color = "#e6b022";
+                    listingsQuickLink.style.borderColor = "rgba(230,176,34,0.4)";
+                }
+                listingsQuickLink.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`;
+                const listingsIconBadge = document.createElement("span");
+                listingsIconBadge.className = "notif-dot-listings";
+                listingsIconBadge.style.cssText = [
+                    "display:none",
+                    "position:absolute",
+                    "top:-4px",
+                    "right:-4px",
+                    "min-width:15px",
+                    "height:15px",
+                    "padding:0 3px",
+                    "background:#e05c5c",
+                    "color:#fff",
+                    "font-family:'Montserrat',sans-serif",
+                    "font-size:9px",
+                    "font-weight:800",
+                    "border-radius:999px",
+                    "align-items:center",
+                    "justify-content:center",
+                    "line-height:1",
+                    "box-shadow:0 0 0 2px #0b0f12",
+                    "pointer-events:none",
+                ].join(";");
+                listingsQuickLink.appendChild(listingsIconBadge);
+                listingsQuickLink.onmouseover = () => { if (currentPageForIcon !== "listings.html") { listingsQuickLink.style.color = "#e6b022"; listingsQuickLink.style.borderColor = "rgba(230,176,34,0.4)"; } };
+                listingsQuickLink.onmouseout  = () => { if (currentPageForIcon !== "listings.html") { listingsQuickLink.style.color = "#aebbc7"; listingsQuickLink.style.borderColor = "#1f252c"; } };
+                profile.insertBefore(listingsQuickLink, wrap);
+
                 profile.appendChild(wrap);
 
                 // Открыть/закрыть по клику на аватар
@@ -278,19 +331,6 @@ document.addEventListener("DOMContentLoaded", function () {
         else navContainer.appendChild(rulesLink);
     }
 
-    // ─── Ссылка «Объявления» в хедере ─────────────────────────────────────────
-    if (navContainer && !navContainer.querySelector('a[href="listings.html"]')) {
-        const listingsLink = document.createElement("a");
-        listingsLink.href        = "listings.html";
-        listingsLink.textContent = "Объявления";
-        if (currentPage === "listings.html") listingsLink.style.color = "var(--accent)";
-
-        const newsLink = [...navContainer.querySelectorAll("a")]
-            .find(a => a.href.includes("news.html"));
-        if (newsLink) newsLink.after(listingsLink);
-        else navContainer.appendChild(listingsLink);
-    }
-
 
     // ─── Контакты в футере ───────────────────────────────────────────────────
     const footerInner = document.querySelector(".footer-inner");
@@ -339,23 +379,48 @@ document.addEventListener("DOMContentLoaded", function () {
     let _globalPrevCount = -1;
     const _globalAudio   = new Audio("assets/notification.mp3");
 
+    // Браузеры блокируют автовоспроизведение звука, если пользователь ещё
+    // не взаимодействовал со страницей (клик/нажатие клавиши) — .play() падает
+    // в NotAllowedError, который раньше молча глотался в .catch(() => {}), и
+    // казалось что звука «нет». Разблокируем звук по первому же клику/keydown:
+    // проигрываем и сразу же ставим на паузу с нулевой громкостью — после этого
+    // жеста браузер разрешает play() этому же элементу до конца сессии страницы.
+    let _audioUnlocked = false;
+    function unlockAudio() {
+        if (_audioUnlocked) return;
+        _audioUnlocked = true;
+        const prevVolume = _globalAudio.volume;
+        _globalAudio.volume = 0;
+        _globalAudio.play().then(() => {
+            _globalAudio.pause();
+            _globalAudio.currentTime = 0;
+            _globalAudio.volume = prevVolume;
+        }).catch(() => {
+            // Не получилось разблокировать сейчас — попробуем на следующем жесте
+            _audioUnlocked = false;
+        });
+    }
+    document.addEventListener("click",   unlockAudio, { once: false, passive: true });
+    document.addEventListener("keydown", unlockAudio, { once: false, passive: true });
+
     async function globalPollNotifs() {
         try {
             const res = await fetch("/api/profile");
             if (!res.ok) return;
             const d = await res.json();
 
-            let listingUnread = 0;
-            try {
-                const lr = await fetch("/api/listings/unread-count");
-                if (lr.ok) listingUnread = (await lr.json()).count || 0;
-            } catch {}
-
-            const total =
+            const profileCount =
                 (d.teamInvites    || []).length +
                 (d.applications   || []).filter(a => a.status !== "pending").length +
-                (d.adminNotices   || []).length +
-                listingUnread;
+                (d.adminNotices   || []).length;
+
+            let listingsCount = 0;
+            try {
+                const lr = await fetch("/api/listings/unread-count");
+                if (lr.ok) listingsCount = (await lr.json()).count || 0;
+            } catch {}
+
+            const total = profileCount + listingsCount;
 
             if (_globalPrevCount >= 0 && total > _globalPrevCount) {
                 _globalAudio.play().catch(() => {});
@@ -367,6 +432,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 badge.textContent   = total;
                 badge.style.display = total > 0 ? "inline-flex" : "none";
             }
+
+            // Разбивка по категориям — показываем точки/бейджи в выпадающем меню
+            // аватарки и в мобильном меню, чтобы было видно ГДЕ именно уведомление
+            document.querySelectorAll(".notif-dot-profile").forEach(el => {
+                el.textContent   = profileCount;
+                el.style.display = profileCount > 0 ? "inline-flex" : "none";
+            });
+            document.querySelectorAll(".notif-dot-listings").forEach(el => {
+                el.textContent   = listingsCount;
+                el.style.display = listingsCount > 0 ? "inline-flex" : "none";
+            });
         } catch {}
     }
 
@@ -408,7 +484,6 @@ document.addEventListener("DOMContentLoaded", function () {
         { href: "index.html",       label: "Главная" },
         { href: "leaderboard.html", label: "Рейтинг" },
         { href: "news.html",        label: "Новости" },
-        { href: "listings.html",    label: "Объявления" },
         { href: "rules.html",       label: "Правила" },
         { href: "join.html",        label: "Подать заявку" },
     ];
@@ -462,9 +537,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const div = document.createElement("div");
         div.innerHTML = `
             <div class="mobile-nav-divider"></div>
-            <a href="/profile.html">${iconSvg("user")} Профиль</a>
+            <a href="/profile.html">${iconSvg("user")} Профиль <span class="notif-dot-profile" style="display:none;margin-left:auto;background:#e05c5c;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;padding:1px 6px;border-radius:999px;line-height:1.5;"></span></a>
             ${user.team ? `<a href="/team.html">${iconSvg("shield")} Моя команда</a>` : ""}
-            <a href="/listings.html?tab=mine">${iconSvg("clipboard")} Мои объявления</a>
+            <a href="/listings.html?tab=mine">${iconSvg("clipboard")} Мои объявления <span class="notif-dot-listings" style="display:none;margin-left:auto;background:#e05c5c;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;padding:1px 6px;border-radius:999px;line-height:1.5;"></span></a>
             <a href="/shop.html" style="color:#e6b022;">${iconSvg("cart")} Магазин</a>
             <a href="/logout" style="color:#e05c5c;">Выйти</a>
         `;

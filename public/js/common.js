@@ -276,9 +276,9 @@ async function checkAuth() {
                 listingsQuickLink.appendChild(listingsIconBadge);
                 listingsQuickLink.onmouseover = () => { if (currentPageForIcon !== "listings.html") { listingsQuickLink.style.color = "#e6b022"; listingsQuickLink.style.borderColor = "rgba(230,176,34,0.4)"; } };
                 listingsQuickLink.onmouseout  = () => { if (currentPageForIcon !== "listings.html") { listingsQuickLink.style.color = "#aebbc7"; listingsQuickLink.style.borderColor = "#1f252c"; } };
-                profile.insertBefore(listingsQuickLink, wrap);
-
                 profile.appendChild(wrap);
+                // insertBefore требует, чтобы wrap уже был потомком profile, поэтому только после appendChild
+                profile.insertBefore(listingsQuickLink, wrap);
 
                 // Открыть/закрыть по клику на аватар
                 avatarBtn.addEventListener("click", (e) => {

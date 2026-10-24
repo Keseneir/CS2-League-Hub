@@ -28,6 +28,13 @@
   function esc(s) {
     return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+  // «1 новый отклик», «2 новых отклика», «5 новых откликов»
+  function unreadLabel(n) {
+    const m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return `${n} новый отклик`;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} новых отклика`;
+    return `${n} новых откликов`;
+  }
   function fmtDate(iso) {
     try {
       return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -76,9 +83,10 @@
 
     // deeplink /listings.html?tab=mine из шапки
     const params = new URLSearchParams(location.search);
-    if (params.get("tab") === "mine") switchTab("mine");
-
-    loadAndRender();
+    // switchTab() сама запускает загрузку и возвращает true; общую загрузку делаем только
+    // если вкладка «Мои» не была открыта (нет deeplink или гость — тогда грузим публичную ленту)
+    const openedMine = params.get("tab") === "mine" && switchTab("mine");
+    if (!openedMine) loadAndRender();
   }
 
   function closeAllModals() {
@@ -88,12 +96,13 @@
   function switchTab(tab) {
     if (tab === "mine" && !currentUser) {
       alert("Войдите через Steam, чтобы видеть свои объявления.");
-      return;
+      return false;
     }
     currentTab = tab;
     document.querySelectorAll(".lh-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
     document.getElementById("lhToolbar").style.display = tab === "mine" ? "none" : "flex";
     loadAndRender();
+    return true;
   }
 
   function updateTypeHint() {
@@ -166,6 +175,7 @@
         <h3 class="card-title">${esc(l.title)}</h3>
         <p class="card-excerpt">${esc(l.description)}</p>
         ${l.role ? `<span class="lh-role-tag">${esc(l.role)}</span>` : ""}
+        ${currentTab === "mine" && l.unreadCount > 0 ? `<span class="lh-unread-mark">● ${unreadLabel(l.unreadCount)}</span>` : ""}
         <div class="lh-card-foot">
           <div class="lh-card-author">
             ${l.authorId && l.authorId.avatar ? `<img src="${esc(l.authorId.avatar)}" alt="">` : ""}
@@ -199,7 +209,8 @@
 
   function renderDetail(l) {
     const body = document.getElementById("lhDetailBody");
-    const isOwnerReal = currentUser && l.authorId && String(l.authorId._id) === String(currentUser._id || "");
+    // Владелец определяется сервером (по сессии); клиентское сравнение id не используется
+    const isOwnerReal = l.isOwner === true;
     const isAdmin = currentUser && currentUser.isAdmin;
 
     const teamLine = l.teamId ? `<div>Команда: <b>[${esc(l.teamId.tag)}] ${esc(l.teamId.name)}</b></div>` : "";
@@ -221,18 +232,25 @@
     const actionArea = document.getElementById("lhDetailActionArea");
 
     if (isOwnerReal) {
+      // Скрыто админом: владелец не может вернуть объявление в публикацию сам,
+      // поэтому кнопка снятия/публикации не показывается. Отклики, правка и удаление доступны.
+      const adminHiddenNote = l.hiddenByAdmin
+        ? `<div class="lh-status-note"><b>Скрыто администратором.</b> Объявление не показывается в публичной ленте. Вернуть его в публикацию может только администратор. Вы по-прежнему можете смотреть отклики, редактировать или удалить объявление.</div>`
+        : "";
       actionArea.innerHTML = `
+        ${adminHiddenNote}
         <div class="lh-detail-meta"><b style="color:var(--accent);">${l.responseCount || 0}</b>&nbsp;откликов</div>
         <div class="lh-actions-row">
           <button class="btn-nav" id="lhBtnViewResponses">Смотреть отклики</button>
           <button class="lh-btn-outline" id="lhBtnEdit">Редактировать</button>
-          <button class="lh-btn-outline" id="lhBtnToggleActive">${l.active ? "Снять с публикации" : "Опубликовать снова"}</button>
+          ${l.hiddenByAdmin ? "" : `<button class="lh-btn-outline" id="lhBtnToggleActive">${l.active ? "Снять с публикации" : "Опубликовать снова"}</button>`}
           <button class="lh-btn-outline danger" id="lhBtnDelete">Удалить</button>
         </div>
       `;
       document.getElementById("lhBtnViewResponses").addEventListener("click", () => openResponsesModal(l._id));
       document.getElementById("lhBtnEdit").addEventListener("click", () => { closeAllModals(); openCreateModal(l); });
-      document.getElementById("lhBtnToggleActive").addEventListener("click", () => toggleActive(l._id, !l.active));
+      const toggleBtn = document.getElementById("lhBtnToggleActive");
+      if (toggleBtn) toggleBtn.addEventListener("click", () => toggleActive(l._id, !l.active));
       document.getElementById("lhBtnDelete").addEventListener("click", () => deleteListing(l._id));
     } else if (!currentUser) {
       actionArea.innerHTML = `<div class="lh-detail-meta"><b style="color:var(--accent);">${l.responseCount || 0}</b>&nbsp;откликов</div>
@@ -442,5 +460,4 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
-})(); 
-
+})();

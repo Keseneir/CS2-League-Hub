@@ -40,6 +40,28 @@ async function withResponseCounts(listings) {
   });
 }
 
+// Владелец определяется ТОЛЬКО на сервере: сессия (req.user) против authorId объявления.
+// authorId может быть populate-документом, «сырым» ObjectId или null (автор удалён).
+function isListingOwner(listing, user) {
+  if (!user || !listing || !listing.authorId) return false;
+  const a = listing.authorId;
+  const authorId = a._id || a;
+  return authorId.toString() === user._id.toString();
+}
+
+// Подмешивает unreadCount (непрочитанные отклики по каждому объявлению) одним
+// агрегационным запросом. Используется только там, где ответ видит сам автор.
+async function withUnreadCounts(listingObjs) {
+  if (!listingObjs.length) return listingObjs;
+  const ids = listingObjs.map(l => l._id);
+  const counts = await ListingResponse.aggregate([
+    { $match: { listingId: { $in: ids }, read: false } },
+    { $group: { _id: "$listingId", count: { $sum: 1 } } },
+  ]);
+  const map = new Map(counts.map(c => [c._id.toString(), c.count]));
+  return listingObjs.map(l => ({ ...l, unreadCount: map.get(l._id.toString()) || 0 }));
+}
+
 // ── GET /api/listings — публичный список с фильтрами ────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -70,7 +92,11 @@ router.get("/mine", requireAuth, async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("teamId", "name tag logo");
 
-    res.json({ listings: await withResponseCounts(listings) });
+    // isOwner считается на сервере по сессии; unreadCount — один агрегат на весь список
+    const withCounts = (await withResponseCounts(listings)).map(
+      (obj, i) => ({ ...obj, isOwner: isListingOwner(listings[i], req.user) })
+    );
+    res.json({ listings: await withUnreadCounts(withCounts) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера." });
@@ -101,7 +127,7 @@ router.get("/:id", async (req, res) => {
       .populate("teamId", "name tag logo");
     if (!listing) return res.status(404).json({ error: "Объявление не найдено." });
 
-    const isOwner = req.user && listing.authorId._id.toString() === req.user._id.toString();
+    const isOwner = isListingOwner(listing, req.user);
     const isAdmin = isAdminUser(req.user);
     if ((!listing.active || listing.hiddenByAdmin) && !isOwner && !isAdmin) {
       return res.status(404).json({ error: "Объявление не найдено." });
@@ -110,6 +136,7 @@ router.get("/:id", async (req, res) => {
     const [{ responseCount }] = await withResponseCounts([listing]);
     const obj = listing.toObject();
     obj.responseCount = responseCount;
+    obj.isOwner = isOwner;
     res.json({ listing: obj });
   } catch (err) {
     console.error(err);
@@ -287,10 +314,16 @@ router.get("/:id/responses", requireAuth, async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("fromUserId", "displayName avatar");
 
-    await ListingResponse.updateMany(
-      { listingId: listing._id, read: false },
-      { $set: { read: true } }
-    );
+    // Помечаем прочитанными только те отклики, которые реально вернули в этом ответе
+    // (по их _id), и только если они всё ещё непрочитаны. Отклик, пришедший между
+    // find() и updateMany(), остаётся непрочитанным. Пустой список — без записи в БД.
+    const unreadIds = responses.filter(r => !r.read).map(r => r._id);
+    if (unreadIds.length) {
+      await ListingResponse.updateMany(
+        { _id: { $in: unreadIds }, listingId: listing._id, read: false },
+        { $set: { read: true } }
+      );
+    }
 
     res.json({ responses });
   } catch (err) {

@@ -6,8 +6,16 @@ const ListingResponse  = require("../models/ListingResponse");
 const Team             = require("../models/Team");
 const { requireAuth }    = require("../middleware/auth");
 const { ADMIN_STEAM_ID } = require("../config/constants");
-const { destroyCloudinaryAsset } = require("../utils/cloudinaryCleanup");
+const Conversation     = require("../models/Conversation");
+const Message          = require("../models/Message");
 const { containsProfanity }      = require("../utils/profanityFilter");
+const { sanitizeListingImage }   = require("../utils/listingImage");
+
+// ВАЖНО (Cloudinary): удаление файлов из Cloudinary в создании/правке/удалении объявлений ОТКЛЮЧЕНО.
+// Раньше publicId приходил от клиента без проверки и передавался в destroyCloudinaryAsset —
+// можно было подставить чужой publicId и удалить чужую картинку. Владение publicId проверить
+// нечем (нет учёта загрузок, папка upload preset неизвестна), поэтому файлы остаются в Cloudinary
+// как «сироты» до появления надёжной проверки владения.
 
 const TEAM_TYPES = ["team_seeking_player", "scrim"];
 
@@ -106,13 +114,13 @@ router.get("/mine", requireAuth, async (req, res) => {
 // ── GET /api/listings/unread-count — для бейджа в хедере ────────────────
 router.get("/unread-count", requireAuth, async (req, res) => {
   try {
+    // count — непрочитанные отклики (смысл не изменился); messages — диалоги с непрочитанными сообщениями
     const myListingIds = await Listing.find({ authorId: req.user._id }).distinct("_id");
-    if (!myListingIds.length) return res.json({ count: 0 });
-    const count = await ListingResponse.countDocuments({
-      listingId: { $in: myListingIds },
-      read: false,
-    });
-    res.json({ count });
+    const count = myListingIds.length
+      ? await ListingResponse.countDocuments({ listingId: { $in: myListingIds }, read: false })
+      : 0;
+    const messages = await Conversation.countUnreadFor(req.user._id);
+    res.json({ count, messages });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера." });
@@ -137,6 +145,10 @@ router.get("/:id", async (req, res) => {
     const obj = listing.toObject();
     obj.responseCount = responseCount;
     obj.isOwner = isOwner;
+    if (req.user && !isOwner) {
+      const conv = await Conversation.findOne({ listingId: listing._id, responderId: req.user._id }).select("_id").lean();
+      obj.myConversationId = conv ? conv._id : null;
+    }
     res.json({ listing: obj });
   } catch (err) {
     console.error(err);
@@ -160,6 +172,9 @@ router.post("/", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Текст содержит недопустимые слова, поправьте формулировку." });
     }
 
+    const imgRes = sanitizeListingImage(image, process.env.CLOUDINARY_CLOUD_NAME);
+    if (!imgRes.ok) return res.status(400).json({ error: imgRes.error });
+
     let teamId = null;
     if (TEAM_TYPES.includes(type)) {
       if (!req.user.teamId)
@@ -177,7 +192,7 @@ router.post("/", requireAuth, async (req, res) => {
       title:       title.trim(),
       description: description.trim(),
       role:        (role || "").trim(),
-      image:       image && image.url ? { url: image.url, publicId: image.publicId || "" } : { url: "", publicId: "" },
+      image:       imgRes.image,
     });
 
     res.json({ ok: true, listing });
@@ -212,11 +227,11 @@ router.patch("/:id", requireAuth, async (req, res) => {
       listing.role = role.trim();
     }
     if (image !== undefined) {
-      // Если картинку заменили/убрали — подчищаем старую в Cloudinary
-      if (listing.image.publicId && listing.image.publicId !== (image?.publicId || "")) {
-        destroyCloudinaryAsset(listing.image.publicId);
-      }
-      listing.image = image && image.url ? { url: image.url, publicId: image.publicId || "" } : { url: "", publicId: "" };
+      // Строгая валидация URL (https + Cloudinary-хост нашего облака) и соответствия publicId.
+      // Старый файл в Cloudinary НЕ удаляется (см. комментарий вверху файла).
+      const imgRes = sanitizeListingImage(image, process.env.CLOUDINARY_CLOUD_NAME);
+      if (!imgRes.ok) return res.status(400).json({ error: imgRes.error });
+      listing.image = imgRes.image;
     }
     if (active !== undefined) listing.active = !!active;
 
@@ -238,8 +253,13 @@ router.delete("/:id", requireAuth, async (req, res) => {
     const isAdmin = isAdminUser(req.user);
     if (!isOwner && !isAdmin) return res.status(403).json({ error: "Нет доступа." });
 
-    if (listing.image.publicId) destroyCloudinaryAsset(listing.image.publicId);
+    // Файл в Cloudinary не удаляем (владение publicId не подтверждено — см. комментарий вверху файла)
     await ListingResponse.deleteMany({ listingId: listing._id });
+    const convIds = await Conversation.find({ listingId: listing._id }).distinct("_id");
+    if (convIds.length) {
+      await Message.deleteMany({ conversationId: { $in: convIds } });
+      await Conversation.deleteMany({ _id: { $in: convIds } });
+    }
     await listing.deleteOne();
 
     res.json({ ok: true });
@@ -295,7 +315,19 @@ router.post("/:id/responses", requireAuth, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.json({ ok: true, response });
+    // Диалог создаётся/находится только ПОСЛЕ того, как отклик прошёл все проверки и сохранён.
+    // Сбой чата не должен ломать уже принятый отклик — логируем и отдаём conversationId: null.
+    let conversationId = null;
+    try {
+      const { conversation } = await Conversation.ensureForResponse({
+        listingId: listing._id, authorId: listing.authorId, responderId: req.user._id, firstMessage: response.message,
+      });
+      conversationId = conversation._id;
+    } catch (convErr) {
+      console.error("conversation ensure failed", convErr && convErr.name, convErr && convErr.code);
+    }
+
+    res.json({ ok: true, response, conversationId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера." });
@@ -325,7 +357,16 @@ router.get("/:id/responses", requireAuth, async (req, res) => {
       );
     }
 
-    res.json({ responses });
+    const convs = await Conversation.find({ listingId: listing._id }).select("responderId").lean();
+    const convByUser = new Map(convs.map(c => [c.responderId.toString(), c._id]));
+    res.json({
+      responses: responses.map(r => {
+        const o = r.toObject();
+        const uid = r.fromUserId && (r.fromUserId._id || r.fromUserId);
+        o.conversationId = uid ? (convByUser.get(uid.toString()) || null) : null;
+        return o;
+      }),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера." });

@@ -1337,4 +1337,7 @@ router.patch("/discord-role-requests/:id", requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Объявления (список, правка; скрытие/удаление — существующие маршруты /api/listings) ───
+router.use("/listings", require("./adminListings"));
+
 module.exports = router;

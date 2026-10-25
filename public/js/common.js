@@ -417,7 +417,7 @@ document.addEventListener("DOMContentLoaded", function () {
             let listingsCount = 0;
             try {
                 const lr = await fetch("/api/listings/unread-count");
-                if (lr.ok) listingsCount = (await lr.json()).count || 0;
+                if (lr.ok) { const ld = await lr.json(); listingsCount = (ld.count || 0) + (ld.messages || 0); }
             } catch {}
 
             const total = profileCount + listingsCount;

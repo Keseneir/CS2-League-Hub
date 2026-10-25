@@ -124,6 +124,7 @@ app.use("/api/news",         require("./routes/news"));
 app.use("/api/promo",        require("./routes/promo"));
 app.use("/api/support",      require("./routes/support"));
 app.use("/api/listings",     require("./routes/listings"));
+app.use("/api/conversations", require("./routes/conversations"));
 
 app.get("/api/seasons", async (req, res) => {
   try {

@@ -113,6 +113,38 @@ footer{ flex-shrink:0; }
 .lh-error-text{ font-size:12.5px; color:var(--red); margin-top:8px; display:none; }
 .lh-error-text.show{ display:block; }
 .lh-hint-text{ font-size:12px; color:#5c6b7f; margin-top:6px; line-height:1.5; }
+
+/* ── Сообщения: список диалогов и окно чата ── */
+.lh-conv-list{ display:none; flex-direction:column; gap:10px; }
+.lh-conv-item{ display:block; width:100%; text-align:left; background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; cursor:pointer; color:var(--text); font-family:'Inter',sans-serif; transition:border-color .2s, background .2s; }
+.lh-conv-item:hover{ border-color:var(--accent); background:var(--accent-dim); }
+.lh-conv-item.unread{ border-left:4px solid var(--red); }
+.lh-conv-top{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.lh-conv-name{ font-family:'Montserrat',sans-serif; font-weight:700; font-size:13px; color:white; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lh-conv-dot{ width:8px; height:8px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.lh-conv-time{ margin-left:auto; font-size:11px; color:var(--text-gray); white-space:nowrap; }
+.lh-conv-listing{ font-size:12px; color:var(--accent); font-weight:600; margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lh-conv-last{ font-size:13px; color:var(--text-gray); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.lh-chat-box{ display:flex; flex-direction:column; width:100%; max-width:560px; height:min(82vh,680px); height:min(82dvh,680px); }
+.lh-chat-head-text{ display:flex; flex-direction:column; min-width:0; }
+.lh-chat-sub{ font-size:12px; color:var(--text-gray); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lh-chat-messages{ flex:1; overflow-y:auto; padding:14px 18px; display:flex; flex-direction:column; gap:10px; min-height:120px; }
+.lh-chat-status{ color:var(--text-gray); font-size:13px; text-align:center; margin:auto; }
+.lh-msg{ align-self:flex-start; max-width:85%; background:var(--input-bg); border:1px solid var(--border); border-radius:12px 12px 12px 4px; padding:8px 12px; }
+.lh-msg.mine{ align-self:flex-end; background:var(--accent-dim); border-color:rgba(230,176,34,0.3); border-radius:12px 12px 4px 12px; }
+.lh-msg-meta{ display:flex; gap:10px; justify-content:space-between; font-size:11px; color:var(--text-gray); margin-bottom:3px; }
+.lh-msg-text{ font-size:14px; color:var(--text); line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+.lh-chat-box .lh-error-text{ margin:0 18px 6px; }
+.lh-chat-form{ display:flex; gap:8px; padding:12px 18px 16px; border-top:1px solid var(--border); align-items:flex-end; }
+.lh-chat-form textarea{ flex:1; min-height:44px; max-height:120px; resize:none; margin:0; padding:10px 12px; background:var(--input-bg);
+  border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none; }
+.lh-chat-form textarea:focus{ border-color:var(--border-focus); }
+@media (max-width:520px){
+  .lh-overlay:has(.lh-chat-box){ padding:0; }
+  .lh-overlay .modal-box.lh-chat-box{ max-width:none; height:100dvh; max-height:100dvh; border-radius:0; }
+}
 </style>
 </head>
 <body>
@@ -160,6 +192,7 @@ footer{ flex-shrink:0; }
   <div class="lh-tabs">
     <button class="lh-tab active" data-tab="all">Все объявления</button>
     <button class="lh-tab" data-tab="mine">Мои объявления</button>
+    <button class="lh-tab" data-tab="messages">Сообщения</button>
   </div>
 
   <div class="lh-toolbar" id="lhToolbar">
@@ -175,6 +208,7 @@ footer{ flex-shrink:0; }
   </div>
 
   <div class="lh-grid" id="lhGrid"></div>
+  <div class="lh-conv-list" id="lhConvList" style="display:none;"></div>
   <div class="lh-empty" id="lhEmpty" style="display:none;">
     <div class="lh-empty-icon">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -287,6 +321,25 @@ footer{ flex-shrink:0; }
       <button class="lh-modal-close" data-close>✕</button>
     </div>
     <div class="modal-body" id="lhResponsesBody"></div>
+  </div>
+</div>
+
+<!-- ── Модалка: приватный чат по объявлению ───────────────────────────── -->
+<div class="lh-overlay" id="lhChatOverlay">
+  <div class="modal-box lh-chat-box">
+    <div class="modal-header">
+      <div class="lh-chat-head-text">
+        <span class="modal-title" id="lhChatTitle">Чат</span>
+        <span class="lh-chat-sub" id="lhChatSub"></span>
+      </div>
+      <button class="lh-modal-close" data-close>✕</button>
+    </div>
+    <div class="lh-chat-messages" id="lhChatMessages" aria-live="polite"></div>
+    <div class="lh-error-text" id="lhChatError"></div>
+    <form class="lh-chat-form" id="lhChatForm">
+      <textarea id="lhChatInput" maxlength="1000" rows="2" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
+      <button type="submit" class="btn-submit" id="lhChatSend" style="width:auto;">Отправить</button>
+    </form>
   </div>
 </div>
 

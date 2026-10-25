@@ -40,13 +40,15 @@ router.get("/config", (req, res) => {
 // GET /api/user
 router.get("/user", async (req, res) => {
   if (!req.isAuthenticated()) return res.json(null);
-  const { steamId, displayName, avatar, rank, teamId } = req.user;
+  const { steamId, displayName, avatar, rank, teamId, discordUsername, telegramUsername } = req.user;
   let team = null;
   if (teamId) {
     team = await Team.findById(teamId).select("name tag logo").lean();
   }
   const isAdmin = steamId === ADMIN_STEAM_ID;
-  res.json({ steamId, displayName, avatar, rank, team, isAdmin });
+  // Контакты — только своего аккаунта: нужны странице объявлений, чтобы не показывать ложное «укажите контакты»
+  res.json({ steamId, displayName, avatar, rank, team, isAdmin,
+             discordUsername: discordUsername || "", telegramUsername: telegramUsername || "" });
 });
 
 // GET /api/profile

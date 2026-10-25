@@ -271,6 +271,7 @@
         <button class="tab-btn" data-tab="ranks">🎖️ Ранги</button>
         <button class="tab-btn" data-tab="tournaments">🎮 Турниры</button>
         <button class="tab-btn" data-tab="news">📰 Новости</button>
+        <button class="tab-btn" data-tab="listings">📋 Объявления</button>
         <button class="tab-btn" data-tab="promo">🎟 Промокоды</button>
         <button class="tab-btn" data-tab="discord">🎨 Discord</button>
     </nav>
@@ -742,6 +743,33 @@
 
     </div>
 
+    <div class="tab-panel" id="panel-listings">
+        <div class="section-title">
+            Объявления
+            <span class="count" id="listingsCount"></span>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <select id="lstStatus" class="field-select" style="max-width:200px;" onchange="loadListingsAdmin(1)">
+                <option value="all">Все статусы</option>
+                <option value="active">Опубликованные</option>
+                <option value="inactive">Снятые автором</option>
+                <option value="hidden">Скрытые админом</option>
+            </select>
+            <select id="lstType" class="field-select" style="max-width:220px;" onchange="loadListingsAdmin(1)">
+                <option value="">Все типы</option>
+                <option value="player_seeking_team">Игрок ищет команду</option>
+                <option value="team_seeking_player">Команда ищет игрока</option>
+                <option value="scrim">Ищут спарринг</option>
+            </select>
+            <input type="text" id="lstSearch" class="field-input" placeholder="🔍 Поиск по заголовку..." maxlength="100" style="max-width:300px;" onkeydown="if(event.key==='Enter')loadListingsAdmin(1)">
+            <button class="btn btn-ghost" onclick="loadListingsAdmin(1)">Найти</button>
+        </div>
+        <div class="data-table-wrap" id="listingsTableWrap">
+            <div class="empty-state"><div class="empty-state-icon">📋</div><p>Нажмите на вкладку чтобы загрузить</p></div>
+        </div>
+        <div id="listingsPager" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:24px;"></div>
+    </div>
+
     <div class="tab-panel" id="panel-promo">
 
         <!-- ── Создать промокод ── -->
@@ -1042,8 +1070,10 @@ function initials(name) {
     return (name || "?").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 function logoEl(logo, name, size = 30) {
-    const init = initials(name);
-    if (logo) return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;"><img src="${logo}" alt="${name}" onerror="this.parentNode.textContent='${init}'"></div>`;
+    // logo и name задаёт пользователь (капитан команды): экранируем всё, а инициалы передаём через data-атрибут,
+    // а не подстановкой в JS-строку inline-обработчика onerror
+    const init = escAdmin(initials(name));
+    if (logo) return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;"><img src="${escAdmin(logo)}" alt="${escAdmin(name)}" data-init="${init}" onerror="this.parentNode.textContent=this.dataset.init"></div>`;
     return `<div class="team-logo-sm" style="width:${size}px;height:${size}px;">${init}</div>`;
 }
 function rankSwatchHtml(rankName, color) {
@@ -1105,6 +1135,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
         if (this.dataset.tab === "ranks")        loadRanks();
         if (this.dataset.tab === "tournaments")  loadTournaments();
         if (this.dataset.tab === "news")         loadNews();
+        if (this.dataset.tab === "listings")     loadListingsAdmin(1);
         if (this.dataset.tab === "promo")        { loadPromo(); loadRoleRequests(); if (!_allShopItems.length) loadShopItems(); }
         if (this.dataset.tab === "discord")      initDiscordTab();
         document.getElementById("topbarNav")?.classList.remove("open"); // выбрали раздел — сворачиваем мобильное меню
@@ -1240,8 +1271,8 @@ function renderLbTable() {
             <td><div class="team-cell">
                 ${logoEl(s.teamId?.logo, s.teamId?.name)}
                 <div>
-                    <div class="team-name-cell">${s.teamId?.name || "—"}</div>
-                    <div class="team-tag-cell">[${s.teamId?.tag || "?"}]</div>
+                    <div class="team-name-cell">${escAdmin(s.teamId?.name || "—")}</div>
+                    <div class="team-tag-cell">[${escAdmin(s.teamId?.tag || "?")}]</div>
                 </div>
             </div></td>
             <td class="num"><strong style="color:var(--accent);font-size:15px;">${s.pts}</strong></td>
@@ -1251,8 +1282,8 @@ function renderLbTable() {
             <td class="num">${s.winStreak >= 3 ? `🔥${s.winStreak}` : s.winStreak}</td>
             <td class="num">${s.isKingOfHill ? "👑" : "—"}</td>
             <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="openEditStat('${s._id}','${(s.teamId?.name||"").replace(/'/g,"\\'")}',${s.pts},${s.wins},${s.losses},${s.matches},${s.roundDiff},${s.winStreak},${s.isKingOfHill})">✏️ Правка</button>
-                <button class="btn btn-danger btn-sm" onclick="removeFromLb('${s._id}','${(s.teamId?.name||"").replace(/'/g,"\\'")}')">✕ Убрать</button>
+                <button class="btn btn-ghost btn-sm" data-name="${escAdmin(s.teamId?.name || "")}" onclick="openEditStat('${s._id}',this.dataset.name,${s.pts},${s.wins},${s.losses},${s.matches},${s.roundDiff},${s.winStreak},${s.isKingOfHill})">✏️ Правка</button>
+                <button class="btn btn-danger btn-sm" data-name="${escAdmin(s.teamId?.name || "")}" onclick="removeFromLb('${s._id}',this.dataset.name)">✕ Убрать</button>
             </div></td>
         </tr>`).join("")}
         </tbody>
@@ -1328,7 +1359,7 @@ async function saveStatEdit() {
 
 function buildSeriesTeamSelects() {
     const opts = `<option value="">—</option>` + _lbStats.map(s =>
-        `<option value="${s._id}">${s.teamId?.name || "?"}</option>`
+        `<option value="${s._id}">${escAdmin(s.teamId?.name || "?")}</option>`
     ).join("");
     document.getElementById("seriesTeamA").innerHTML = opts;
     document.getElementById("seriesTeamB").innerHTML = opts;
@@ -1338,7 +1369,7 @@ function buildSeriesTournamentSelect() {
     const sel = document.getElementById("seriesTournament");
     if (!sel) return;
     const opts = `<option value="">— Вне турнира —</option>` + _tournaments.map(t =>
-        `<option value="${t._id}">${t.name}</option>`
+        `<option value="${t._id}">${escAdmin(t.name)}</option>`
     ).join("");
     sel.innerHTML = opts;
 }
@@ -1439,20 +1470,20 @@ function renderMapForm(series) {
         if (!roster.length) return "";
         const rows = roster.map(p => `
             <div class="mps-player-row" data-uid="${p._id}" data-team="${team._id}">
-                <span class="mps-player-name">${p.displayName || "—"}</span>
+                <span class="mps-player-name">${escAdmin(p.displayName || "—")}</span>
                 <input type="number" class="field-input mps-kda-input mps-kills"   min="0" placeholder="K">
                 <input type="number" class="field-input mps-kda-input mps-deaths"  min="0" placeholder="D">
                 <input type="number" class="field-input mps-kda-input mps-assists" min="0" placeholder="A">
                 <input type="number" class="field-input mps-kda-input mps-hs"      min="0" placeholder="HS">
             </div>`).join("");
-        return `<div><div class="mps-team-label">Сторона ${side}: ${team.name}</div>${rows}</div>`;
+        return `<div><div class="mps-team-label">Сторона ${side}: ${escAdmin(team.name)}</div>${rows}</div>`;
     };
 
     return `
         <div id="mapError-${series._id}" class="modal-error"></div>
         <div class="winner-side-radio">
-            <label><input type="radio" name="mapWinner-${series._id}" value="A"> ${teamA.name} победили карту</label>
-            <label><input type="radio" name="mapWinner-${series._id}" value="B"> ${teamB.name} победили карту</label>
+            <label><input type="radio" name="mapWinner-${series._id}" value="A"> ${escAdmin(teamA.name)} победили карту</label>
+            <label><input type="radio" name="mapWinner-${series._id}" value="B"> ${escAdmin(teamB.name)} победили карту</label>
         </div>
         <div class="match-row">
             <div style="flex:1;">
@@ -1545,7 +1576,7 @@ async function loadAllTeams() {
 
     const sel = document.getElementById("addTeamSelect");
     sel.innerHTML = `<option value="">— выберите команду —</option>` +
-        _allTeams.map(t => `<option value="${t._id}">${t.name} [${t.tag}]</option>`).join("");
+        _allTeams.map(t => `<option value="${t._id}">${escAdmin(t.name)} [${escAdmin(t.tag)}]</option>`).join("");
 
     document.getElementById("teamsCount").textContent = `(${_allTeams.length})`;
     renderTeamsTable();
@@ -1563,20 +1594,20 @@ function renderTeamsTable() {
         <tr>
             <td><div class="team-cell">
                 ${logoEl(t.logo, t.name)}
-                <span class="team-name-cell">${t.name}</span>
+                <span class="team-name-cell">${escAdmin(t.name)}</span>
             </div></td>
-            <td><span class="badge badge-active">[${t.tag}]</span></td>
+            <td><span class="badge badge-active">[${escAdmin(t.tag)}]</span></td>
             <td><div class="user-cell">
-                ${t.captainId?.avatar ? `<img src="${t.captainId.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">` : ""}
-                <span style="font-size:13px;">${t.captainId?.displayName || "—"}</span>
+                ${t.captainId?.avatar ? `<img src="${escAdmin(t.captainId.avatar)}" class="user-avatar-sm" onerror="this.style.display='none'">` : ""}
+                <span style="font-size:13px;">${escAdmin(t.captainId?.displayName || "—")}</span>
             </div></td>
             <td class="num">${(t.members || []).length}/5</td>
             <td class="num">${(t.subs || []).length}/5</td>
             <td><div class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','rename')" title="Требование сменить название">✏️ Название</button>
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','logo')"   title="Требование обновить логотип">🖼 Лого</button>
-                <button class="btn btn-ghost btn-sm" onclick="sendNotice('${t._id}','${(t.name).replace(/'/g,"\\'")}','custom')" title="Своё сообщение">💬</button>
-                <button class="btn btn-danger btn-sm" onclick="disbandTeam('${t._id}','${(t.name).replace(/'/g,"\\'")}')">💀 Расформировать</button>
+                <button class="btn btn-ghost btn-sm" data-name="${escAdmin(t.name)}" onclick="sendNotice('${t._id}',this.dataset.name,'rename')" title="Требование сменить название">✏️ Название</button>
+                <button class="btn btn-ghost btn-sm" data-name="${escAdmin(t.name)}" onclick="sendNotice('${t._id}',this.dataset.name,'logo')"   title="Требование обновить логотип">🖼 Лого</button>
+                <button class="btn btn-ghost btn-sm" data-name="${escAdmin(t.name)}" onclick="sendNotice('${t._id}',this.dataset.name,'custom')" title="Своё сообщение">💬</button>
+                <button class="btn btn-danger btn-sm" data-name="${escAdmin(t.name)}" onclick="disbandTeam('${t._id}',this.dataset.name)">💀 Расформировать</button>
             </div></td>
         </tr>`).join("")}
         </tbody>
@@ -1846,10 +1877,10 @@ function renderPlayersTable(players) {
             const hoursPill = u.hoursInCS2 !== null && u.hoursInCS2 !== undefined
                 ? `<span class="player-stat-pill hours">⏱ ${u.hoursInCS2} ч.</span>`
                 : `<span class="player-stat-pill" style="color:var(--gray2);">—</span>`;
-            const tgLink  = u.telegramUsername ? `<a href="https://t.me/${u.telegramUsername}" target="_blank" style="color:#5b8de8;font-size:12px;">tg: @${u.telegramUsername}</a>` : "";
-            const dcLink  = u.discordUsername  ? `<span style="font-size:12px;color:#aebbc7;">ds: ${u.discordUsername}</span>` : "";
+            const tgLink  = u.telegramUsername ? `<a href="https://t.me/${encodeURIComponent(u.telegramUsername)}" target="_blank" rel="noopener noreferrer" style="color:#5b8de8;font-size:12px;">tg: @${escAdmin(u.telegramUsername)}</a>` : "";
+            const dcLink  = u.discordUsername  ? `<span style="font-size:12px;color:#aebbc7;">ds: ${escAdmin(u.discordUsername)}</span>` : "";
             const socials = [tgLink, dcLink].filter(Boolean).join("<br>");
-            const teamStr = u.teamId ? `[${u.teamId.tag}] ${u.teamId.name}` : `<span style="color:var(--gray2);">—</span>`;
+            const teamStr = u.teamId ? `[${escAdmin(u.teamId.tag)}] ${escAdmin(u.teamId.name)}` : `<span style="color:var(--gray2);">—</span>`;
             const rankHtml = rankSwatchHtml(u.rank, rankColorMap[u.rank]);
             const esc      = (s) => (s || "").replace(/'/g, "\\'");
             return `<tr>
@@ -1857,9 +1888,9 @@ function renderPlayersTable(players) {
                     <div class="player-profile-cell">
                         ${u.avatar
                             ? `<img src="${u.avatar}" class="user-avatar-sm" onerror="this.style.display='none'">`
-                            : `<div style="width:28px;height:28px;border-radius:50%;background:rgba(230,176,34,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:var(--accent);flex-shrink:0;">${initials(u.displayName)}</div>`}
+                            : `<div style="width:28px;height:28px;border-radius:50%;background:rgba(230,176,34,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;color:var(--accent);flex-shrink:0;">${escAdmin(initials(u.displayName))}</div>`}
                         <div class="player-profile-info">
-                            <div class="player-profile-name">${u.displayName || "—"}</div>
+                            <div class="player-profile-name">${escAdmin(u.displayName || "—")}</div>
                             ${u.bio ? `<div class="player-profile-bio">${u.bio.replace(/</g,"&lt;")}</div>` : ""}
                         </div>
                     </div>
@@ -1871,10 +1902,10 @@ function renderPlayersTable(players) {
                 <td style="font-size:12px;">${socials || `<span style="color:var(--gray2);">—</span>`}</td>
                 <td><div class="actions">
                     <a href="/profile.html?id=${u.steamId}" target="_blank" class="btn btn-ghost btn-sm">👤 Профиль</a>
-                    <button class="btn btn-primary btn-sm" onclick="openPlayerNotice('${u._id}','${esc(u.displayName)}')">💬 Написать</button>
-                    <button class="btn btn-ghost btn-sm" onclick="openAssignRank('${u._id}','${esc(u.displayName)}','${esc(u.rank)}')">🎖 Ранг</button>
-                    <button class="btn btn-ghost btn-sm" onclick="openPlayerInventory('${u._id}','${esc(u.displayName)}')">🎒 Инвентарь</button>
-                    <button class="btn btn-danger btn-sm" onclick="deletePlayer('${u._id}','${esc(u.displayName)}')">🗑 Удалить</button>
+                    <button class="btn btn-primary btn-sm" data-name="${escAdmin(u.displayName)}" onclick="openPlayerNotice('${u._id}',this.dataset.name)">💬 Написать</button>
+                    <button class="btn btn-ghost btn-sm" data-name="${escAdmin(u.displayName)}" data-rank="${escAdmin(u.rank)}" onclick="openAssignRank('${u._id}',this.dataset.name,this.dataset.rank)">🎖 Ранг</button>
+                    <button class="btn btn-ghost btn-sm" data-name="${escAdmin(u.displayName)}" onclick="openPlayerInventory('${u._id}',this.dataset.name)">🎒 Инвентарь</button>
+                    <button class="btn btn-danger btn-sm" data-name="${escAdmin(u.displayName)}" onclick="deletePlayer('${u._id}',this.dataset.name)">🗑 Удалить</button>
                 </div></td>
             </tr>`;
         }).join("")}</tbody>
@@ -2307,13 +2338,13 @@ function openTournamentRegistrations(id, name) {
                 ${r.team ? logoEl(r.team.logo, r.team.name) : ""}
                 <div>
                     <div class="team-name-cell">${r.team ? escAdmin(r.team.name) : "—"}</div>
-                    <div class="team-tag-cell">${r.team ? `[${r.team.tag}]` : ""}</div>
+                    <div class="team-tag-cell">${r.team ? `[${escAdmin(r.team.tag)}]` : ""}</div>
                 </div>
             </div></td>
             <td>${rosterHtml}${warningHtml}</td>
             <td>${new Date(r.registeredAt).toLocaleDateString("ru-RU")}</td>
             <td>
-                <button class="btn btn-danger btn-sm" onclick="removeRegistration('${id}','${r.teamId}','${r.team?.name || "команду"}')">✕ Удалить заявку</button>
+                <button class="btn btn-danger btn-sm" data-name="${escAdmin(r.team?.name || "команду")}" onclick="removeRegistration('${id}','${r.teamId}',this.dataset.name)">✕ Удалить заявку</button>
             </td>
         </tr>`;
         }).join("")}
@@ -2489,6 +2520,133 @@ async function deleteNews(id, title) {
             const res = await fetch(`/api/admin/news/${id}`, { method: "DELETE" });
             if (!res.ok) { toast("Ошибка", "err"); return; }
             toast(`Новость «${title}» удалена`, "ok"); await loadNews();
+        } catch { toast("Ошибка соединения", "err"); }
+    });
+}
+
+//объявления (модерация). Весь пользовательский текст — через escAdmin; данные в обработчики передаются
+//через data-атрибуты/this.dataset, а не подстановкой в JS-строки inline-обработчиков.
+let _lstItems = [];
+let _lstPage  = 1;
+let _lstEditId = null;
+const LST_TYPE_LABELS = { player_seeking_team: "Игрок ищет команду", team_seeking_player: "Команда ищет игрока", scrim: "Ищут спарринг" };
+
+async function loadListingsAdmin(page = 1) {
+    const wrap = document.getElementById("listingsTableWrap");
+    if (!wrap) return;
+    _lstPage = page;
+    const params = new URLSearchParams({
+        page: String(page), limit: "20",
+        status: document.getElementById("lstStatus").value,
+        type:   document.getElementById("lstType").value,
+        q:      document.getElementById("lstSearch").value.trim(),
+    });
+    wrap.innerHTML = `<div class="empty-state"><p>Загрузка...</p></div>`;
+    try {
+        const res = await fetch("/api/admin/listings?" + params.toString());
+        if (!res.ok) throw new Error("http " + res.status);
+        const data = await res.json();
+        _lstItems = data.items || [];
+        document.getElementById("listingsCount").textContent = `(${data.total})`;
+        renderListingsAdmin(_lstItems);
+        renderListingsPager(data.page, data.pages);
+    } catch {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить объявления</p></div>`;
+        document.getElementById("listingsPager").innerHTML = "";
+    }
+}
+
+function renderListingsAdmin(items) {
+    const wrap = document.getElementById("listingsTableWrap");
+    if (!items.length) { wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><p>Объявлений не найдено</p></div>`; return; }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr><th>Объявление</th><th>Автор</th><th>Статус</th><th>Создано</th><th>Действия</th></tr></thead>
+        <tbody>${items.map(l => `
+        <tr>
+            <td><div style="min-width:0;">
+                <div style="font-weight:700;color:white;font-size:13px;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escAdmin(l.title)}</div>
+                <div style="font-size:11px;color:var(--gray2);margin-top:2px;">${escAdmin(LST_TYPE_LABELS[l.type] || l.type)}${l.role ? " · " + escAdmin(l.role) : ""}${l.team ? " · [" + escAdmin(l.team.tag) + "] " + escAdmin(l.team.name) : ""}${l.image && l.image.url ? " · 🖼" : ""}</div>
+            </div></td>
+            <td><span style="font-size:13px;">${escAdmin(l.author ? l.author.displayName : "—")}</span></td>
+            <td>
+                ${l.hiddenByAdmin ? `<span class="badge badge-rejected">Скрыто админом</span>` : l.active ? `<span class="badge badge-active">Опубликовано</span>` : `<span class="badge badge-archive">Снято автором</span>`}
+            </td>
+            <td><span style="font-size:12px;color:var(--gray2);">${escAdmin(fmtNewsDate(l.createdAt))}</span></td>
+            <td><div class="actions">
+                <button class="btn btn-ghost btn-sm" data-id="${escAdmin(l._id)}" onclick="openEditListing(this.dataset.id)">✏️ Правка</button>
+                <button class="btn btn-ghost btn-sm" data-id="${escAdmin(l._id)}" onclick="toggleListingHidden(this.dataset.id, ${l.hiddenByAdmin ? "false" : "true"})">${l.hiddenByAdmin ? "👁 Вернуть" : "🙈 Скрыть"}</button>
+                <button class="btn btn-danger btn-sm" data-id="${escAdmin(l._id)}" onclick="deleteListingAdmin(this.dataset.id)">🗑</button>
+            </div></td>
+        </tr>`).join("")}</tbody></table>`;
+}
+
+function renderListingsPager(page, pages) {
+    const el = document.getElementById("listingsPager");
+    if (!el) return;
+    if (!pages || pages <= 1) { el.innerHTML = ""; return; }
+    el.innerHTML = `
+        <button class="btn btn-ghost btn-sm" ${page <= 1 ? "disabled" : ""} onclick="loadListingsAdmin(${Number(page) - 1})">← Назад</button>
+        <span style="font-size:12px;color:var(--gray2);">Страница ${Number(page)} из ${Number(pages)}</span>
+        <button class="btn btn-ghost btn-sm" ${page >= pages ? "disabled" : ""} onclick="loadListingsAdmin(${Number(page) + 1})">Вперёд →</button>`;
+}
+
+function openEditListing(id) {
+    const l = _lstItems.find(x => x._id === id);
+    if (!l) return;
+    _lstEditId = id;
+    hideError("elError");
+    document.getElementById("elTitle").value = l.title || "";
+    document.getElementById("elRole").value  = l.role  || "";
+    document.getElementById("elDesc").value  = l.description || "";
+    document.getElementById("elMeta").textContent = `Автор: ${l.author ? l.author.displayName : "—"} · ${LST_TYPE_LABELS[l.type] || l.type}`;
+    document.getElementById("elRemoveImage").checked = false;
+    document.getElementById("elRemoveImageRow").style.display = (l.image && l.image.url) ? "flex" : "none";
+    openModal("editListingModal");
+}
+
+async function submitEditListing() {
+    if (!_lstEditId) return;
+    hideError("elError");
+    const body = {
+        title:       document.getElementById("elTitle").value,
+        role:        document.getElementById("elRole").value,
+        description: document.getElementById("elDesc").value,
+    };
+    if (document.getElementById("elRemoveImage").checked) body.removeImage = true;
+    const btn = document.getElementById("elSaveBtn");
+    btn.disabled = true;
+    try {
+        const res  = await fetch(`/api/admin/listings/${encodeURIComponent(_lstEditId)}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { showError("elError", data.error || "Не удалось сохранить"); return; }
+        closeModal("editListingModal");
+        toast("Объявление обновлено", "ok");
+        await loadListingsAdmin(_lstPage);
+    } catch { showError("elError", "Ошибка соединения"); }
+    finally { btn.disabled = false; }
+}
+
+async function toggleListingHidden(id, hidden) {
+    try {
+        const res = await fetch(`/api/listings/${encodeURIComponent(id)}/admin-hide`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: hidden === true || hidden === "true" }),
+        });
+        if (!res.ok) { toast("Ошибка", "err"); return; }
+        toast(hidden ? "Объявление скрыто" : "Объявление возвращено в публикацию", "ok");
+        await loadListingsAdmin(_lstPage);
+    } catch { toast("Ошибка соединения", "err"); }
+}
+
+function deleteListingAdmin(id) {
+    const l = _lstItems.find(x => x._id === id);
+    _confirmAction(`Удалить объявление «${l ? l.title : ""}»? Вместе с ним удалятся отклики и личные переписки по нему.`, async () => {
+        try {
+            const res = await fetch(`/api/listings/${encodeURIComponent(id)}`, { method: "DELETE" });
+            if (!res.ok) { toast("Ошибка", "err"); return; }
+            toast("Объявление удалено", "ok");
+            await loadListingsAdmin(_lstPage);
         } catch { toast("Ошибка соединения", "err"); }
     });
 }
@@ -2927,6 +3085,30 @@ function escAdmin(str) {
 
 init();
 </script>
+
+<!-- ── Модалка редактирования объявления (модерация) ───────────────────────── -->
+<div class="modal-overlay" id="editListingModal">
+    <div class="modal-panel" style="max-width:560px;">
+        <div class="modal-head">
+            <span class="modal-head-title">✏️ Редактировать объявление</span>
+            <button class="modal-close-btn" onclick="closeModal('editListingModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="elError" class="modal-error"></div>
+            <div id="elMeta" style="font-size:12px;color:var(--gray2);"></div>
+            <div><label class="field-label">Заголовок</label><input type="text" id="elTitle" class="field-input" maxlength="100"></div>
+            <div><label class="field-label">Роль / уточнение</label><input type="text" id="elRole" class="field-input" maxlength="60"></div>
+            <div><label class="field-label">Описание</label><textarea id="elDesc" class="field-input" rows="6" style="resize:vertical;min-height:120px;" maxlength="2000"></textarea></div>
+            <label id="elRemoveImageRow" style="display:none;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--gray);">
+                <input type="checkbox" id="elRemoveImage" style="width:15px;height:15px;accent-color:var(--accent);"> Убрать картинку
+            </label>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-ghost" onclick="closeModal('editListingModal')">Отмена</button>
+            <button class="btn btn-primary" id="elSaveBtn" onclick="submitEditListing()">Сохранить</button>
+        </div>
+    </div>
+</div>
 
 <!-- ── Модалка редактирования новости ──────────────────────────────────────── -->
 <div class="modal-overlay" id="editNewsModal">

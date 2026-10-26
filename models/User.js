@@ -137,6 +137,13 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Чёрный список (ограничен MAX_BLOCKED = 100 записей на сервере). default: undefined — у тех, кто никого
+    // не блокировал, поле в документе вообще не хранится. Индекс не нужен: читается вместе с документом пользователя.
+    blockedUsers: {
+      type:    [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      default: undefined,
+    },
+
     // ── Магазин: личный кошелёк и инвентарь ──────────────────────────────────
     // Монеты начисляются автоматически за участие в матчах.
     // Тратятся в Personal Store (shop.html, вкладка «Для себя»).

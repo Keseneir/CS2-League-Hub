@@ -8,6 +8,10 @@ const { requireAuth }    = require("../middleware/auth");
 const { ADMIN_STEAM_ID } = require("../config/constants");
 const Conversation     = require("../models/Conversation");
 const Message          = require("../models/Message");
+const User             = require("../models/User");
+const ListingReport    = require("../models/ListingReport");
+const { hasBlocked }   = require("../utils/chatAccess");
+const { validateReport, isObjectIdString } = require("../utils/listingValidation");
 const { containsProfanity }      = require("../utils/profanityFilter");
 const { sanitizeListingImage }   = require("../utils/listingImage");
 
@@ -255,6 +259,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
     // Файл в Cloudinary не удаляем (владение publicId не подтверждено — см. комментарий вверху файла)
     await ListingResponse.deleteMany({ listingId: listing._id });
+    await ListingReport.deleteMany({ listingId: listing._id });   // жалобы на удалённое объявление больше не нужны
     const convIds = await Conversation.find({ listingId: listing._id }).distinct("_id");
     if (convIds.length) {
       await Message.deleteMany({ conversationId: { $in: convIds } });
@@ -307,6 +312,13 @@ router.post("/:id/responses", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Укажите Discord или Telegram в профиле, чтобы автор мог с вами связаться." });
     }
 
+    // Чёрный список (в любую сторону): откликнуться нельзя, ни отклик, ни диалог не создаются.
+    // Формулировка не раскрывает, кто кого заблокировал. Свой список — из req.user (без запроса), список автора — 1 чтение.
+    const authorDoc = await User.findById(listing.authorId).select("blockedUsers").lean();
+    if (hasBlocked(req.user, listing.authorId) || (authorDoc && hasBlocked(authorDoc, req.user._id))) {
+      return res.status(403).json({ error: "Вы не можете откликнуться на это объявление." });
+    }
+
     // upsert: повторный отклик того же юзера обновляет сообщение и «поднимает» его
     // заново как непрочитанный, а не плодит дубликаты
     const response = await ListingResponse.findOneAndUpdate(
@@ -330,6 +342,43 @@ router.post("/:id/responses", requireAuth, async (req, res) => {
     res.json({ ok: true, response, conversationId });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: "Ошибка сервера." });
+  }
+});
+
+// ── POST /api/listings/:id/report — пожаловаться на объявление ──────────
+// Жалобы видит только админ (/api/admin/listings/reports). Автор и жалобщик берутся из сессии/БД, не из тела запроса.
+const REPORT_HOURLY_LIMIT = 5;
+router.post("/:id/report", requireAuth, async (req, res) => {
+  try {
+    if (!isObjectIdString(req.params.id)) return res.status(404).json({ error: "Объявление не найдено." });
+    const v = validateReport(req.body, ListingReport.REASONS);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+
+    const listing = await Listing.findById(req.params.id).select("authorId active hiddenByAdmin").lean();
+    if (!listing || !listing.active || listing.hiddenByAdmin)
+      return res.status(404).json({ error: "Объявление не найдено." });
+    if (listing.authorId.toString() === req.user._id.toString())
+      return res.status(400).json({ error: "Нельзя пожаловаться на своё объявление." });
+
+    const recent = await ListingReport.countDocuments({
+      reporterId: req.user._id, createdAt: { $gt: new Date(Date.now() - 3600 * 1000) },
+    });
+    if (recent >= REPORT_HOURLY_LIMIT)
+      return res.status(429).json({ error: "Слишком много жалоб за последний час. Попробуйте позже." });
+
+    try {
+      await ListingReport.create({
+        listingId: listing._id, reporterId: req.user._id, reason: v.reason,
+        ...(v.details ? { details: v.details } : {}),
+      });
+    } catch (e) {
+      if (e && e.code === 11000) return res.status(409).json({ error: "Вы уже отправляли жалобу на это объявление." });
+      throw e;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("listing report failed", err && err.name, err && err.code);
     res.status(500).json({ error: "Ошибка сервера." });
   }
 });

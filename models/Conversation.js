@@ -17,6 +17,13 @@ const ConversationSchema = new mongoose.Schema(
     // Отметки прочтения хранятся отдельно для каждого участника и меняются только им самим
     authorLastReadAt:    { type: Date, default: null },
     responderLastReadAt: { type: Date, default: null },
+
+    // Необязательные поля без default (в документ попадают только когда нужны):
+    // mute хранится у диалога отдельно для каждого участника; при снятии mute поле удаляется ($unset)
+    authorMuted:    { type: Boolean },
+    responderMuted: { type: Boolean },
+    // Момент последней правки/удаления сообщения — по нему опрос понимает, нужно ли запрашивать изменения
+    lastChangeAt:   { type: Date },
   },
   { timestamps: true }
 );

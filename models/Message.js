@@ -5,7 +5,11 @@ const MessageSchema = new mongoose.Schema(
     conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation", required: true },
     // Всегда берётся из серверной сессии, клиент его не передаёт
     senderId:       { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    text:           { type: String, required: true, trim: true, maxlength: 1000 },
+    // У удалённого сообщения (deletedAt) текст очищается («надгробие») — оригинал нигде не хранится
+    text:           { type: String, required: function () { return !this.deletedAt; }, trim: true, maxlength: 1000 },
+    // Необязательные поля: у обычных сообщений их нет, места они не занимают
+    editedAt:       { type: Date },
+    deletedAt:      { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

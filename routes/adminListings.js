@@ -6,6 +6,7 @@
 const express = require("express");
 const router  = express.Router();
 const Listing = require("../models/Listing");
+const ListingReport = require("../models/ListingReport");
 const { requireAdmin } = require("../middleware/auth");
 const { isObjectIdString, parseAdminListingQuery, validateAdminListingEdit } = require("../utils/listingValidation");
 
@@ -34,6 +35,49 @@ router.get("/", async (req, res) => {
     res.json({ items: items.map(toItem), total, page, pages: Math.max(1, Math.ceil(total / limit)) });
   } catch (err) {
     console.error("admin listings list failed", err && err.name);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ── Жалобы на объявления (видны только админу; пользователям и в публичных ответах не отдаются) ──
+function toReportItem(r) {
+  const l = r.listingId;
+  return {
+    _id: r._id, reason: r.reason, details: r.details || "", createdAt: r.createdAt,
+    reporter: r.reporterId ? { displayName: r.reporterId.displayName || "", steamId: r.reporterId.steamId || "" } : null,
+    listing: l ? {
+      _id: l._id, title: l.title, active: !!l.active, hiddenByAdmin: !!l.hiddenByAdmin,
+      author: l.authorId ? { displayName: l.authorId.displayName || "" } : null,
+    } : null,
+  };
+}
+
+// GET /api/admin/listings/reports?page=&limit=
+router.get("/reports", async (req, res) => {
+  try {
+    const { page, limit, skip } = parseAdminListingQuery(req.query, Listing.TYPES);
+    const [items, total] = await Promise.all([
+      ListingReport.find().sort({ createdAt: -1 }).skip(skip).limit(limit)
+        .populate({ path: "listingId", select: "title active hiddenByAdmin authorId", populate: { path: "authorId", select: "displayName" } })
+        .populate("reporterId", "displayName steamId").lean(),
+      ListingReport.countDocuments({}),
+    ]);
+    res.json({ items: items.map(toReportItem), total, page, pages: Math.max(1, Math.ceil(total / limit)) });
+  } catch (err) {
+    console.error("admin reports list failed", err && err.name);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// DELETE /api/admin/listings/reports/:id — отклонить (удалить) жалобу; освобождает место в БД
+router.delete("/reports/:id", async (req, res) => {
+  try {
+    if (!isObjectIdString(req.params.id)) return res.status(404).json({ error: "Жалоба не найдена" });
+    const r = await ListingReport.deleteOne({ _id: req.params.id });
+    if (!r.deletedCount) return res.status(404).json({ error: "Жалоба не найдена" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("admin report delete failed", err && err.name);
     res.status(500).json({ error: "Ошибка сервера" });
   }
 });

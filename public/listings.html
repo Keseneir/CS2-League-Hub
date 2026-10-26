@@ -141,6 +141,37 @@ footer{ flex-shrink:0; }
 .lh-chat-form textarea{ flex:1; min-height:44px; max-height:120px; resize:none; margin:0; padding:10px 12px; background:var(--input-bg);
   border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; outline:none; }
 .lh-chat-form textarea:focus{ border-color:var(--border-focus); }
+/* ── Аватары, инструменты чата, правка сообщений, жалоба ── */
+.lh-avatar{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:var(--accent-dim);
+  color:var(--accent); font-family:'Montserrat',sans-serif; font-weight:800; font-size:14px; overflow:hidden; flex-shrink:0; text-decoration:none; }
+.lh-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+a.lh-avatar:hover{ box-shadow:0 0 0 2px var(--accent); }
+.lh-chat-head{ display:flex; align-items:center; gap:10px; min-width:0; }
+.lh-chat-tools{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.lh-icon-btn{ background:none; border:1px solid var(--border); color:var(--text); border-radius:8px; width:34px; height:34px; cursor:pointer; font-size:16px; line-height:1; }
+.lh-icon-btn:hover{ border-color:var(--accent); }
+.lh-icon-btn:disabled{ opacity:.5; cursor:default; }
+a.lh-chat-sub{ text-decoration:none; }
+a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
+.lh-chat-banner{ display:none; align-items:center; gap:10px; flex-wrap:wrap; margin:0 18px 8px; padding:9px 12px; background:rgba(224,92,92,0.1);
+  border:1px solid rgba(224,92,92,0.3); border-radius:8px; color:var(--red); font-size:12px; }
+.lh-chat-banner button{ background:none; border:1px solid var(--red); color:var(--red); border-radius:6px; padding:3px 10px; cursor:pointer; font-size:12px; }
+.lh-msg.deleted .lh-msg-text{ font-style:italic; color:var(--text-gray); }
+.lh-msg-edited{ font-style:italic; }
+.lh-msg-actions{ display:inline-flex; gap:4px; }
+.lh-msg-act{ background:none; border:none; color:var(--text-gray); cursor:pointer; font-size:12px; padding:0 2px; }
+.lh-msg-act:hover{ color:var(--accent); }
+.lh-msg-edit{ width:100%; min-height:60px; resize:vertical; background:var(--input-bg); border:1px solid var(--border-focus); border-radius:8px;
+  color:var(--text); padding:8px; font-family:'Inter',sans-serif; font-size:14px; outline:none; }
+.lh-msg-edit-actions{ display:flex; gap:8px; margin-top:6px; }
+.lh-msg-edit-actions button{ border-radius:6px; padding:4px 12px; cursor:pointer; font-size:12px; border:1px solid var(--border); background:none; color:var(--text); }
+.lh-msg-edit-actions button.primary{ background:var(--accent); border-color:var(--accent); color:#111; font-weight:700; }
+.lh-msg-edit-error{ color:var(--red); font-size:12px; margin-top:4px; }
+.lh-conv-item{ display:flex; align-items:center; gap:12px; padding:12px 14px; cursor:pointer; }
+.lh-conv-main{ flex:1; min-width:0; text-align:left; background:none; border:none; color:inherit; font:inherit; cursor:pointer; padding:0; }
+.lh-conv-item.muted .lh-conv-dot{ background:var(--text-gray); }
+.lh-conv-flag{ font-size:12px; color:var(--text-gray); }
+
 @media (max-width:520px){
   .lh-overlay:has(.lh-chat-box){ padding:0; }
   .lh-overlay .modal-box.lh-chat-box{ max-width:none; height:100dvh; max-height:100dvh; border-radius:0; }
@@ -328,18 +359,63 @@ footer{ flex-shrink:0; }
 <div class="lh-overlay" id="lhChatOverlay">
   <div class="modal-box lh-chat-box">
     <div class="modal-header">
-      <div class="lh-chat-head-text">
-        <span class="modal-title" id="lhChatTitle">Чат</span>
-        <span class="lh-chat-sub" id="lhChatSub"></span>
+      <div class="lh-chat-head">
+        <span id="lhChatAvatarSlot"></span>
+        <div class="lh-chat-head-text">
+          <span class="modal-title" id="lhChatTitle">Чат</span>
+          <a class="lh-chat-sub" id="lhChatSub" target="_blank" rel="noopener noreferrer"></a>
+        </div>
       </div>
-      <button class="lh-modal-close" data-close>✕</button>
+      <div class="lh-chat-tools">
+        <button type="button" class="lh-icon-btn" id="lhChatMute" title="Отключить уведомления" aria-label="Отключить уведомления">🔔</button>
+        <button type="button" class="lh-icon-btn" id="lhChatBlock" title="Заблокировать пользователя" aria-label="Заблокировать пользователя">🚫</button>
+        <button class="lh-modal-close" data-close>✕</button>
+      </div>
     </div>
+    <div class="lh-chat-banner" id="lhChatBanner"></div>
     <div class="lh-chat-messages" id="lhChatMessages" aria-live="polite"></div>
     <div class="lh-error-text" id="lhChatError"></div>
     <form class="lh-chat-form" id="lhChatForm">
       <textarea id="lhChatInput" maxlength="1000" rows="2" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
       <button type="submit" class="btn-submit" id="lhChatSend" style="width:auto;">Отправить</button>
     </form>
+  </div>
+</div>
+
+<!-- ── Модалка: жалоба на объявление ───────────────────────────────────── -->
+<div class="lh-overlay" id="lhReportOverlay" data-own-close>
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Пожаловаться на объявление</span>
+      <button type="button" class="lh-modal-close" id="lhReportClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="lhReportForm">
+        <div class="field">
+          <span class="field-label">Причина<span class="req">*</span></span>
+          <div class="select-wrap">
+            <select id="lhReportReason" required>
+              <option value="">— выберите причину —</option>
+              <option value="spam">Спам или реклама</option>
+              <option value="scam">Мошенничество / обман</option>
+              <option value="inappropriate">Оскорбительный или неприемлемый контент</option>
+              <option value="wrong_info">Неверная или вводящая в заблуждение информация</option>
+              <option value="other">Другое</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label">Подробности (необязательно)</span>
+          <textarea id="lhReportDetails" maxlength="500" placeholder="Что именно не так?"></textarea>
+        </div>
+        <div class="lh-error-text" id="lhReportError"></div>
+        <div class="lh-actions-row">
+          <button type="submit" class="btn-submit" id="lhReportSubmit" style="width:auto;">Отправить жалобу</button>
+          <button type="button" class="lh-btn-outline" id="lhReportCancel">Отмена</button>
+        </div>
+      </form>
+      <p class="lh-hint-text" id="lhReportDone" style="display:none;"></p>
+    </div>
   </div>
 </div>
 

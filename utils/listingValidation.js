@@ -65,4 +65,21 @@ function validateChatText(text, max) {
   return { ok: true, text: t };
 }
 
-module.exports = { LIMITS, ADMIN_STATUSES, isObjectIdString, escapeRegex, validateAdminListingEdit, parseAdminListingQuery, validateChatText };
+const REPORT_REASONS = ["spam", "scam", "inappropriate", "wrong_info", "other"];
+const REPORT_DETAILS_MAX = 500;
+
+/** Жалоба на объявление: reason из списка, details — необязательная строка ≤ 500 без управляющих символов. */
+function validateReport(body, reasons = REPORT_REASONS) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "Некорректный запрос." };
+  if (!isStr(body.reason) || !reasons.includes(body.reason)) return { ok: false, error: "Выберите причину жалобы." };
+  let details = "";
+  if (body.details !== undefined && body.details !== null) {
+    if (!isStr(body.details)) return { ok: false, error: "Некорректное описание." };
+    details = body.details.trim();
+    if (details.length > REPORT_DETAILS_MAX) return { ok: false, error: `Описание не длиннее ${REPORT_DETAILS_MAX} символов.` };
+    if (CONTROL_CHARS_RE.test(details)) return { ok: false, error: "Описание содержит недопустимые символы." };
+  }
+  return { ok: true, reason: body.reason, details };
+}
+
+module.exports = { REPORT_REASONS, REPORT_DETAILS_MAX, validateReport, LIMITS, ADMIN_STATUSES, isObjectIdString, escapeRegex, validateAdminListingEdit, parseAdminListingQuery, validateChatText };

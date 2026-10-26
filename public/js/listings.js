@@ -69,7 +69,8 @@
     document.querySelectorAll("[data-close]").forEach(btn => {
       btn.addEventListener("click", () => closeAllModals());
     });
-    document.querySelectorAll(".lh-overlay").forEach(ov => {
+    // окно жалобы (data-own-close) закрывается само, не сворачивая карточку объявления под ним
+    document.querySelectorAll(".lh-overlay:not([data-own-close])").forEach(ov => {
       ov.addEventListener("click", e => { if (e.target === ov) closeAllModals(); });
     });
     document.addEventListener("keydown", e => { if (e.key === "Escape") closeAllModals(); });
@@ -285,6 +286,7 @@
         <div class="lh-actions-row">
           <button class="btn-submit" id="lhBtnRespond" style="width:auto;">Откликнуться</button>
           ${l.myConversationId ? `<button class="lh-btn-outline" id="lhBtnOpenChat">Открыть чат с автором</button>` : ""}
+          <button class="lh-btn-outline" id="lhBtnReport">Пожаловаться</button>
         </div>
       `;
       if (!hasContacts) {
@@ -294,6 +296,7 @@
       document.getElementById("lhBtnRespond").addEventListener("click", () => sendResponse(l._id));
       const openChatBtn = document.getElementById("lhBtnOpenChat");
       if (openChatBtn) openChatBtn.addEventListener("click", () => openChat(l.myConversationId));
+      document.getElementById("lhBtnReport").addEventListener("click", () => openReportModal(l._id));
     }
 
     if (isAdmin && !isOwnerReal) {
@@ -410,7 +413,39 @@
   const CHAT_MAX_LEN    = 1000;
   const CHAT_POLL_MS    = 4000;
   const CHAT_OVERLAP_MS = 5000; // при опросе берём запас по времени, дубли отсекаются по _id
-  let chat = null; // { id, seen:Set, lastAt, timer, onVis, polling, sending, canSend, readUpTo }
+  const DELETED_TEXT    = "Сообщение удалено";
+  let chat = null; // { id, seen:Set, rows:Map, lastAt, changedAfter, timer, onVis, polling, sending, canSend, readUpTo, otherName, muted, blockedByMe, otherDeleted }
+
+  // Существующая страница публичного профиля (ссылка того же вида используется в админ-панели)
+  function profileUrl(steamId) { return "/profile.html?id=" + encodeURIComponent(steamId); }
+
+  // Аватар собеседника: картинка (только https) либо буква-заглушка; со steamId — ссылка на профиль
+  function makeAvatar(u) {
+    const hasLink = !!(u && u.steamId);
+    const wrap = document.createElement(hasLink ? "a" : "span");
+    wrap.className = "lh-avatar";
+    if (hasLink) {
+      wrap.href = profileUrl(u.steamId);
+      wrap.target = "_blank";
+      wrap.rel = "noopener noreferrer";
+      wrap.title = "Открыть профиль";
+      wrap.setAttribute("aria-label", "Профиль: " + (u.displayName || ""));
+    }
+    const initial = ((u && u.displayName) || "?").trim().charAt(0).toUpperCase() || "?";
+    const fallback = () => { wrap.textContent = initial; };
+    if (u && typeof u.avatar === "string" && /^https:\/\//i.test(u.avatar)) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      img.addEventListener("error", fallback);
+      img.src = u.avatar;
+      wrap.appendChild(img);
+    } else {
+      fallback();
+    }
+    return wrap;
+  }
 
   function fmtDateTime(iso) {
     try {
@@ -440,6 +475,56 @@
     document.getElementById("lhChatSend").disabled  = !canSend || chat.sending;
   }
 
+  function updateChatTools() {
+    const muteBtn  = document.getElementById("lhChatMute");
+    const blockBtn = document.getElementById("lhChatBlock");
+    const c = chat;
+    muteBtn.disabled = blockBtn.disabled = !c;
+    if (!c) return;
+    muteBtn.textContent = c.muted ? "🔕" : "🔔";
+    muteBtn.title = c.muted ? "Включить уведомления" : "Отключить уведомления";
+    muteBtn.setAttribute("aria-label", muteBtn.title);
+    blockBtn.textContent = c.blockedByMe ? "🔓" : "🚫";
+    blockBtn.title = c.blockedByMe ? "Разблокировать пользователя" : "Заблокировать пользователя";
+    blockBtn.setAttribute("aria-label", blockBtn.title);
+  }
+
+  function renderChatBanner() {
+    const b = document.getElementById("lhChatBanner");
+    const c = chat;
+    b.textContent = "";
+    let text = "";
+    if (c) {
+      if (c.blockedByMe)        text = "Вы заблокировали этого пользователя. Переписка недоступна.";
+      else if (c.otherDeleted)  text = "Собеседник удалён — отправка сообщений недоступна.";
+      else if (!c.canSend)      text = "Отправка сообщений в этот диалог недоступна.";
+    }
+    if (text) {
+      const span = document.createElement("span");
+      span.textContent = text;
+      b.appendChild(span);
+      if (c.blockedByMe) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Разблокировать";
+        btn.addEventListener("click", () => toggleBlock(false));
+        b.appendChild(btn);
+      }
+    }
+    b.style.display = text ? "flex" : "none";
+  }
+
+  function renderChatHeader(conv) {
+    const slot = document.getElementById("lhChatAvatarSlot");
+    slot.textContent = "";
+    slot.appendChild(makeAvatar(conv.other));
+    document.getElementById("lhChatTitle").textContent = (conv.listing && conv.listing.title) || "Объявление удалено";
+    const sub = document.getElementById("lhChatSub");
+    sub.textContent = (conv.other && conv.other.displayName) || "";
+    if (conv.other && conv.other.steamId) sub.href = profileUrl(conv.other.steamId);
+    else sub.removeAttribute("href");
+  }
+
   // Останавливает опрос и убирает обработчики. Возвращает true, если чат был открыт.
   function stopChat() {
     if (!chat) return false;
@@ -452,14 +537,22 @@
   async function openChat(id) {
     document.querySelectorAll(".lh-overlay").forEach(ov => ov.classList.remove("open"));
     stopChat();
-    const c = chat = { id, seen: new Set(), lastAt: null, timer: null, onVis: null, polling: false, sending: false, canSend: false, readUpTo: null };
+    const c = chat = {
+      id, seen: new Set(), rows: new Map(), lastAt: null, changedAfter: null, timer: null, onVis: null,
+      polling: false, sending: false, canSend: false, readUpTo: null,
+      otherName: "", muted: false, blockedByMe: false, otherDeleted: false,
+    };
 
     document.getElementById("lhChatTitle").textContent = "Чат";
     document.getElementById("lhChatSub").textContent = "";
+    document.getElementById("lhChatSub").removeAttribute("href");
+    document.getElementById("lhChatAvatarSlot").textContent = "";
     document.getElementById("lhChatInput").value = "";
+    document.getElementById("lhChatBanner").style.display = "none";
     setChatError("");
     setChatStatus("Загрузка...");
     updateChatFormState();
+    updateChatTools();
     document.getElementById("lhChatOverlay").classList.add("open");
 
     try {
@@ -469,10 +562,15 @@
       if (!res.ok) { setChatStatus(data.error || "Не удалось загрузить диалог."); return; }
 
       const conv = data.conversation || {};
-      document.getElementById("lhChatTitle").textContent = (conv.listing && conv.listing.title) || "Объявление удалено";
-      document.getElementById("lhChatSub").textContent   = (conv.other && conv.other.displayName) || "";
-      c.canSend = conv.canSend !== false;
-      if (!c.canSend) setChatError("Собеседник удалён — отправка сообщений недоступна.");
+      c.otherName    = (conv.other && conv.other.displayName) || "";
+      c.muted        = !!conv.muted;
+      c.blockedByMe  = !!conv.blockedByMe;
+      c.otherDeleted = !!conv.otherDeleted;
+      c.canSend      = conv.canSend === true;
+      c.changedAfter = data.lastChangeAt || null;
+      renderChatHeader(conv);
+      renderChatBanner();
+      updateChatTools();
       setChatStatus("");
       appendMessages(data.messages || []);
       updateChatFormState();
@@ -486,11 +584,69 @@
     }
   }
 
+  // ── строки сообщений (создание / обновление на месте) ──
+  const rowVersion = m => (m.deleted ? "d" : "") + (m.editedAt || "");
+
+  function fillMessageRow(row, m) {
+    const c = chat;
+    row.textContent = "";
+    row.className = "lh-msg" + (m.isMine ? " mine" : "") + (m.deleted ? " deleted" : "");
+
+    const meta = document.createElement("div");
+    meta.className = "lh-msg-meta";
+    const name = document.createElement("span");
+    name.textContent = m.isMine ? "Вы" : (m.senderName || (c && c.otherName) || "");
+    const right = document.createElement("span");
+    const time = document.createElement("span");
+    time.textContent = fmtDateTime(m.createdAt);
+    right.appendChild(time);
+    if (m.edited && !m.deleted) {
+      const ed = document.createElement("span");
+      ed.className = "lh-msg-edited";
+      ed.textContent = " · изменено";
+      right.appendChild(ed);
+    }
+    if (!m.deleted && (m.canEdit || m.canDelete)) {
+      const acts = document.createElement("span");
+      acts.className = "lh-msg-actions";
+      acts.style.marginLeft = "8px";
+      if (m.canEdit) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "lh-msg-act"; b.textContent = "✎";
+        b.title = "Редактировать"; b.setAttribute("aria-label", b.title);
+        b.addEventListener("click", () => startEditMessage(m._id));
+        acts.appendChild(b);
+      }
+      if (m.canDelete) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "lh-msg-act"; b.textContent = "🗑";
+        b.title = "Удалить"; b.setAttribute("aria-label", b.title);
+        b.addEventListener("click", () => deleteMessage(m._id));
+        acts.appendChild(b);
+      }
+      right.appendChild(acts);
+    }
+    meta.appendChild(name); meta.appendChild(right);
+
+    const text = document.createElement("div");
+    text.className = "lh-msg-text";
+    text.textContent = m.deleted ? DELETED_TEXT : m.text;
+    row.appendChild(meta); row.appendChild(text);
+  }
+
   function appendMessages(list) {
     const c = chat;
     if (!c) return;
-    const box   = document.getElementById("lhChatMessages");
-    const fresh = list.filter(m => m && m._id && !c.seen.has(m._id));
+    const box = document.getElementById("lhChatMessages");
+    const valid = list.filter(m => m && m._id);
+    const fresh = valid.filter(m => !c.seen.has(m._id));
+
+    // изменения уже показанных сообщений (правка/удаление у собеседника или с другого устройства)
+    valid.filter(m => c.seen.has(m._id)).forEach(m => {
+      const e = c.rows.get(m._id);
+      if (e && !e.editing && e.ver !== rowVersion(m)) { e.m = m; e.ver = rowVersion(m); fillMessageRow(e.el, m); }
+    });
+
     if (!fresh.length) {
       if (!c.seen.size && !box.children.length) setChatStatus("Сообщений пока нет. Напишите первым.");
       return;
@@ -502,26 +658,128 @@
     fresh.forEach(m => {
       c.seen.add(m._id);
       const row = document.createElement("div");
-      row.className = "lh-msg" + (m.isMine ? " mine" : "");
-      const meta = document.createElement("div");
-      meta.className = "lh-msg-meta";
-      const name = document.createElement("span");
-      name.textContent = m.isMine ? "Вы" : (m.senderName || "");
-      const time = document.createElement("span");
-      time.textContent = fmtDateTime(m.createdAt);
-      meta.appendChild(name); meta.appendChild(time);
-      const text = document.createElement("div");
-      text.className = "lh-msg-text";
-      text.textContent = m.text;
-      row.appendChild(meta); row.appendChild(text);
+      c.rows.set(m._id, { el: row, m, ver: rowVersion(m), editing: false });
+      fillMessageRow(row, m);
       box.appendChild(row);
-
       if (!c.lastAt || Date.parse(m.createdAt) > Date.parse(c.lastAt)) c.lastAt = m.createdAt;
       if (m.isMine) hasMine = true; else hasIncoming = true;
     });
 
     if (nearBottom || hasMine) box.scrollTop = box.scrollHeight;
     if (hasIncoming) markChatRead();
+  }
+
+  // ── правка и удаление своих сообщений (проверка владельца — на сервере) ──
+  function startEditMessage(id) {
+    const c = chat;
+    const e = c && c.rows.get(id);
+    if (!e || e.editing || e.m.deleted) return;
+    e.editing = true;
+    const row = e.el;
+    const textEl = row.querySelector(".lh-msg-text");
+
+    const wrap = document.createElement("div");
+    const ta = document.createElement("textarea");
+    ta.className = "lh-msg-edit";
+    ta.maxLength = CHAT_MAX_LEN;
+    ta.value = e.m.text || "";
+    const err = document.createElement("div");
+    err.className = "lh-msg-edit-error";
+    const actions = document.createElement("div");
+    actions.className = "lh-msg-edit-actions";
+    const save = document.createElement("button");
+    save.type = "button"; save.className = "primary"; save.textContent = "Сохранить";
+    const cancel = document.createElement("button");
+    cancel.type = "button"; cancel.textContent = "Отмена";
+    actions.appendChild(save); actions.appendChild(cancel);
+    wrap.appendChild(ta); wrap.appendChild(err); wrap.appendChild(actions);
+    textEl.replaceWith(wrap);
+    ta.focus();
+
+    cancel.addEventListener("click", () => { e.editing = false; fillMessageRow(row, e.m); });
+    save.addEventListener("click", async () => {
+      const text = ta.value.trim();
+      if (!text) { err.textContent = "Введите сообщение."; return; }
+      if (text.length > CHAT_MAX_LEN) { err.textContent = `Максимум ${CHAT_MAX_LEN} символов.`; return; }
+      err.textContent = "";
+      save.disabled = cancel.disabled = true;
+      try {
+        const res  = await fetch(`/api/conversations/${encodeURIComponent(c.id)}/messages/${encodeURIComponent(id)}`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (chat !== c) return;
+        if (!res.ok) { err.textContent = data.error || "Не удалось сохранить."; save.disabled = cancel.disabled = false; return; }
+        e.editing = false;
+        e.m = { ...e.m, ...data.message, senderName: e.m.senderName };
+        e.ver = rowVersion(e.m);
+        fillMessageRow(row, e.m);
+      } catch {
+        if (chat === c) { err.textContent = "Ошибка сети."; save.disabled = cancel.disabled = false; }
+      }
+    });
+  }
+
+  async function deleteMessage(id) {
+    const c = chat;
+    const e = c && c.rows.get(id);
+    if (!e || e.editing || e.m.deleted) return;
+    if (!confirm("Удалить сообщение? Это действие необратимо.")) return;
+    try {
+      const res  = await fetch(`/api/conversations/${encodeURIComponent(c.id)}/messages/${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (chat !== c) return;
+      if (!res.ok) { setChatError(data.error || "Не удалось удалить сообщение."); return; }
+      setChatError("");
+      e.m = { _id: e.m._id, createdAt: e.m.createdAt, isMine: true, deleted: true };
+      e.ver = rowVersion(e.m);
+      fillMessageRow(e.el, e.m);
+    } catch {
+      if (chat === c) setChatError("Ошибка сети. Сообщение не удалено.");
+    }
+  }
+
+  // ── уведомления и блокировка ──
+  async function toggleMute() {
+    const c = chat;
+    if (!c) return;
+    const btn = document.getElementById("lhChatMute");
+    btn.disabled = true;
+    setChatError("");
+    try {
+      const res  = await fetch(`/api/conversations/${encodeURIComponent(c.id)}/mute`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ muted: !c.muted }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (chat !== c) return;
+      if (!res.ok) { setChatError(data.error || "Не удалось изменить уведомления."); return; }
+      c.muted = data.muted === true;
+    } catch {
+      if (chat === c) setChatError("Ошибка сети.");
+    } finally {
+      if (chat === c) updateChatTools();
+    }
+  }
+
+  async function toggleBlock(blocked) {
+    const c = chat;
+    if (!c) return;
+    if (blocked === undefined) blocked = !c.blockedByMe;
+    if (blocked && !confirm("Заблокировать пользователя? Он не сможет писать вам в чате и откликаться на ваши объявления. История переписки сохранится, разблокировать можно в любой момент.")) return;
+    const id = c.id;
+    document.getElementById("lhChatBlock").disabled = true;
+    setChatError("");
+    try {
+      const res  = await fetch(`/api/conversations/${encodeURIComponent(id)}/block`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ blocked }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (chat !== c) return;
+      if (!res.ok) { setChatError(data.error || "Не удалось изменить блокировку."); updateChatTools(); return; }
+      openChat(id); // перезагрузка диалога: актуальные права на отправку и баннер
+    } catch {
+      if (chat === c) { setChatError("Ошибка сети."); updateChatTools(); }
+    }
   }
 
   // Отмечаем прочитанным только до времени последнего реально показанного сообщения
@@ -545,7 +803,11 @@
     if (!c || document.hidden || c.polling) return;
     c.polling = true;
     try {
-      const qs  = c.lastAt ? "?after=" + encodeURIComponent(new Date(Date.parse(c.lastAt) - CHAT_OVERLAP_MS).toISOString()) : "";
+      let qs = "";
+      if (c.lastAt) {
+        qs = "?after=" + encodeURIComponent(new Date(Date.parse(c.lastAt) - CHAT_OVERLAP_MS).toISOString());
+        if (c.changedAfter) qs += "&changed=" + encodeURIComponent(c.changedAfter);
+      }
       const res = await fetch(`/api/conversations/${encodeURIComponent(c.id)}/messages${qs}`);
       if (chat !== c) return;
       if (res.status === 404 || res.status === 403) {
@@ -556,6 +818,7 @@
       if (!res.ok) return;
       const data = await res.json();
       if (chat !== c) return;
+      if (data.lastChangeAt) c.changedAfter = data.lastChangeAt;
       appendMessages(data.messages || []);
     } catch {
       // временная ошибка сети — попробуем на следующем тике
@@ -583,13 +846,17 @@
       });
       const data = await res.json().catch(() => ({}));
       if (chat !== c) return;
-      if (!res.ok) { setChatError(data.error || "Не удалось отправить сообщение."); return; }
+      if (!res.ok) {
+        setChatError(data.error || "Не удалось отправить сообщение.");
+        if (res.status === 403 || res.status === 409) { c.canSend = false; renderChatBanner(); }  // переписка ограничена
+        return;
+      }
       input.value = "";
       appendMessages([data.message]);
     } catch {
       if (chat === c) setChatError("Ошибка сети. Сообщение не отправлено.");
     } finally {
-      if (chat === c) { c.sending = false; updateChatFormState(); input.focus(); }
+      if (chat === c) { c.sending = false; updateChatFormState(); if (c.canSend) input.focus(); }
     }
   }
 
@@ -598,13 +865,81 @@
     document.getElementById("lhChatInput").addEventListener("keydown", e => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) sendChatMessage(e);
     });
+    document.getElementById("lhChatMute").addEventListener("click", toggleMute);
+    document.getElementById("lhChatBlock").addEventListener("click", () => toggleBlock());
+    initReportUi();
+  }
+
+  // ── Жалоба на объявление ────────────────────────────────────────────
+  let reportTarget = null;
+  let reportBusy   = false;
+
+  function openReportModal(listingId) {
+    reportTarget = listingId;
+    reportBusy = false;
+    document.getElementById("lhReportReason").value = "";
+    document.getElementById("lhReportDetails").value = "";
+    const err = document.getElementById("lhReportError");
+    err.textContent = ""; err.classList.remove("show");
+    document.getElementById("lhReportForm").style.display = "";
+    document.getElementById("lhReportDone").style.display = "none";
+    document.getElementById("lhReportSubmit").disabled = false;
+    document.getElementById("lhReportOverlay").classList.add("open");
+  }
+
+  function closeReportModal() {
+    document.getElementById("lhReportOverlay").classList.remove("open");
+    reportTarget = null;
+  }
+
+  async function submitReport(e) {
+    e.preventDefault();
+    if (!reportTarget || reportBusy) return;
+    const err = document.getElementById("lhReportError");
+    const showErr = msg => { err.textContent = msg; err.classList.add("show"); };
+    const reason  = document.getElementById("lhReportReason").value;
+    const details = document.getElementById("lhReportDetails").value.trim();
+    if (!reason) { showErr("Выберите причину жалобы."); return; }
+    if (details.length > 500) { showErr("Подробности — не длиннее 500 символов."); return; }
+    err.textContent = ""; err.classList.remove("show");
+
+    const btn = document.getElementById("lhReportSubmit");
+    reportBusy = true; btn.disabled = true;
+    try {
+      const res  = await fetch(`/api/listings/${encodeURIComponent(reportTarget)}/report`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason, details }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showErr(data.error || "Не удалось отправить жалобу."); return; }
+      document.getElementById("lhReportForm").style.display = "none";
+      const done = document.getElementById("lhReportDone");
+      done.textContent = "Жалоба отправлена. Спасибо — администрация её рассмотрит.";
+      done.style.display = "";
+    } catch {
+      showErr("Ошибка сети. Попробуйте ещё раз.");
+    } finally {
+      reportBusy = false; btn.disabled = false;
+    }
+  }
+
+  function initReportUi() {
+    document.getElementById("lhReportForm").addEventListener("submit", submitReport);
+    document.getElementById("lhReportClose").addEventListener("click", closeReportModal);
+    document.getElementById("lhReportCancel").addEventListener("click", closeReportModal);
+    const ov = document.getElementById("lhReportOverlay");
+    ov.addEventListener("click", e => { if (e.target === ov) closeReportModal(); });
   }
 
   // ── Список диалогов (вкладка «Сообщения») ───────────────────────────
   function renderConversationItem(c) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "lh-conv-item" + (c.unread ? " unread" : "");
+    const item = document.createElement("div");
+    item.className = "lh-conv-item" + (c.unread ? " unread" : "") + (c.muted ? " muted" : "");
+
+    item.appendChild(makeAvatar(c.other));   // аватар — ссылка на профиль собеседника
+
+    const main = document.createElement("button");
+    main.type = "button";
+    main.className = "lh-conv-main";
 
     const top = document.createElement("div");
     top.className = "lh-conv-top";
@@ -612,10 +947,20 @@
     name.className = "lh-conv-name";
     name.textContent = (c.other && c.other.displayName) || "";
     top.appendChild(name);
+    if (c.muted) {
+      const m = document.createElement("span");
+      m.className = "lh-conv-flag"; m.textContent = "🔕"; m.title = "Уведомления отключены";
+      top.appendChild(m);
+    }
+    if (c.blockedByMe) {
+      const b = document.createElement("span");
+      b.className = "lh-conv-flag"; b.textContent = "🚫"; b.title = "Пользователь заблокирован";
+      top.appendChild(b);
+    }
     if (c.unread) {
       const dot = document.createElement("span");
       dot.className = "lh-conv-dot";
-      dot.title = "Есть непрочитанные сообщения";
+      dot.title = c.muted ? "Есть непрочитанные (уведомления отключены)" : "Есть непрочитанные сообщения";
       top.appendChild(dot);
     }
     const time = document.createElement("span");
@@ -631,9 +976,11 @@
     last.className = "lh-conv-last";
     last.textContent = c.lastMessage ? ((c.lastMessage.isMine ? "Вы: " : "") + (c.lastMessage.text || "")) : "";
 
-    btn.appendChild(top); btn.appendChild(listing); btn.appendChild(last);
-    btn.addEventListener("click", () => openChat(c._id));
-    return btn;
+    main.appendChild(top); main.appendChild(listing); main.appendChild(last);
+    item.appendChild(main);
+    // вся строка открывает чат (кнопка внутри — для клавиатуры), кроме ссылки-аватара: она ведёт на профиль
+    item.addEventListener("click", e => { if (!e.target.closest("a")) openChat(c._id); });
+    return item;
   }
 
   async function loadConversations() {

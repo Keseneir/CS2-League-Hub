@@ -744,6 +744,11 @@
     </div>
 
     <div class="tab-panel" id="panel-listings">
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button class="btn btn-sm btn-primary" id="lstSubListings" onclick="lstShow('listings')">Объявления</button>
+            <button class="btn btn-sm btn-ghost" id="lstSubReports" onclick="lstShow('reports')">Жалобы</button>
+        </div>
+        <div id="lstListingsView">
         <div class="section-title">
             Объявления
             <span class="count" id="listingsCount"></span>
@@ -768,6 +773,14 @@
             <div class="empty-state"><div class="empty-state-icon">📋</div><p>Нажмите на вкладку чтобы загрузить</p></div>
         </div>
         <div id="listingsPager" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:24px;"></div>
+        </div>
+        <div id="lstReportsView" style="display:none;">
+            <div class="section-title">Жалобы на объявления</div>
+            <div class="data-table-wrap" id="reportsTableWrap">
+                <div class="empty-state"><div class="empty-state-icon">✅</div><p>Нажмите «Жалобы» чтобы загрузить</p></div>
+            </div>
+            <div id="reportsPager" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:24px;"></div>
+        </div>
     </div>
 
     <div class="tab-panel" id="panel-promo">
@@ -2647,6 +2660,93 @@ function deleteListingAdmin(id) {
             if (!res.ok) { toast("Ошибка", "err"); return; }
             toast("Объявление удалено", "ok");
             await loadListingsAdmin(_lstPage);
+        } catch { toast("Ошибка соединения", "err"); }
+    });
+}
+
+//жалобы на объявления (видны только админу). Весь пользовательский текст — через escAdmin, id — через data-атрибуты.
+const REPORT_REASON_LABELS = { spam: "Спам или реклама", scam: "Мошенничество / обман", inappropriate: "Оскорбительный или неприемлемый контент", wrong_info: "Неверная или вводящая в заблуждение информация", other: "Другое" };
+let _rptPage = 1;
+
+function lstShow(view) {
+    const rep = view === "reports";
+    document.getElementById("lstListingsView").style.display = rep ? "none" : "";
+    document.getElementById("lstReportsView").style.display  = rep ? "" : "none";
+    document.getElementById("lstSubListings").className = "btn btn-sm " + (rep ? "btn-ghost" : "btn-primary");
+    document.getElementById("lstSubReports").className  = "btn btn-sm " + (rep ? "btn-primary" : "btn-ghost");
+    if (rep) loadReportsAdmin(1); else loadListingsAdmin(_lstPage);
+}
+
+async function loadReportsAdmin(page = 1) {
+    const wrap = document.getElementById("reportsTableWrap");
+    if (!wrap) return;
+    _rptPage = page;
+    wrap.innerHTML = `<div class="empty-state"><p>Загрузка...</p></div>`;
+    try {
+        const res = await fetch(`/api/admin/listings/reports?page=${Number(page)}&limit=20`);
+        if (!res.ok) throw new Error("http " + res.status);
+        const data = await res.json();
+        document.getElementById("lstSubReports").textContent = `Жалобы (${Number(data.total) || 0})`;
+        renderReportsAdmin(data.items || []);
+        renderReportsPager(data.page, data.pages);
+    } catch {
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Не удалось загрузить жалобы</p></div>`;
+        document.getElementById("reportsPager").innerHTML = "";
+    }
+}
+
+function renderReportsAdmin(items) {
+    const wrap = document.getElementById("reportsTableWrap");
+    if (!items.length) { wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><p>Жалоб нет</p></div>`; return; }
+    wrap.innerHTML = `<table class="data-table">
+        <thead><tr><th>Объявление</th><th>Причина</th><th>Подробности</th><th>Жалобщик</th><th>Дата</th><th>Действия</th></tr></thead>
+        <tbody>${items.map(r => `
+        <tr>
+            <td><div style="min-width:0;">
+                ${r.listing
+                    ? `<div style="font-weight:700;color:white;font-size:13px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escAdmin(r.listing.title)}</div>
+                       <div style="font-size:11px;color:var(--gray2);margin-top:2px;">Автор: ${escAdmin(r.listing.author ? r.listing.author.displayName : "—")} · ${r.listing.hiddenByAdmin ? "скрыто админом" : r.listing.active ? "опубликовано" : "снято автором"}</div>`
+                    : `<span style="color:var(--gray2);font-size:12px;">Объявление удалено</span>`}
+            </div></td>
+            <td><span style="font-size:12px;">${escAdmin(REPORT_REASON_LABELS[r.reason] || r.reason)}</span></td>
+            <td><div style="font-size:12px;max-width:300px;white-space:pre-wrap;overflow-wrap:anywhere;">${escAdmin(r.details || "—")}</div></td>
+            <td><span style="font-size:13px;">${escAdmin(r.reporter ? r.reporter.displayName : "—")}</span></td>
+            <td><span style="font-size:12px;color:var(--gray2);">${escAdmin(fmtNewsDate(r.createdAt))}</span></td>
+            <td><div class="actions">
+                ${r.listing && !r.listing.hiddenByAdmin ? `<button class="btn btn-ghost btn-sm" data-id="${escAdmin(r.listing._id)}" onclick="reportHideListing(this.dataset.id)">🙈 Скрыть объявление</button>` : ""}
+                <button class="btn btn-danger btn-sm" data-id="${escAdmin(r._id)}" onclick="dismissReport(this.dataset.id)">Отклонить</button>
+            </div></td>
+        </tr>`).join("")}</tbody></table>`;
+}
+
+function renderReportsPager(page, pages) {
+    const el = document.getElementById("reportsPager");
+    if (!el) return;
+    if (!pages || pages <= 1) { el.innerHTML = ""; return; }
+    el.innerHTML = `
+        <button class="btn btn-ghost btn-sm" ${page <= 1 ? "disabled" : ""} onclick="loadReportsAdmin(${Number(page) - 1})">← Назад</button>
+        <span style="font-size:12px;color:var(--gray2);">Страница ${Number(page)} из ${Number(pages)}</span>
+        <button class="btn btn-ghost btn-sm" ${page >= pages ? "disabled" : ""} onclick="loadReportsAdmin(${Number(page) + 1})">Вперёд →</button>`;
+}
+
+async function reportHideListing(listingId) {
+    try {
+        const res = await fetch(`/api/listings/${encodeURIComponent(listingId)}/admin-hide`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: true }),
+        });
+        if (!res.ok) { toast("Ошибка", "err"); return; }
+        toast("Объявление скрыто", "ok");
+        await loadReportsAdmin(_rptPage);
+    } catch { toast("Ошибка соединения", "err"); }
+}
+
+function dismissReport(id) {
+    _confirmAction("Отклонить жалобу? Она будет удалена.", async () => {
+        try {
+            const res = await fetch(`/api/admin/listings/reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+            if (!res.ok) { toast("Ошибка", "err"); return; }
+            toast("Жалоба отклонена", "ok");
+            await loadReportsAdmin(_rptPage);
         } catch { toast("Ошибка соединения", "err"); }
     });
 }

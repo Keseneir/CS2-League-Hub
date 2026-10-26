@@ -12,4 +12,12 @@ function getTestDb() {
   if (!local && process.env.ALLOW_REMOTE_TEST_DB !== "1") return { skip: "удалённая БД запрещена без ALLOW_REMOTE_TEST_DB=1" };
   return { uri };
 }
-module.exports = { getTestDb };
+// Каждый тест-файл работает в СВОЕЙ базе (файлы запускаются параллельно, общая БД давала бы гонки при dropDatabase).
+// Имя по-прежнему содержит "test", поэтому проверка выше остаётся в силе.
+function withDbName(uri, suffix) {
+  const u = new URL(uri);
+  u.pathname = u.pathname.replace(/\/$/, "") + "_" + suffix;
+  return u.toString();
+}
+
+module.exports = { getTestDb, withDbName };

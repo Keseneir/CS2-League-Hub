@@ -32,7 +32,7 @@ test("код чата выводит пользовательский текст
   assert.ok(start > 0 && end > start);
   const block = src.slice(start, end).replace(/^\s*\/\/.*$/gm, ""); // комментарии не считаем
   assert.ok(!/innerHTML/.test(block), "в блоке чата не должно быть innerHTML");
-  assert.ok(/text\.textContent = m\.text/.test(block));
+  assert.ok(/text\.textContent = m\.deleted \? DELETED_TEXT : m\.text/.test(block));   // удалённые показываются заглушкой, остальные — текстом
 });
 
 test("admin.html: logoEl экранирует name/logo/инициалы и не подставляет данные в JS-строку обработчика", () => {

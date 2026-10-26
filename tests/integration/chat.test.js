@@ -7,7 +7,7 @@ const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const express = require("express");
 const mongoose = require("mongoose");
-const { getTestDb } = require("../helpers/testDb");
+const { getTestDb, withDbName } = require("../helpers/testDb");
 
 const db = getTestDb();
 process.env.CLOUDINARY_CLOUD_NAME = "testcloud";
@@ -35,7 +35,7 @@ describe("чат по объявлениям (интеграция, изолир
   const msgUrl = cid => `/api/conversations/${cid}/messages`;
 
   before(async () => {
-    await mongoose.connect(db.uri);
+    await mongoose.connect(withDbName(db.uri, "chat"));
     await mongoose.connection.dropDatabase();          // только тестовая БД (см. guard)
     ({ ADMIN_STEAM_ID } = require("../../config/constants"));
     User = require("../../models/User"); Listing = require("../../models/Listing"); ListingResponse = require("../../models/ListingResponse");

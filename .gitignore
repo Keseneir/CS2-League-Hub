@@ -9,3 +9,4 @@ node_modules/
 
 # Local patch files
 changes.patch
+changes_support_fix.patch

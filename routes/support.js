@@ -5,6 +5,10 @@ const SupportThread   = require("../models/SupportThread");
 const SupportMessage  = require("../models/SupportMessage");
 const { sendTelegramMessage }     = require("../utils/telegramSupport");
 const { destroyCloudinaryAsset }  = require("../utils/cloudinaryCleanup");
+const { isValidGuestId, isObjectIdString, resolveAttachment, deletablePublicId } = require("../utils/supportAttachment");
+
+// Единый ответ на любой неавторизованный доступ к тикету: не отличаем «нет такого», «чужой» и «нет подтверждения».
+const TICKET_NOT_FOUND = { error: "Тикет не найден" };
 
 const RATE_LIMIT_MS       = 3000;       // не чаще одного сообщения раз в 3 секунды
 const ATTACHMENT_TTL_MS   = 30 * 60 * 1000; // вложения живут 30 минут
@@ -18,10 +22,15 @@ async function expireOldAttachments() {
     const expired = await SupportMessage.find({
       attachmentUrl: { $ne: "" },
       attachmentExpiresAt: { $lt: new Date() },
-    }).select("_id attachmentPublicId").lean();
+    }).select("_id attachmentUrl attachmentPublicId").limit(50).lean();   // порциями: один запрос не зависает на очистке
 
     for (const m of expired) {
-      if (m.attachmentPublicId) await destroyCloudinaryAsset(m.attachmentPublicId);
+      // Файл удаляется ТОЛЬКО если при создании сообщения была проверена подпись загрузки Cloudinary
+      // (метка в attachmentPublicId) и publicId соответствует ссылке. Иначе удаление пропускается:
+      // лучше оставить файл в Cloudinary, чем удалить чужой. Ссылка из БД очищается в любом случае.
+      const pid = deletablePublicId(m.attachmentPublicId, m.attachmentUrl, process.env.CLOUDINARY_CLOUD_NAME);
+      if (pid) await destroyCloudinaryAsset(pid);
+      else if (m.attachmentPublicId) console.log("Support attachment expired: Cloudinary deletion skipped (ownership not verified), message", String(m._id));
       await SupportMessage.updateOne(
         { _id: m._id },
         { $set: { attachmentUrl: "", attachmentPublicId: "", attachmentExpiresAt: null } }
@@ -41,6 +50,7 @@ function ticketNumber(id) {
 // ─── GET /api/support/tickets/:guestId ─── список тикетов гостя ───────────
 router.get("/tickets/:guestId", async (req, res) => {
   try {
+    if (!isValidGuestId(req.params.guestId)) return res.json({ guest: null, tickets: [] });
     const guest = await SupportGuest.findOne({ guestId: req.params.guestId }).lean();
     if (!guest) return res.json({ guest: null, tickets: [] });
 
@@ -72,7 +82,7 @@ router.post("/ticket", async (req, res) => {
     const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
     const guestAvatar = String(req.body.guestAvatar || "").trim();
 
-    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
     if (!subject) return res.status(400).json({ error: "Укажите тему обращения" });
 
     let guest = await SupportGuest.findOne({ guestId });
@@ -105,10 +115,15 @@ router.post("/ticket", async (req, res) => {
 // ─── GET /api/support/thread/:ticketId ─── история переписки по тикету ────
 router.get("/thread/:ticketId", async (req, res) => {
   try {
-    await expireOldAttachments();
+    // Идентификатор тикета — НЕ секрет (это ObjectId, номер тикета — его последние 6 символов).
+    // Доступ даёт только пара «тикет + guestId владельца», guestId передаётся в заголовке (не попадает в URL/логи).
+    const guestId = String(req.get("X-Support-Guest-Id") || "").trim();
+    if (!isObjectIdString(req.params.ticketId) || !isValidGuestId(guestId)) return res.status(404).json(TICKET_NOT_FOUND);
 
-    const thread = await SupportThread.findById(req.params.ticketId).lean();
-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
+    const thread = await SupportThread.findOne({ _id: req.params.ticketId, guestId }).lean();
+    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
+
+    await expireOldAttachments();   // только после успешной авторизации: посторонние запросы очистку не запускают
 
     const messages = await SupportMessage.find({ threadId: thread._id })
       .sort({ createdAt: 1 })
@@ -137,12 +152,12 @@ router.post("/message", async (req, res) => {
     const text        = String(req.body.text || "").trim();
     const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
     const guestAvatar = String(req.body.guestAvatar || "").trim();
-    const attachmentUrl      = String(req.body.attachmentUrl || "").trim();
-    const attachmentPublicId = String(req.body.attachmentPublicId || "").trim();
+    const rawAttachmentUrl = String(req.body.attachmentUrl || "").trim();
 
-    if (!guestId)  return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
     if (!ticketId) return res.status(400).json({ error: "Не указан тикет" });
-    if (!text && !attachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
+    if (!isObjectIdString(ticketId)) return res.status(404).json(TICKET_NOT_FOUND);
+    if (!text && !rawAttachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
     if (text.length > 2000) return res.status(400).json({ error: "Слишком длинное сообщение" });
 
     const guest = await SupportGuest.findOne({ guestId });
@@ -151,7 +166,19 @@ router.post("/message", async (req, res) => {
     }
 
     const thread = await SupportThread.findOne({ _id: ticketId, guestId });
-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
+    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
+
+    // Вложение: ссылка только на Cloudinary нашего облака; publicId принимается к удалению лишь с валидной
+    // подписью загрузки. Клиентскому publicId без подписи не доверяем (файл в Cloudinary тогда не удаляется).
+    const att = resolveAttachment(
+      { url: rawAttachmentUrl, publicId: req.body.attachmentPublicId, version: req.body.attachmentVersion, signature: req.body.attachmentSignature },
+      { cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiSecret: process.env.CLOUDINARY_API_SECRET }
+    );
+    if (!att.ok) return res.status(400).json({ error: "Некорректное вложение" });
+    const attachmentUrl      = att.url;
+    const attachmentPublicId = att.storedPublicId;
+    if (attachmentUrl && !att.verified) console.log("Support attachment accepted without verified upload signature: Cloudinary deletion will be skipped");
+
     if (thread.status === "resolved") {
       return res.status(409).json({ error: "Тикет закрыт. Создайте новый." });
     }
@@ -209,10 +236,11 @@ router.post("/message", async (req, res) => {
 router.post("/ticket/:ticketId/resolve", async (req, res) => {
   try {
     const guestId = String(req.body.guestId || "").trim();
-    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
+    if (!isObjectIdString(req.params.ticketId)) return res.status(404).json(TICKET_NOT_FOUND);
 
     const thread = await SupportThread.findOne({ _id: req.params.ticketId, guestId });
-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
+    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
 
     thread.status = "resolved";
     await thread.save();

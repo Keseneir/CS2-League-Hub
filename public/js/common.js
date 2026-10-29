@@ -574,9 +574,12 @@ document.addEventListener("DOMContentLoaded", function () {
     function getGuestId() {
         let id = localStorage.getItem("_supportGuestId");
         if (!id) {
+            // guestId служит секретом доступа к своим тикетам — генерируем только криптостойким способом
             id = (window.crypto && crypto.randomUUID)
                 ? crypto.randomUUID()
-                : "g-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+                : (window.crypto && crypto.getRandomValues)
+                    ? "g-" + Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")
+                    : "g-" + Date.now() + "-" + Math.random().toString(36).slice(2);
             localStorage.setItem("_supportGuestId", id);
         }
         return id;
@@ -595,7 +598,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let deliveredNoticeShown = false; // разовая строка "запрос доставлен" за сессию открытия конкретного тикета
 
     function escSupport(s) {
-        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
     function fmtDate(iso) {
@@ -830,7 +834,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     <div class="_sp-col">
                         <div class="_sp-name">${escSupport(m.authorName || (m.from === "admin" ? "Поддержка" : "Гость"))}</div>
                         <div class="_sp-msg _sp-${m.from}">
-                            ${m.attachmentUrl ? `<a href="${escSupport(m.attachmentUrl)}" target="_blank"><img class="_sp-attach-img" src="${escSupport(m.attachmentUrl)}"></a>` : ""}
+                            ${m.attachmentUrl ? `<a href="${escSupport(m.attachmentUrl)}" target="_blank" rel="noopener noreferrer"><img class="_sp-attach-img" src="${escSupport(m.attachmentUrl)}"></a>` : ""}
                             ${m.text && m.text !== "📎 Вложение" ? escSupport(m.text) : ""}
                         </div>
                     </div>
@@ -848,7 +852,7 @@ document.addEventListener("DOMContentLoaded", function () {
         async function loadThread() {
             if (!currentTicketId) return;
             try {
-                const res  = await fetch(`/api/support/thread/${currentTicketId}`);
+                const res  = await fetch(`/api/support/thread/${currentTicketId}`, { headers: { "X-Support-Guest-Id": guestId } });
                 if (res.status === 404) { showListScreen(); return; }
                 const data = await res.json();
                 renderStatusBadge(data.thread);
@@ -893,8 +897,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 const res  = await fetch(`https://api.cloudinary.com/v1_1/${_cloudinaryCloud}/image/upload`, { method: "POST", body: fd });
                 const data = await res.json();
                 if (!data.secure_url) throw new Error("upload failed");
-                pendingAttachment = { url: data.secure_url, publicId: data.public_id };
-                attachPreview.innerHTML = `<img src="${data.secure_url}" style="height:40px;border-radius:6px;"> <span>Прикреплено (~30 мин)</span> <button type="button" id="_supportAttachRemove">✕</button>`;
+                pendingAttachment = { url: data.secure_url, publicId: data.public_id, version: data.version, signature: data.signature };
+                attachPreview.innerHTML = `<img src="${escSupport(data.secure_url)}" style="height:40px;border-radius:6px;"> <span>Прикреплено (~30 мин)</span> <button type="button" id="_supportAttachRemove">✕</button>`;
                 document.getElementById("_supportAttachRemove").addEventListener("click", () => {
                     pendingAttachment = null;
                     attachPreview.style.display = "none";
@@ -923,6 +927,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         guestAvatar: _identity.avatar,
                         attachmentUrl:      pendingAttachment?.url || "",
                         attachmentPublicId: pendingAttachment?.publicId || "",
+                        attachmentVersion:   pendingAttachment?.version   || "",
+                        attachmentSignature: pendingAttachment?.signature || "",
                     }),
                 });
                 if (res.status === 429) {

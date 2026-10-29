@@ -1,0 +1,671 @@
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/public/js/common.js b/public/js/common.js
+--- a/public/js/common.js	2026-10-25 11:35:58.000000000 +0000
++++ b/public/js/common.js	2026-10-27 22:11:55.479414860 +0000
+@@ -574,9 +574,12 @@
+     function getGuestId() {
+         let id = localStorage.getItem("_supportGuestId");
+         if (!id) {
++            // guestId служит секретом доступа к своим тикетам — генерируем только криптостойким способом
+             id = (window.crypto && crypto.randomUUID)
+                 ? crypto.randomUUID()
+-                : "g-" + Date.now() + "-" + Math.random().toString(36).slice(2);
++                : (window.crypto && crypto.getRandomValues)
++                    ? "g-" + Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")
++                    : "g-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+             localStorage.setItem("_supportGuestId", id);
+         }
+         return id;
+@@ -595,7 +598,8 @@
+     let deliveredNoticeShown = false; // разовая строка "запрос доставлен" за сессию открытия конкретного тикета
+ 
+     function escSupport(s) {
+-        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
++        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
++            .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+     }
+ 
+     function fmtDate(iso) {
+@@ -830,7 +834,7 @@
+                     <div class="_sp-col">
+                         <div class="_sp-name">${escSupport(m.authorName || (m.from === "admin" ? "Поддержка" : "Гость"))}</div>
+                         <div class="_sp-msg _sp-${m.from}">
+-                            ${m.attachmentUrl ? `<a href="${escSupport(m.attachmentUrl)}" target="_blank"><img class="_sp-attach-img" src="${escSupport(m.attachmentUrl)}"></a>` : ""}
++                            ${m.attachmentUrl ? `<a href="${escSupport(m.attachmentUrl)}" target="_blank" rel="noopener noreferrer"><img class="_sp-attach-img" src="${escSupport(m.attachmentUrl)}"></a>` : ""}
+                             ${m.text && m.text !== "📎 Вложение" ? escSupport(m.text) : ""}
+                         </div>
+                     </div>
+@@ -848,7 +852,7 @@
+         async function loadThread() {
+             if (!currentTicketId) return;
+             try {
+-                const res  = await fetch(`/api/support/thread/${currentTicketId}`);
++                const res  = await fetch(`/api/support/thread/${currentTicketId}`, { headers: { "X-Support-Guest-Id": guestId } });
+                 if (res.status === 404) { showListScreen(); return; }
+                 const data = await res.json();
+                 renderStatusBadge(data.thread);
+@@ -893,8 +897,8 @@
+                 const res  = await fetch(`https://api.cloudinary.com/v1_1/${_cloudinaryCloud}/image/upload`, { method: "POST", body: fd });
+                 const data = await res.json();
+                 if (!data.secure_url) throw new Error("upload failed");
+-                pendingAttachment = { url: data.secure_url, publicId: data.public_id };
+-                attachPreview.innerHTML = `<img src="${data.secure_url}" style="height:40px;border-radius:6px;"> <span>Прикреплено (~30 мин)</span> <button type="button" id="_supportAttachRemove">✕</button>`;
++                pendingAttachment = { url: data.secure_url, publicId: data.public_id, version: data.version, signature: data.signature };
++                attachPreview.innerHTML = `<img src="${escSupport(data.secure_url)}" style="height:40px;border-radius:6px;"> <span>Прикреплено (~30 мин)</span> <button type="button" id="_supportAttachRemove">✕</button>`;
+                 document.getElementById("_supportAttachRemove").addEventListener("click", () => {
+                     pendingAttachment = null;
+                     attachPreview.style.display = "none";
+@@ -923,6 +927,8 @@
+                         guestAvatar: _identity.avatar,
+                         attachmentUrl:      pendingAttachment?.url || "",
+                         attachmentPublicId: pendingAttachment?.publicId || "",
++                        attachmentVersion:   pendingAttachment?.version   || "",
++                        attachmentSignature: pendingAttachment?.signature || "",
+                     }),
+                 });
+                 if (res.status === 429) {
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/routes/support.js b/routes/support.js
+--- a/routes/support.js	2026-10-27 22:10:56.000000000 +0000
++++ b/routes/support.js	2026-10-28 09:51:38.053075450 +0000
+@@ -5,6 +5,10 @@
+ const SupportMessage  = require("../models/SupportMessage");
+ const { sendTelegramMessage }     = require("../utils/telegramSupport");
+ const { destroyCloudinaryAsset }  = require("../utils/cloudinaryCleanup");
++const { isValidGuestId, isObjectIdString, resolveAttachment, deletablePublicId } = require("../utils/supportAttachment");
++
++// Единый ответ на любой неавторизованный доступ к тикету: не отличаем «нет такого», «чужой» и «нет подтверждения».
++const TICKET_NOT_FOUND = { error: "Тикет не найден" };
+ 
+ const RATE_LIMIT_MS       = 3000;       // не чаще одного сообщения раз в 3 секунды
+ const ATTACHMENT_TTL_MS   = 30 * 60 * 1000; // вложения живут 30 минут
+@@ -18,10 +22,15 @@
+     const expired = await SupportMessage.find({
+       attachmentUrl: { $ne: "" },
+       attachmentExpiresAt: { $lt: new Date() },
+-    }).select("_id attachmentPublicId").lean();
++    }).select("_id attachmentUrl attachmentPublicId").limit(50).lean();   // порциями: один запрос не зависает на очистке
+ 
+     for (const m of expired) {
+-      if (m.attachmentPublicId) await destroyCloudinaryAsset(m.attachmentPublicId);
++      // Файл удаляется ТОЛЬКО если при создании сообщения была проверена подпись загрузки Cloudinary
++      // (метка в attachmentPublicId) и publicId соответствует ссылке. Иначе удаление пропускается:
++      // лучше оставить файл в Cloudinary, чем удалить чужой. Ссылка из БД очищается в любом случае.
++      const pid = deletablePublicId(m.attachmentPublicId, m.attachmentUrl, process.env.CLOUDINARY_CLOUD_NAME);
++      if (pid) await destroyCloudinaryAsset(pid);
++      else if (m.attachmentPublicId) console.log("Support attachment expired: Cloudinary deletion skipped (ownership not verified), message", String(m._id));
+       await SupportMessage.updateOne(
+         { _id: m._id },
+         { $set: { attachmentUrl: "", attachmentPublicId: "", attachmentExpiresAt: null } }
+@@ -41,6 +50,7 @@
+ // ─── GET /api/support/tickets/:guestId ─── список тикетов гостя ───────────
+ router.get("/tickets/:guestId", async (req, res) => {
+   try {
++    if (!isValidGuestId(req.params.guestId)) return res.json({ guest: null, tickets: [] });
+     const guest = await SupportGuest.findOne({ guestId: req.params.guestId }).lean();
+     if (!guest) return res.json({ guest: null, tickets: [] });
+ 
+@@ -72,7 +82,7 @@
+     const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
+     const guestAvatar = String(req.body.guestAvatar || "").trim();
+ 
+-    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
++    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
+     if (!subject) return res.status(400).json({ error: "Укажите тему обращения" });
+ 
+     let guest = await SupportGuest.findOne({ guestId });
+@@ -105,10 +115,15 @@
+ // ─── GET /api/support/thread/:ticketId ─── история переписки по тикету ────
+ router.get("/thread/:ticketId", async (req, res) => {
+   try {
+-    await expireOldAttachments();
++    // Идентификатор тикета — НЕ секрет (это ObjectId, номер тикета — его последние 6 символов).
++    // Доступ даёт только пара «тикет + guestId владельца», guestId передаётся в заголовке (не попадает в URL/логи).
++    const guestId = String(req.get("X-Support-Guest-Id") || "").trim();
++    if (!isObjectIdString(req.params.ticketId) || !isValidGuestId(guestId)) return res.status(404).json(TICKET_NOT_FOUND);
++
++    const thread = await SupportThread.findOne({ _id: req.params.ticketId, guestId }).lean();
++    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
+ 
+-    const thread = await SupportThread.findById(req.params.ticketId).lean();
+-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
++    await expireOldAttachments();   // только после успешной авторизации: посторонние запросы очистку не запускают
+ 
+     const messages = await SupportMessage.find({ threadId: thread._id })
+       .sort({ createdAt: 1 })
+@@ -137,12 +152,12 @@
+     const text        = String(req.body.text || "").trim();
+     const guestName   = String(req.body.guestName || "").trim().slice(0, 60);
+     const guestAvatar = String(req.body.guestAvatar || "").trim();
+-    const attachmentUrl      = String(req.body.attachmentUrl || "").trim();
+-    const attachmentPublicId = String(req.body.attachmentPublicId || "").trim();
++    const rawAttachmentUrl = String(req.body.attachmentUrl || "").trim();
+ 
+-    if (!guestId)  return res.status(400).json({ error: "Некорректная сессия чата" });
++    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
+     if (!ticketId) return res.status(400).json({ error: "Не указан тикет" });
+-    if (!text && !attachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
++    if (!isObjectIdString(ticketId)) return res.status(404).json(TICKET_NOT_FOUND);
++    if (!text && !rawAttachmentUrl) return res.status(400).json({ error: "Введите сообщение" });
+     if (text.length > 2000) return res.status(400).json({ error: "Слишком длинное сообщение" });
+ 
+     const guest = await SupportGuest.findOne({ guestId });
+@@ -151,7 +166,19 @@
+     }
+ 
+     const thread = await SupportThread.findOne({ _id: ticketId, guestId });
+-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
++    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
++
++    // Вложение: ссылка только на Cloudinary нашего облака; publicId принимается к удалению лишь с валидной
++    // подписью загрузки. Клиентскому publicId без подписи не доверяем (файл в Cloudinary тогда не удаляется).
++    const att = resolveAttachment(
++      { url: rawAttachmentUrl, publicId: req.body.attachmentPublicId, version: req.body.attachmentVersion, signature: req.body.attachmentSignature },
++      { cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiSecret: process.env.CLOUDINARY_API_SECRET }
++    );
++    if (!att.ok) return res.status(400).json({ error: "Некорректное вложение" });
++    const attachmentUrl      = att.url;
++    const attachmentPublicId = att.storedPublicId;
++    if (attachmentUrl && !att.verified) console.log("Support attachment accepted without verified upload signature: Cloudinary deletion will be skipped");
++
+     if (thread.status === "resolved") {
+       return res.status(409).json({ error: "Тикет закрыт. Создайте новый." });
+     }
+@@ -209,10 +236,11 @@
+ router.post("/ticket/:ticketId/resolve", async (req, res) => {
+   try {
+     const guestId = String(req.body.guestId || "").trim();
+-    if (!guestId) return res.status(400).json({ error: "Некорректная сессия чата" });
++    if (!isValidGuestId(guestId)) return res.status(400).json({ error: "Некорректная сессия чата" });
++    if (!isObjectIdString(req.params.ticketId)) return res.status(404).json(TICKET_NOT_FOUND);
+ 
+     const thread = await SupportThread.findOne({ _id: req.params.ticketId, guestId });
+-    if (!thread) return res.status(404).json({ error: "Тикет не найден" });
++    if (!thread) return res.status(404).json(TICKET_NOT_FOUND);
+ 
+     thread.status = "resolved";
+     await thread.save();
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/tests/helpers/supportEnv.js b/tests/helpers/supportEnv.js
+--- a/tests/helpers/supportEnv.js	1970-01-01 00:00:00.000000000 +0000
++++ b/tests/helpers/supportEnv.js	2026-10-28 09:49:32.693206062 +0000
+@@ -0,0 +1,58 @@
++// Окружение интеграционных тестов поддержки.
++// ВАЖНО: модели SupportGuest/SupportThread/SupportMessage и utils/telegramSupport в рабочую копию не передавались,
++// поэтому здесь используются ЗАГЛУШКИ, воссозданные по полям, которые реально использует routes/support.js.
++// Реальные схемы могут отличаться — тесты проверяют логику маршрута, а не ваши модели. Telegram и Cloudinary — шпионы (сети нет).
++const Module = require("module");
++const express = require("express");
++const mongoose = require("mongoose");
++
++async function startSupportEnv(uri) {
++  await mongoose.connect(uri);
++  await mongoose.connection.dropDatabase();                  // только тестовая БД (проверено в getTestDb)
++  const S = mongoose.Schema;
++  const SupportGuest = mongoose.model("SupportGuest", new S({
++    guestId: { type: String, required: true, unique: true }, guestName: { type: String, default: "" },
++    guestAvatar: { type: String, default: "" }, isBlocked: { type: Boolean, default: false } }, { timestamps: true }));
++  const SupportThread = mongoose.model("SupportThread", new S({
++    guestId: { type: String, required: true, index: true }, subject: String, status: { type: String, default: "open" },
++    telegramMessageIds: { type: [Number], default: [] }, lastMessageAt: { type: Date, default: null } }, { timestamps: true }));
++  const SupportMessage = mongoose.model("SupportMessage", new S({
++    threadId: { type: S.Types.ObjectId, index: true }, from: String, text: String, authorName: String, authorAvatar: String,
++    attachmentUrl: { type: String, default: "" }, attachmentPublicId: { type: String, default: "" }, attachmentExpiresAt: { type: Date, default: null } }, { timestamps: true }));
++
++  const tg = { calls: [], next: 1000, sendTelegramMessage: async (text, replyTo) => { tg.calls.push({ text, replyTo }); return tg.next++; } };
++  const cl = { destroyed: [], destroyCloudinaryAsset: async id => { cl.destroyed.push(id); } };
++
++  const origLoad = Module._load;
++  Module._load = function (request, parent) {
++    if (parent && /routes[\\/]support\.js$/.test(parent.filename)) {
++      if (request === "../models/SupportGuest") return SupportGuest;
++      if (request === "../models/SupportThread") return SupportThread;
++      if (request === "../models/SupportMessage") return SupportMessage;
++      if (request === "../utils/telegramSupport") return tg;
++      if (request === "../utils/cloudinaryCleanup") return cl;
++    }
++    return origLoad.apply(this, arguments);
++  };
++  let router;
++  try { router = require("../../routes/support.js"); } finally { Module._load = origLoad; }
++
++  const app = express();
++  app.use(express.json());
++  app.use("/api/support", router);
++  let server; await new Promise(r => { server = app.listen(0, "127.0.0.1", r); });
++  const port = server.address().port;
++
++  async function api(method, path, { headers, body } = {}) {
++    const h = { "content-type": "application/json", ...(headers || {}) };
++    const res = await fetch(`http://127.0.0.1:${port}${path}`, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
++    let json = null; try { json = await res.json(); } catch {}
++    return { status: res.status, body: json, raw: json === null ? "" : JSON.stringify(json) };
++  }
++  async function stop() {
++    await new Promise(r => server.close(r));
++    await mongoose.connection.dropDatabase(); await mongoose.disconnect();
++  }
++  return { api, stop, tg, cl, M: { SupportGuest, SupportThread, SupportMessage }, mongoose };
++}
++module.exports = { startSupportEnv };
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/tests/integration/support.test.js b/tests/integration/support.test.js
+--- a/tests/integration/support.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/tests/integration/support.test.js	2026-10-28 09:49:32.694649992 +0000
+@@ -0,0 +1,196 @@
++// Интеграционные тесты доступа к тикетам поддержки и удаления вложений из Cloudinary.
++// Нужна ИЗОЛИРОВАННАЯ тестовая БД (tests/helpers/testDb.js). Модели поддержки — заглушки (см. supportEnv.js).
++const { describe, it, before, after } = require("node:test");
++const assert = require("node:assert/strict");
++const crypto = require("node:crypto");
++const { getTestDb, withDbName } = require("../helpers/testDb");
++const { startSupportEnv } = require("../helpers/supportEnv");
++
++const db = getTestDb();
++const CLOUD = "testcloud", SECRET = "test-secret";
++const URL_A = "https://res.cloudinary.com/testcloud/image/upload/v1712345678/abc123XYZ.jpg";
++const URL_V = "https://res.cloudinary.com/testcloud/image/upload/v1700000000/listings/victim.png";
++const sign = (pid, ver, secret = SECRET) => crypto.createHash("sha1").update(`public_id=${pid}&version=${ver}${secret}`).digest("hex");
++const NOT_FOUND = { error: "Тикет не найден" };
++
++describe("поддержка: доступ к тикетам и вложения (интеграция, изолированная БД)", { skip: db.skip }, () => {
++  let env, api, M, tg, cl;
++  before(async () => {
++    process.env.CLOUDINARY_CLOUD_NAME = CLOUD; process.env.CLOUDINARY_API_SECRET = SECRET;
++    env = await startSupportEnv(withDbName(db.uri, "support")); ({ api, M, tg, cl } = env);
++  });
++  after(async () => { if (env) await env.stop(); });
++
++  const newGuest = () => crypto.randomUUID();
++  const hdr = g => ({ "X-Support-Guest-Id": g });
++  async function ticket(guestId, subject = "Вопрос по турниру") {
++    const r = await api("POST", "/api/support/ticket", { body: { guestId, subject, guestName: "Игрок" } });
++    assert.equal(r.status, 200, r.raw); return r.body.ticket;
++  }
++  const rewind = id => M.SupportThread.updateOne({ _id: id }, { lastMessageAt: new Date(0) });   // обход ограничения 3 с между сообщениями
++  async function msg(guestId, ticketId, text, extra = {}) {
++    await rewind(ticketId);
++    return api("POST", "/api/support/message", { body: { guestId, ticketId, text, ...extra } });
++  }
++  const expireAll = () => M.SupportMessage.updateMany({ attachmentUrl: { $ne: "" } }, { attachmentExpiresAt: new Date(Date.now() - 1000) });
++  const row = id => M.SupportMessage.findById(id).lean();
++  const signed = (pid, url, ver = 1712345678) => ({ attachmentUrl: url, attachmentPublicId: pid, attachmentVersion: ver, attachmentSignature: sign(pid, ver) });
++
++  // ── доступ к тикетам ───────────────────────────────────────────────────
++  it("владелец читает свой тикет; Telegram-мост, список и закрытие тикета работают как раньше", async () => {
++    const g = newGuest(), t = await ticket(g);
++    const before = tg.calls.length;
++    const m = await msg(g, t.id, "Здравствуйте, вопрос про сетку");
++    assert.equal(m.status, 200, m.raw);
++    assert.equal(tg.calls.length, before + 1);
++    assert.ok(tg.calls.at(-1).text.includes(`#${t.number}`) && tg.calls.at(-1).text.includes("Вопрос по турниру") && tg.calls.at(-1).text.includes("Здравствуйте, вопрос про сетку"));
++    assert.equal((await M.SupportThread.findById(t.id).lean()).telegramMessageIds.length, 1);
++
++    const r = await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) });
++    assert.equal(r.status, 200, r.raw);
++    assert.equal(r.body.messages.length, 1); assert.equal(r.body.thread.number, t.number);
++    assert.ok(!/attachmentPublicId|publicId/i.test(r.raw), "publicId не должен уходить клиенту");
++
++    const list = await api("GET", `/api/support/tickets/${g}`);
++    assert.equal(list.body.tickets.length, 1); assert.equal(list.body.tickets[0].id, t.id);
++
++    const res = await api("POST", `/api/support/ticket/${t.id}/resolve`, { body: { guestId: g } });
++    assert.equal(res.status, 200); assert.ok(tg.calls.at(-1).text.includes("решённый"));
++    assert.equal((await msg(g, t.id, "ещё одно")).status, 409);
++  });
++
++  it("чтение чужого/несуществующего тикета: любой неавторизованный запрос — одинаковый 404", async () => {
++    const a = newGuest(), b = newGuest(), t = await ticket(a);
++    await msg(a, t.id, "личные данные: мой ник Discord x#1");
++    const cases = {
++      "без guestId": {}, "чужой гость (B)": hdr(b), "слишком короткий guestId": hdr("short"),
++      "guestId в виде идентификатора тикета": hdr(t.id), "guestId в query, а не в заголовке": {}, "пустой заголовок": hdr(""),
++    };
++    const results = [];
++    for (const [name, headers] of Object.entries(cases)) {
++      const url = name.includes("query") ? `/api/support/thread/${t.id}?guestId=${a}` : `/api/support/thread/${t.id}`;
++      const r = await api("GET", url, { headers }); results.push([name, r]);
++    }
++    for (const bad of [t.number, "abc", "507f1f77bcf86cd79943901z", String(new env.mongoose.Types.ObjectId()), "%7B%7D"])
++      results.push(["id: " + bad, await api("GET", `/api/support/thread/${bad}`, { headers: hdr(a) })]);
++    for (const [name, r] of results) { assert.equal(r.status, 404, name); assert.deepEqual(r.body, NOT_FOUND, name); assert.ok(!r.raw.includes("личные данные"), name); }
++    // для сравнения: владелец получает данные
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(a) })).status, 200);
++  });
++
++  it("запись в чужой тикет и закрытие чужого тикета запрещены; некорректные идентификаторы дают 404/400, а не 500", async () => {
++    const a = newGuest(), b = newGuest(), t = await ticket(a); await ticket(b);
++    await msg(a, t.id, "первое");
++    const count = () => M.SupportMessage.countDocuments({ threadId: t.id });
++    const n0 = await count();
++    const wrong = await msg(b, t.id, "вторжение"); assert.equal(wrong.status, 404); assert.deepEqual(wrong.body, NOT_FOUND);
++    const rs = await api("POST", `/api/support/ticket/${t.id}/resolve`, { body: { guestId: b } }); assert.equal(rs.status, 404); assert.deepEqual(rs.body, NOT_FOUND);
++    assert.equal(await count(), n0); assert.equal((await M.SupportThread.findById(t.id).lean()).status, "open");
++    for (const badId of ["abc", t.number, "{}"]) {
++      assert.deepEqual((await api("POST", "/api/support/message", { body: { guestId: a, ticketId: badId, text: "x" } })).body, NOT_FOUND);
++      assert.deepEqual((await api("POST", `/api/support/ticket/${badId}/resolve`, { body: { guestId: a } })).body, NOT_FOUND);
++    }
++    for (const g of ["", "short", 5, null]) {
++      assert.equal((await api("POST", "/api/support/message", { body: { guestId: g, ticketId: t.id, text: "x" } })).status, 400);
++      assert.equal((await api("POST", `/api/support/ticket/${t.id}/resolve`, { body: { guestId: g } })).status, 400);
++    }
++  });
++
++  it("список тикетов: гость видит только свои; некорректный guestId даёт пустой ответ; короткий guestId не принимается при создании", async () => {
++    const a = newGuest(), b = newGuest(); await ticket(a, "A1"); await ticket(a, "A2"); await ticket(b, "B1");
++    const la = await api("GET", `/api/support/tickets/${a}`), lb = await api("GET", `/api/support/tickets/${b}`);
++    assert.deepEqual(la.body.tickets.map(x => x.subject).sort(), ["A1", "A2"]); assert.deepEqual(lb.body.tickets.map(x => x.subject), ["B1"]);
++    assert.deepEqual((await api("GET", "/api/support/tickets/short")).body, { guest: null, tickets: [] });
++    assert.deepEqual((await api("GET", `/api/support/tickets/${newGuest()}`)).body, { guest: null, tickets: [] });
++    const weak = await api("POST", "/api/support/ticket", { body: { guestId: "abc", subject: "x" } });
++    assert.equal(weak.status, 400); assert.equal(await M.SupportGuest.countDocuments({ guestId: "abc" }), 0);
++  });
++
++  // ── вложения ───────────────────────────────────────────────────────────
++  it("легитимное вложение с подписью Cloudinary: сохраняется с меткой, по истечении срока файл удаляется", async () => {
++    const g = newGuest(), t = await ticket(g), d0 = cl.destroyed.length;
++    const r = await msg(g, t.id, "скриншот", signed("abc123XYZ", URL_A));
++    assert.equal(r.status, 200, r.raw); assert.equal(r.body.message.attachmentUrl, URL_A);
++    const saved = await M.SupportMessage.findOne({ threadId: t.id, attachmentUrl: URL_A }).lean();
++    assert.equal(saved.attachmentPublicId, "sig1:abc123XYZ"); assert.ok(saved.attachmentExpiresAt > new Date());
++    assert.ok(tg.calls.at(-1).text.includes(URL_A));                                   // ссылка в Telegram — как раньше
++    await expireAll();
++    const read = await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) });
++    assert.equal(read.status, 200);
++    assert.deepEqual(cl.destroyed.slice(d0), ["abc123XYZ"]);                           // удалён ровно этот файл, без служебной метки
++    const after = await row(saved._id); assert.equal(after.attachmentUrl, ""); assert.equal(after.attachmentPublicId, "");
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) })).body.messages.find(m => String(m._id) === String(saved._id)).attachmentUrl, "");
++  });
++
++  it("подделка publicId: чужой файл не удаляется (ни без подписи, ни с чужой/подменённой подписью)", async () => {
++    const g = newGuest(), t = await ticket(g), d0 = cl.destroyed.length;
++    const forged = [
++      ["без подписи", { attachmentUrl: URL_V, attachmentPublicId: "listings/victim" }],
++      ["подпись неверным секретом", { attachmentUrl: URL_V, attachmentPublicId: "listings/victim", attachmentVersion: 1700000000, attachmentSignature: sign("listings/victim", 1700000000, "guess") }],
++      ["подпись своего файла к чужому publicId", { attachmentUrl: URL_V, attachmentPublicId: "listings/victim", attachmentVersion: 1712345678, attachmentSignature: sign("abc123XYZ", 1712345678) }],
++      ["своя ссылка и подпись, но чужой publicId", { attachmentUrl: URL_A, attachmentPublicId: "listings/victim", attachmentVersion: 1712345678, attachmentSignature: sign("abc123XYZ", 1712345678) }],
++      ["готовая метка от клиента", { attachmentUrl: URL_V, attachmentPublicId: "sig1:listings/victim" }],
++    ];
++    const ids = [];
++    for (const [name, extra] of forged) {
++      const r = await msg(g, t.id, "t " + name, extra);
++      assert.equal(r.status, 200, name);
++      const saved = await M.SupportMessage.findOne({ threadId: t.id, text: "t " + name }).lean();
++      assert.equal(saved.attachmentPublicId, "", name); ids.push(saved._id);
++    }
++    await expireAll();
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) })).status, 200);
++    assert.deepEqual(cl.destroyed.slice(d0), [], "ни один чужой файл не должен удаляться");
++    for (const id of ids) assert.equal((await row(id)).attachmentUrl, "");              // ссылки из БД очищены, как и раньше
++  });
++
++  it("некорректная ссылка вложения отклоняется до сохранения и отправки в Telegram", async () => {
++    const g = newGuest(), t = await ticket(g);
++    const n0 = await M.SupportMessage.countDocuments({ threadId: t.id }), tg0 = tg.calls.length;
++    for (const url of ["http://res.cloudinary.com/testcloud/image/upload/v1/a.jpg", "https://evil.example/a.jpg", "javascript:alert(1)",
++      URL_A + '" onerror="alert(1)', "https://res.cloudinary.com@evil.example/testcloud/image/upload/a.jpg", "https://res.cloudinary.com/othercloud/image/upload/v1/a.jpg"]) {
++      const r = await msg(g, t.id, "с плохим вложением", { attachmentUrl: url, attachmentPublicId: "x" });
++      assert.equal(r.status, 400, url); assert.deepEqual(r.body, { error: "Некорректное вложение" });
++    }
++    assert.equal(await M.SupportMessage.countDocuments({ threadId: t.id }), n0); assert.equal(tg.calls.length, tg0);
++  });
++
++  it("старые записи без серверной метки (мог подделать клиент) не удаляются из Cloudinary, ссылка очищается", async () => {
++    const g = newGuest(), t = await ticket(g), d0 = cl.destroyed.length;
++    const legacy = await M.SupportMessage.create({ threadId: t.id, from: "guest", text: "старое", attachmentUrl: URL_V, attachmentPublicId: "listings/victim", attachmentExpiresAt: new Date(Date.now() - 60000) });
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) })).status, 200);
++    assert.deepEqual(cl.destroyed.slice(d0), []);
++    const after = await row(legacy._id); assert.equal(after.attachmentUrl, ""); assert.equal(after.attachmentPublicId, "");
++  });
++
++  it("очистку вложений не запускают неавторизованные запросы; авторизованное чтение — запускает", async () => {
++    const a = newGuest(), b = newGuest(), t = await ticket(a), d0 = cl.destroyed.length;
++    const planted = await M.SupportMessage.create({ threadId: t.id, from: "guest", text: "x", attachmentUrl: URL_A, attachmentPublicId: "sig1:abc123XYZ", attachmentExpiresAt: new Date(Date.now() - 60000) });
++    for (const [url, headers] of [[`/api/support/thread/${t.id}`, {}], [`/api/support/thread/${t.id}`, hdr(b)], ["/api/support/thread/abc", hdr(a)], [`/api/support/thread/${new env.mongoose.Types.ObjectId()}`, hdr(a)]])
++      assert.equal((await api("GET", url, { headers })).status, 404);
++    assert.deepEqual(cl.destroyed.slice(d0), []); assert.equal((await row(planted._id)).attachmentUrl, URL_A);
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(a) })).status, 200);
++    assert.deepEqual(cl.destroyed.slice(d0), ["abc123XYZ"]); assert.equal((await row(planted._id)).attachmentUrl, "");
++  });
++
++  it("без CLOUDINARY_API_SECRET подпись проверить нельзя: вложение принимается, удаление пропускается", async () => {
++    const g = newGuest(), t = await ticket(g), d0 = cl.destroyed.length;
++    delete process.env.CLOUDINARY_API_SECRET;
++    try {
++      const r = await msg(g, t.id, "без секрета", signed("abc123XYZ", URL_A));
++      assert.equal(r.status, 200);
++      assert.equal((await M.SupportMessage.findOne({ threadId: t.id, text: "без секрета" }).lean()).attachmentPublicId, "");
++    } finally { process.env.CLOUDINARY_API_SECRET = SECRET; }
++    await expireAll();
++    assert.equal((await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) })).status, 200);
++    assert.deepEqual(cl.destroyed.slice(d0), []);
++  });
++
++  it("очистка идёт порциями (не более 50 за запрос) и добирает остаток следующим чтением", async () => {
++    const g = newGuest(), t = await ticket(g);
++    await M.SupportMessage.insertMany(Array.from({ length: 55 }, (_, i) => ({ threadId: t.id, from: "guest", text: "m" + i, attachmentUrl: URL_V, attachmentPublicId: "", attachmentExpiresAt: new Date(Date.now() - 1000) })));
++    const left = () => M.SupportMessage.countDocuments({ threadId: t.id, attachmentUrl: { $ne: "" } });
++    await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) }); assert.equal(await left(), 5);
++    await api("GET", `/api/support/thread/${t.id}`, { headers: hdr(g) }); assert.equal(await left(), 0);
++  });
++});
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/tests/unit/supportAttachment.test.js b/tests/unit/supportAttachment.test.js
+--- a/tests/unit/supportAttachment.test.js	1970-01-01 00:00:00.000000000 +0000
++++ b/tests/unit/supportAttachment.test.js	2026-10-28 09:48:31.633636070 +0000
+@@ -0,0 +1,114 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const fs = require("node:fs");
++const path = require("node:path");
++const crypto = require("node:crypto");
++const { isValidGuestId, isObjectIdString, checkAttachmentUrl, publicIdMatchesUrl, verifyUploadSignature, resolveAttachment, deletablePublicId, VERIFIED_PREFIX } =
++  require("../../utils/supportAttachment");
++
++const CLOUD = "testcloud", SECRET = "test-secret";
++const URL_A = "https://res.cloudinary.com/testcloud/image/upload/v1712345678/abc123XYZ.jpg";     // «наш» файл
++const URL_V = "https://res.cloudinary.com/testcloud/image/upload/v1700000000/listings/victim.png"; // чужой файл (например, картинка объявления)
++const sign = (pid, ver, secret = SECRET, algo = "sha1") => crypto.createHash(algo).update(`public_id=${pid}&version=${ver}${secret}`).digest("hex");
++const ENV = { cloudName: CLOUD, apiSecret: SECRET };
++const read = p => fs.readFileSync(path.join(__dirname, "../..", p), "utf8").replace(/\r\n/g, "\n");
++
++test("guestId: допустимые форматы (UUID, 32 hex, прежний запасной) и отказ для коротких/опасных значений", () => {
++  for (const ok of [crypto.randomUUID(), "g-" + "a1".repeat(16), "g-1712345678901-k3j2h1g0f9d", "A".repeat(16), "a".repeat(100)])
++    assert.equal(isValidGuestId(ok), true, ok);
++  for (const bad of ["", "abc", "a".repeat(15), "a".repeat(101), "has space 1234567890", "a/b/c/d/e/f/g/h/i/j", "id;drop 1234567890", "a\u0000".repeat(10),
++    "%7B%22%24ne%22%3A1%7D1234567890", null, undefined, 5, {}, ["a".repeat(20)], { $ne: "x" }])
++    assert.equal(isValidGuestId(bad), false, JSON.stringify(bad));
++});
++
++test("ObjectId тикета: ровно 24 hex-символа; короткий номер тикета (6 символов) не годится", () => {
++  assert.equal(isObjectIdString("507f1f77bcf86cd799439011"), true);
++  for (const bad of ["99439011", "507f1f77bcf86cd79943901z", "", {}, null, ["507f1f77bcf86cd799439011"], "507f1f77bcf86cd7994390111"]) assert.equal(isObjectIdString(bad), false);
++});
++
++test("ссылка вложения: только https res.cloudinary.com нашего облака /image/upload/, без спецсимволов", () => {
++  assert.deepEqual(checkAttachmentUrl(URL_A, CLOUD), { ok: true, url: URL_A });
++  for (const bad of [
++    "http://res.cloudinary.com/testcloud/image/upload/v1/a.jpg", "https://evil.com/testcloud/image/upload/v1/a.jpg",
++    "https://res.cloudinary.com.evil.com/testcloud/image/upload/v1/a.jpg", "https://res.cloudinary.com@evil.com/testcloud/image/upload/v1/a.jpg",
++    "https://res.cloudinary.com/othercloud/image/upload/v1/a.jpg", "https://res.cloudinary.com/testcloud/raw/upload/v1/a.jpg",
++    "https://res.cloudinary.com/testcloud/image/upload/", "javascript:alert(1)", "//res.cloudinary.com/testcloud/image/upload/v1/a.jpg",
++    URL_A + '" onerror="alert(1)', URL_A + "' onmouseover='x", URL_A + "><script>", URL_A + " x", URL_A + "#f", "https://res.cloudinary.com:8443/testcloud/image/upload/a.jpg",
++    "https://res.cloudinary.com/testcloud/image/upload/../../x.jpg", "x".repeat(600), "", "   ", null, undefined, 5, {}, [URL_A],
++  ]) assert.equal(checkAttachmentUrl(bad, CLOUD).ok, false, String(bad).slice(0, 60));
++  for (const c of [undefined, "", "bad cloud", "a/b"]) assert.equal(checkAttachmentUrl(URL_A, c).ok, false);
++});
++
++test("publicId обязан соответствовать пути ссылки", () => {
++  assert.equal(publicIdMatchesUrl("abc123XYZ", URL_A), true);
++  assert.equal(publicIdMatchesUrl("listings/victim", URL_V), true);
++  for (const [pid, url] of [["listings/victim", URL_A], ["abc123XYZ", URL_V], ["../abc123XYZ", URL_A], ["/abc123XYZ", URL_A], ["abc123", URL_A], ["", URL_A], [null, URL_A], [5, URL_A]])
++    assert.equal(publicIdMatchesUrl(pid, url), false, String(pid));
++});
++
++test("подпись загрузки: SHA-1 и SHA-256 принимаются; подмена публичного id, версии, подписи и секрета — нет", () => {
++  for (const algo of ["sha1", "sha256"]) assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, sign("abc123XYZ", 1712345678, SECRET, algo), SECRET), true, algo);
++  assert.equal(verifyUploadSignature("abc123XYZ", "1712345678", sign("abc123XYZ", 1712345678), SECRET), true);
++  const good = sign("abc123XYZ", 1712345678);
++  assert.equal(verifyUploadSignature("other", 1712345678, good, SECRET), false);                 // подпись от другого файла
++  assert.equal(verifyUploadSignature("abc123XYZ", 1712345679, good, SECRET), false);             // другая версия
++  assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, good, "wrong-secret"), false);
++  assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, good.replace(/.$/, c => (c === "0" ? "1" : "0")), SECRET), false);
++  for (const sig of ["", "zz", "a".repeat(39), "a".repeat(41), null, undefined, 5, {}, good.toUpperCase().slice(0, 39)])
++    assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, sig, SECRET), false);
++  for (const ver of ["", "abc", "1e9", "-1", "1".repeat(14), null, undefined, {}]) assert.equal(verifyUploadSignature("abc123XYZ", ver, good, SECRET), false);
++  assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, good, ""), false);                 // секрет не настроен — доверять нечему
++  assert.equal(verifyUploadSignature("abc123XYZ", 1712345678, good, undefined), false);
++});
++
++test("resolveAttachment: подпись есть → publicId сохраняется с меткой; подделки → вложение без права удаления", () => {
++  const ver = 1712345678, sigA = sign("abc123XYZ", ver);
++  // легитимная загрузка
++  const ok = resolveAttachment({ url: URL_A, publicId: "abc123XYZ", version: ver, signature: sigA }, ENV);
++  assert.deepEqual([ok.ok, ok.url, ok.storedPublicId, ok.verified], [true, URL_A, VERIFIED_PREFIX + "abc123XYZ", true]);
++  // подделка: чужой файл (его URL и publicId известны из публичной страницы), подписи нет
++  const noSig = resolveAttachment({ url: URL_V, publicId: "listings/victim" }, ENV);
++  assert.deepEqual([noSig.ok, noSig.url, noSig.storedPublicId, noSig.verified], [true, URL_V, "", false]);
++  // подделка: подпись от своего файла, а publicId/ссылка — чужие
++  assert.equal(resolveAttachment({ url: URL_V, publicId: "listings/victim", version: ver, signature: sigA }, ENV).storedPublicId, "");
++  // подделка: чужой publicId при своей ссылке и своей подписи
++  assert.equal(resolveAttachment({ url: URL_A, publicId: "listings/victim", version: ver, signature: sigA }, ENV).storedPublicId, "");
++  // подпись для другого публичного id, но верная для «чужого» с неверным секретом
++  assert.equal(resolveAttachment({ url: URL_V, publicId: "listings/victim", version: 1700000000, signature: sign("listings/victim", 1700000000, "attacker-guess") }, ENV).storedPublicId, "");
++  // метка не принимается от клиента как готовая
++  assert.equal(resolveAttachment({ url: URL_V, publicId: VERIFIED_PREFIX + "listings/victim" }, ENV).storedPublicId, "");
++  // секрет не настроен → удаление невозможно
++  assert.equal(resolveAttachment({ url: URL_A, publicId: "abc123XYZ", version: ver, signature: sigA }, { cloudName: CLOUD }).storedPublicId, "");
++  // некорректная ссылка → отказ; нет ссылки → вложения нет, лишние поля игнорируются
++  assert.equal(resolveAttachment({ url: "https://evil.com/a.jpg", publicId: "x" }, ENV).ok, false);
++  assert.equal(resolveAttachment({ url: URL_A + '"', publicId: "abc123XYZ", version: ver, signature: sigA }, ENV).ok, false);
++  const none = resolveAttachment({ url: "", publicId: "listings/victim", version: ver, signature: sigA }, ENV);
++  assert.deepEqual([none.ok, none.url, none.storedPublicId], [true, "", ""]);
++  assert.deepEqual(resolveAttachment(undefined, ENV).url, "");
++});
++
++test("deletablePublicId: удаляем только записи с серверной меткой и соответствующей ссылкой", () => {
++  assert.equal(deletablePublicId(VERIFIED_PREFIX + "abc123XYZ", URL_A, CLOUD), "abc123XYZ");
++  for (const [stored, url, cloud] of [
++    ["listings/victim", URL_V, CLOUD],                    // старая запись без метки (мог подделать клиент)
++    ["abc123XYZ", URL_A, CLOUD], ["", URL_A, CLOUD], [null, URL_A, CLOUD], [undefined, URL_A, CLOUD],
++    [VERIFIED_PREFIX + "listings/victim", URL_A, CLOUD],  // метка есть, но не соответствует ссылке
++    [VERIFIED_PREFIX + "abc123XYZ", "https://evil.com/abc123XYZ", CLOUD],
++    [VERIFIED_PREFIX + "abc123XYZ", URL_A, "othercloud"], [VERIFIED_PREFIX + "abc123XYZ", URL_A, undefined],
++    [VERIFIED_PREFIX, URL_A, CLOUD], [VERIFIED_PREFIX + "../abc123XYZ", URL_A, CLOUD],
++  ]) assert.equal(deletablePublicId(stored, url, cloud), "", String(stored));
++});
++
++test("исходники: чтение тикета без findById по одному id, клиентский publicId не сохраняется, очистка идёт через deletablePublicId", () => {
++  const src = read("routes/support.js");
++  assert.ok(!/findById\(req\.params\.ticketId\)/.test(src));
++  assert.ok(!/req\.body\.attachmentPublicId\s*\|\|/.test(src), "сырое значение publicId не должно сохраняться");
++  assert.ok(/deletablePublicId\(m\.attachmentPublicId, m\.attachmentUrl/.test(src));
++  assert.ok(!/destroyCloudinaryAsset\(m\.attachmentPublicId\)/.test(src), "прямой вызов удаления с сохранённым значением недопустим");
++  const iAuth = src.indexOf("SupportThread.findOne({ _id: req.params.ticketId, guestId })"), iExp = src.indexOf("await expireOldAttachments();   // только после");
++  assert.ok(iAuth > 0 && iExp > iAuth, "очистка вложений должна запускаться только после авторизации");
++  assert.ok(read("public/js/common.js").includes('"X-Support-Guest-Id": guestId'));
++  const esc = read("public/js/common.js").match(/function escSupport\(s\) \{[\s\S]*?\n    \}/)[0];
++  const fn = new Function("return (" + esc.replace("function escSupport", "function") + ")")();
++  assert.equal(fn('x" onerror="y'), "x&quot; onerror=&quot;y");
++});
+diff -ruN '--exclude=node_modules' '--exclude=package-lock.json' a/utils/supportAttachment.js b/utils/supportAttachment.js
+--- a/utils/supportAttachment.js	1970-01-01 00:00:00.000000000 +0000
++++ b/utils/supportAttachment.js	2026-10-28 09:51:16.929053703 +0000
+@@ -0,0 +1,102 @@
++"use strict";
++// Проверки для чата поддержки: формат идентификатора гостя и тикета, строгая проверка ссылки на вложение
++// и подтверждение принадлежности файла Cloudinary по подписи ответа загрузки.
++//
++// Почему подпись. Загрузка идёт из браузера напрямую в Cloudinary (unsigned preset), сервер файл не видит.
++// Раньше publicId приходил от клиента и без проверки шёл на удаление — можно было подставить чужой.
++// Ответ Cloudinary на загрузку содержит `signature` = SHA-1(или SHA-256) от
++// "public_id=<id>&version=<версия>" + API-секрет. Подделать её без секрета нельзя, а чужую подпись
++// (для чужого файла) получить негде — её видел только загрузивший. Поэтому удаляем только те файлы,
++// для которых клиент предъявил валидную подпись. Нет подписи — вложение показывается, но файл в Cloudinary
++// НЕ удаляется (безопаснее пропустить удаление, чем удалить чужое).
++
++const crypto = require("crypto");
++
++const CLOUDINARY_HOST      = "res.cloudinary.com";
++const MAX_URL_LENGTH       = 500;
++const MAX_PUBLIC_ID_LENGTH = 200;
++const PUBLIC_ID_RE         = /^[A-Za-z0-9_\-./]+$/;
++// пробелы, кавычки, угловые скобки, обратные слэши/кавычки, управляющие символы
++const FORBIDDEN_CHARS_RE   = /[\s"'<>\\`\u0000-\u001f\u007f]/;
++const GUEST_ID_RE          = /^[A-Za-z0-9._-]{16,100}$/;   // UUID (36), 32 hex, прежний запасной формат "g-<ms>-<random>"
++const OBJECT_ID_RE         = /^[a-f\d]{24}$/i;
++// Метка в поле attachmentPublicId: ставится ТОЛЬКО сервером после проверки подписи (схема БД не менялась).
++// Строки без метки (старые записи, непроверенные) на удаление не отправляются.
++const VERIFIED_PREFIX      = "sig1:";
++
++const isValidGuestId  = v => typeof v === "string" && GUEST_ID_RE.test(v);
++const isObjectIdString = v => typeof v === "string" && OBJECT_ID_RE.test(v);
++
++/** Ссылка на вложение: только https://res.cloudinary.com/<наше облако>/image/upload/..., без спецсимволов. */
++function checkAttachmentUrl(raw, cloudName) {
++  if (typeof raw !== "string") return { ok: false };
++  const s = raw.trim();
++  if (!s || s.length > MAX_URL_LENGTH || FORBIDDEN_CHARS_RE.test(s)) return { ok: false };
++  if (typeof cloudName !== "string" || !/^[A-Za-z0-9_-]+$/.test(cloudName)) return { ok: false };
++  let u;
++  try { u = new URL(s); } catch { return { ok: false }; }
++  if (u.protocol !== "https:" || u.username || u.password || u.port || u.hash) return { ok: false };
++  if (u.hostname !== CLOUDINARY_HOST) return { ok: false };
++  const prefix = `/${cloudName}/image/upload/`;
++  if (!u.pathname.startsWith(prefix) || u.pathname.length === prefix.length) return { ok: false };
++  let decoded;
++  try { decoded = decodeURIComponent(u.pathname); } catch { return { ok: false }; }
++  if (decoded.includes("..") || FORBIDDEN_CHARS_RE.test(decoded) || FORBIDDEN_CHARS_RE.test(u.href)) return { ok: false };
++  return { ok: true, url: u.href };
++}
++
++/** publicId обязан соответствовать пути ссылки (…/<publicId>[.ext]). */
++function publicIdMatchesUrl(publicId, url) {
++  if (typeof publicId !== "string" || !publicId || publicId.length > MAX_PUBLIC_ID_LENGTH || !PUBLIC_ID_RE.test(publicId)) return false;
++  if (publicId.startsWith("/") || publicId.includes("..") || publicId.includes("//")) return false;
++  let path;
++  try { path = decodeURIComponent(new URL(url).pathname); } catch { return false; }
++  const idx = path.lastIndexOf("/" + publicId);
++  if (idx === -1) return false;
++  const rest = path.slice(idx + 1 + publicId.length);
++  return rest === "" || /^\.[A-Za-z0-9]{2,5}$/.test(rest);
++}
++
++/** Подпись ответа загрузки Cloudinary: hash("public_id=<id>&version=<v>" + secret); SHA-1 или SHA-256. */
++function verifyUploadSignature(publicId, version, signature, apiSecret) {
++  if (typeof publicId !== "string" || !publicId || typeof apiSecret !== "string" || !apiSecret) return false;
++  const v = String(version);
++  if (!/^\d{1,13}$/.test(v)) return false;
++  if (typeof signature !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(signature)) return false;
++  const expected = crypto.createHash(signature.length === 40 ? "sha1" : "sha256")
++    .update(`public_id=${publicId}&version=${v}${apiSecret}`).digest();
++  const given = Buffer.from(signature, "hex");
++  return given.length === expected.length && crypto.timingSafeEqual(given, expected);
++}
++
++/**
++ * Разбор вложения из тела запроса.
++ * @returns {{ok:false}|{ok:true,url:string,storedPublicId:string,verified:boolean}}
++ *  - нет ссылки → вложения нет (остальные поля игнорируются);
++ *  - некорректная ссылка → ok:false (запрос отклоняется);
++ *  - publicId сохраняется (с меткой) только при совпадении с ссылкой И валидной подписи, иначе ""
++ *    (вложение остаётся, но удаление файла из Cloudinary будет пропущено).
++ */
++function resolveAttachment(input, env) {
++  const i = input || {};
++  const raw = typeof i.url === "string" ? i.url.trim() : "";
++  if (!raw) return { ok: true, url: "", storedPublicId: "", verified: false };
++  const u = checkAttachmentUrl(raw, env && env.cloudName);
++  if (!u.ok) return { ok: false };
++  const verified = publicIdMatchesUrl(i.publicId, u.url) &&
++                   verifyUploadSignature(i.publicId, i.version, i.signature, env && env.apiSecret);
++  return { ok: true, url: u.url, storedPublicId: verified ? VERIFIED_PREFIX + i.publicId : "", verified };
++}
++
++/** Какой publicId можно удалять из Cloudinary по сохранённой записи ("" — удалять нельзя). */
++function deletablePublicId(storedPublicId, url, cloudName) {
++  if (typeof storedPublicId !== "string" || !storedPublicId.startsWith(VERIFIED_PREFIX)) return "";
++  const pid = storedPublicId.slice(VERIFIED_PREFIX.length);
++  const u = checkAttachmentUrl(url, cloudName);
++  return u.ok && publicIdMatchesUrl(pid, u.url) ? pid : "";
++}
++
++module.exports = {
++  isValidGuestId, isObjectIdString, checkAttachmentUrl, publicIdMatchesUrl, verifyUploadSignature,
++  resolveAttachment, deletablePublicId, VERIFIED_PREFIX,
++};

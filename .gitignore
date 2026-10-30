@@ -10,3 +10,4 @@ node_modules/
 # Local patch files
 changes.patch
 changes_support_fix.patch
+listing_author_team_links.patch

@@ -74,6 +74,17 @@ async function withUnreadCounts(listingObjs) {
   return listingObjs.map(l => ({ ...l, unreadCount: map.get(l._id.toString()) || 0 }));
 }
 
+// Для ссылки на профиль автора в объявлении отдаём его steamId только если профиль автора НЕ скрыт (isPrivate).
+// Сам флаг isPrivate наружу не уходит. Контакты и прочие поля автора по-прежнему не отдаются.
+function hideAuthorPrivate(obj) {
+  const a = obj && obj.authorId;
+  if (a && typeof a === "object") {
+    if (a.isPrivate) delete a.steamId;
+    delete a.isPrivate;
+  }
+  return obj;
+}
+
 // ── GET /api/listings — публичный список с фильтрами ────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -87,10 +98,10 @@ router.get("/", async (req, res) => {
     const listings = await Listing.find(filter)
       .sort({ createdAt: -1 })
       .limit(200)
-      .populate("authorId", "displayName avatar")
+      .populate("authorId", "displayName avatar steamId isPrivate")
       .populate("teamId", "name tag logo");
 
-    res.json({ listings: await withResponseCounts(listings) });
+    res.json({ listings: (await withResponseCounts(listings)).map(hideAuthorPrivate) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера." });
@@ -135,7 +146,7 @@ router.get("/unread-count", requireAuth, async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const listing = await Listing.findById(req.params.id)
-      .populate("authorId", "displayName avatar")
+      .populate("authorId", "displayName avatar steamId isPrivate")
       .populate("teamId", "name tag logo");
     if (!listing) return res.status(404).json({ error: "Объявление не найдено." });
 
@@ -146,7 +157,7 @@ router.get("/:id", async (req, res) => {
     }
 
     const [{ responseCount }] = await withResponseCounts([listing]);
-    const obj = listing.toObject();
+    const obj = hideAuthorPrivate(listing.toObject());
     obj.responseCount = responseCount;
     obj.isOwner = isOwner;
     if (req.user && !isOwner) {

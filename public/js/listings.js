@@ -25,6 +25,13 @@
   let cloudinaryCloud  = null;
   let cloudinaryPreset = null;
 
+  // Ссылки на публичные страницы автора и команды (открываются в новой вкладке)
+  function authorHref(a) { return a && a.steamId ? "/profile.html?id=" + encodeURIComponent(a.steamId) : ""; }
+  function teamHref(t)   { return t && t.tag ? "/team.html?tag=" + encodeURIComponent(t.tag) : ""; }
+  function linkWrap(href, innerHtml) {
+    return href ? `<a class="lh-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${innerHtml}</a>` : innerHtml;
+  }
+
   // Экранирование для HTML-текста И значений атрибутов (кавычки обязательны: esc() используется в src="...")
   function esc(s) {
     return String(s || "")
@@ -196,15 +203,14 @@
         ${currentTab === "mine" && l.unreadCount > 0 ? `<span class="lh-unread-mark">● ${unreadLabel(l.unreadCount)}</span>` : ""}
         <div class="lh-card-foot">
           <div class="lh-card-author">
-            ${l.authorId && l.authorId.avatar ? `<img src="${esc(l.authorId.avatar)}" alt="">` : ""}
-            <span>${esc((l.authorId && l.authorId.displayName) || "")}</span>
+            ${linkWrap(authorHref(l.authorId), `${l.authorId && l.authorId.avatar ? `<img src="${esc(l.authorId.avatar)}" alt="">` : ""}<span>${esc((l.authorId && l.authorId.displayName) || "")}</span>`)}
           </div>
           ${flags.join("")}
           <span class="lh-resp-count">${l.responseCount || 0} откл.</span>
         </div>
       </div>
     `;
-    card.addEventListener("click", () => openDetailModal(l._id));
+    card.addEventListener("click", e => { if (e.target.closest("a")) return; openDetailModal(l._id); });   // клик по ссылке автора карточку не открывает
     return card;
   }
 
@@ -231,14 +237,14 @@
     const isOwnerReal = l.isOwner === true;
     const isAdmin = currentUser && currentUser.isAdmin;
 
-    const teamLine = l.teamId ? `<div>Команда: <b>[${esc(l.teamId.tag)}] ${esc(l.teamId.name)}</b></div>` : "";
+    const teamLine = l.teamId ? `<div>Команда: <b>${linkWrap(teamHref(l.teamId), `[${esc(l.teamId.tag)}] ${esc(l.teamId.name)}`)}</b></div>` : "";
 
     body.innerHTML = `
       <span class="lh-type-badge ${TYPE_BADGE_CLASS[l.type] || ""}">${esc(TYPE_LABEL[l.type] || l.type)}</span>
       <h2 style="font-family:'Montserrat',sans-serif; font-weight:800; font-size:19px; color:white; margin:8px 0 12px;">${esc(l.title)}</h2>
       ${l.image && l.image.url ? `<img class="lh-detail-img" src="${esc(l.image.url)}" alt="">` : ""}
       <div class="lh-detail-meta">
-        <div>${l.authorId && l.authorId.avatar ? `<img src="${esc(l.authorId.avatar)}">` : ""}${esc((l.authorId && l.authorId.displayName) || "")}</div>
+        <div>${linkWrap(authorHref(l.authorId), `${l.authorId && l.authorId.avatar ? `<img src="${esc(l.authorId.avatar)}">` : ""}${esc((l.authorId && l.authorId.displayName) || "")}`)}</div>
         ${teamLine}
         ${l.role ? `<div>Роль: <b>${esc(l.role)}</b></div>` : ""}
         <div>${fmtDate(l.createdAt)}</div>

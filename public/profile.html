@@ -41,6 +41,92 @@
 
 
 <!-- ══════════════════════════════════════════════════════
+     ШАБЛОН ПРОФИЛЯ: один и тот же разметочный блок используется
+     на публичной странице, во вкладке «Профиль» и в превью («Редактирование»)
+     ══════════════════════════════════════════════════════ -->
+<template id="profileViewTpl">
+    <div class="pv">
+        <div class="pv-bg" data-pv="bg"></div>
+        <div class="pv-inner">
+            <div class="pv-banner"></div>
+
+            <div class="profile-header-card pv-header">
+                <div class="pv-frame-wrap">
+                    <img class="profile-avatar-large pv-avatar" data-pv="avatar" alt="">
+                </div>
+                <div class="pv-head-main">
+                    <div class="profile-display-name pv-name" data-pv="name"></div>
+                    <div class="profile-stats-row">
+                        <span class="profile-stat-badge" data-pv="rank" hidden></span>
+                        <a class="profile-team-tag pv-team-tag" data-pv="teamTag" hidden></a>
+                    </div>
+                </div>
+                <div class="pv-badges" data-pv="badges" hidden></div>
+            </div>
+
+            <div class="pv-note pv-note--private" data-pv="private" hidden>
+                <div class="pv-note-icon" data-ico="lock"></div>
+                <div>
+                    <div class="pv-note-title">Профиль приватный</div>
+                    <div class="pv-note-text">Игрок скрыл информацию о себе. Доступны только аватар и имя.</div>
+                </div>
+            </div>
+            <div class="pv-note pv-note--self" data-pv="selfNote" hidden>
+                Ваш профиль скрыт: другие игроки видят только аватар и имя.
+            </div>
+
+            <div class="pv-body" data-pv="body">
+                <div class="pform-card pv-card" data-pv="bioBlock" hidden>
+                    <div class="pform-card-title" data-ico="edit">О себе</div>
+                    <div class="pv-bio" data-pv="bio"></div>
+                </div>
+
+                <div class="pform-card pv-card" data-pv="socialsBlock" hidden>
+                    <div class="pform-card-title" data-ico="radio">Контакты</div>
+                    <div class="pv-socials" data-pv="socials"></div>
+                </div>
+
+                <div class="pform-card pv-card" data-pv="teamBlock" hidden>
+                    <div class="pform-card-title" data-ico="swords">Команда</div>
+                    <a class="team-card-header pv-team-card" data-pv="teamCard"></a>
+                </div>
+
+                <div class="stat-overview-card" data-pv="statCard" hidden>
+                    <div class="stat-donut-wrap">
+                        <div class="stat-donut" data-pv="faceitDonut" style="--pct:0;--donut-color:#e6b022;">
+                            <span class="stat-donut-value" data-pv="faceitVal">—</span>
+                        </div>
+                        <div class="stat-donut-label">FACEIT LEVEL</div>
+                    </div>
+                    <div class="stat-donut-wrap" data-pv="winrateWrap" hidden>
+                        <div class="stat-donut" data-pv="winrateDonut" style="--pct:0;--donut-color:#4caf82;">
+                            <span class="stat-donut-value" data-pv="winrateVal">—</span>
+                        </div>
+                        <div class="stat-donut-label" data-pv="winrateLabel">ВИНРЕЙТ СЕЗОНА</div>
+                    </div>
+                    <div class="stat-mini-col">
+                        <div class="stat-mini-item">
+                            <span class="stat-mini-value" data-pv="kd">—</span>
+                            <span class="stat-mini-label">K/D</span>
+                        </div>
+                        <div class="stat-mini-item">
+                            <span class="stat-mini-value" data-pv="matchesPlayed">—</span>
+                            <span class="stat-mini-label">Матчей</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-matches-block" data-pv="matchesBlock" hidden>
+                    <div class="pform-card-title" data-ico="clock" style="margin-bottom:14px;">Последние матчи</div>
+                    <div class="matches-table-wrap" data-pv="matchesWrap"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+
+<!-- ══════════════════════════════════════════════════════
      ПУБЛИЧНЫЙ ПРОФИЛЬ (при ?id=...)
      ══════════════════════════════════════════════════════ -->
 <div id="publicProfileWrap" style="display:none;">
@@ -53,84 +139,12 @@
 
         <div id="publicHidden" style="display:none;text-align:center;padding:100px 20px;">
             <div class="icon" data-icon="lock" style="width:56px;height:56px;margin:0 auto 20px;color:var(--text-gray);" aria-hidden="true"></div>
-            <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px;text-transform:uppercase;">Профиль скрыт</h2>
-            <p style="color:var(--text-gray);">Этот игрок скрыл свой профиль</p>
+            <h2 style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px;text-transform:uppercase;">Профиль не найден</h2>
+            <p style="color:var(--text-gray);">Пользователь не найден</p>
         </div>
 
         <div id="publicContent" style="display:none;">
-
-            <!-- ── Обложка публичного профиля (прозрачная, только если надет cosmetic profileBg) ── -->
-            <div id="pubCoverArea" style="
-                pointer-events: none;
-                height:130px;margin:-20px -20px 0;
-                background:transparent;border:none;border-radius:0;
-                position:relative;overflow:hidden;transition:all .3s;
-            "></div>
-
-            <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
-                <div id="pubAvatarFrameWrap" style="position:relative;z-index:0;flex-shrink:0;align-self:flex-start;">
-                    <img id="pubAvatar" src="" alt="" class="profile-avatar-large" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 fill=%27%231a2128%27/%3E%3Ccircle cx=%2712%27 cy=%278.5%27 r=%274%27 fill=%27%235c6b7f%27/%3E%3Cpath d=%27M4 21a8 8 0 0 1 16 0z%27 fill=%27%235c6b7f%27/%3E%3C/svg%3E'">
-                </div>
-                <div style="flex:1;min-width:0;">
-                    <div class="profile-display-name" id="pubName">—</div>
-                    <div class="profile-stats-row">
-                        <span class="profile-stat-badge" id="pubRank">Unranked</span>
-                        <span class="profile-team-tag" id="pubTeamTag" style="display:none;"></span>
-                    </div>
-
-                </div>
-                <div id="pubStatsBadges" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0;">
-                    <div id="pubFaceitBadge" style="display:none;"></div>
-                    <div id="pubHoursBadge"  style="display:none;"></div>
-                </div>
-            </div>
-
-            <div id="pubSocialsBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px 24px;margin-top:4px;">
-                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Контакты</div>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;" id="pubSocialsRow"></div>
-            </div>
-
-            <div id="pubBioBlock" style="display:none;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:4px;">
-                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">О себе</div>
-                <div id="pubBioText" style="font-size:14px;color:var(--text-gray);line-height:1.7;white-space:pre-wrap;"></div>
-            </div>
-
-            <div id="pubTeamBlock" style="display:none;margin-top:14px;">
-                <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#5c6b7f;margin-bottom:10px;">Команда</div>
-                <a class="team-card-header" id="pubTeamCard" style="text-decoration:none;cursor:pointer;transition:border-color .2s,background .2s;"></a>
-            </div>
-
-            <!-- ── Обзорная статистика ── -->
-            <div id="pubStatOverviewCard" class="stat-overview-card" style="display:none;margin-top:14px;">
-                <div class="stat-donut-wrap">
-                    <div class="stat-donut" id="pubFaceitDonut" style="--pct:0;--donut-color:#e6b022;">
-                        <span class="stat-donut-value" id="pubFaceitDonutVal">—</span>
-                    </div>
-                    <div class="stat-donut-label">FACEIT LEVEL</div>
-                </div>
-                <div class="stat-donut-wrap" id="pubWinrateWrap" style="display:none;">
-                    <div class="stat-donut" id="pubWinrateDonut" style="--pct:0;--donut-color:#4caf82;">
-                        <span class="stat-donut-value" id="pubWinrateDonutVal">—</span>
-                    </div>
-                    <div class="stat-donut-label" id="pubWinrateLabel">ВИНРЕЙТ СЕЗОНА</div>
-                </div>
-                <div class="stat-mini-col">
-                    <div class="stat-mini-item">
-                        <span class="stat-mini-value" id="pubStatKD">—</span>
-                        <span class="stat-mini-label">K/D</span>
-                    </div>
-                    <div class="stat-mini-item">
-                        <span class="stat-mini-value" id="pubStatMatchesPlayed">—</span>
-                        <span class="stat-mini-label">Матчей</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── Последние матчи ── -->
-            <div id="pubRecentMatchesBlock" class="recent-matches-block" style="display:none;margin-top:14px;">
-                <div class="pform-card-title" style="margin-bottom:14px;"><i class="icon" data-icon="clock" aria-hidden="true"></i> Последние матчи</div>
-                <div id="pubRecentMatchesTableWrap" class="matches-table-wrap"></div>
-            </div>
+            <div id="pubView" class="pv-host"></div>
         </div>
 
     </div>
@@ -160,30 +174,22 @@
     <div id="profileContent" style="display:none;">
         <div class="container">
 
-            <!-- ── Обложка профиля (прозрачная, оживает только при надетом cosmetic profileBg) ── -->
-            <div id="profileCoverArea" style="
-                pointer-events: none;
-                height:130px;margin:-20px -20px 0;
-                background:transparent;border:none;border-radius:0;
-                position:relative;overflow:hidden;transition:all .3s;
-            "></div>
+            <div class="profile-tabs">
+                <button class="profile-tab-btn active" data-tab="view"><i class="icon" data-icon="gamepad" aria-hidden="true"></i> Профиль</button>
+                <button class="profile-tab-btn" data-tab="edit">
+                    <i class="icon" data-icon="edit" aria-hidden="true"></i> Редактирование
+                    <span class="tab-badge" id="profileIncompleteBadge" style="display:none;">!</span>
+                </button>
+                <button class="profile-tab-btn" data-tab="team"><i class="icon" data-icon="swords" aria-hidden="true"></i> Команда</button>
+                <button class="profile-tab-btn" data-tab="notifs">
+                    <i class="icon" data-icon="bell" aria-hidden="true"></i> Уведомления
+                    <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
+                </button>
+            </div>
 
-            <div class="profile-header-card" style="position:relative;margin-top:-44px;z-index:1;">
-                <div id="profileAvatarFrameWrap" style="position:relative;z-index:0;flex-shrink:0;align-self:flex-start;">
-                    <img id="profileAvatar" src="" alt="" class="profile-avatar-large"
-                         style="border:3px solid var(--bg);transition:box-shadow .3s;"
-                         onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 fill=%27%231a2128%27/%3E%3Ccircle cx=%2712%27 cy=%278.5%27 r=%274%27 fill=%27%235c6b7f%27/%3E%3Cpath d=%27M4 21a8 8 0 0 1 16 0z%27 fill=%27%235c6b7f%27/%3E%3C/svg%3E'">
-                </div>
-                <div style="flex:1;min-width:0;">
-                    <div class="profile-display-name" id="profileDisplayName">—</div>
-                    <div class="profile-stats-row">
-                        <span class="profile-stat-badge" id="profileRankBadge">Unranked</span>
-                        <span class="profile-team-tag" id="profileTeamTagBadge" style="display:none;"></span>
-                    </div>
-                    <!-- Балансы (монеты) -->
-                    <div id="profileBalanceRow" style="display:none;margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                        <span id="profilePersonalBalance" style="display:inline-flex;align-items:center;gap:5px;background:rgba(230,176,34,0.1);border:1px solid rgba(230,176,34,0.25);color:#e6b022;border-radius:6px;padding:4px 10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;"></span>
-                    </div>
+            <!-- ══ ТАБ: ПРОФИЛЬ (то, что видят другие игроки) ══ -->
+            <div class="profile-tab-content active" id="tab-view">
+                <div class="pv-own-toolbar">
                     <!-- Кнопка "Просмотр профиля" -->
                     <a id="viewPublicProfileLink" href="#" target="_blank" rel="noopener"
                        class="view-profile-btn"
@@ -194,71 +200,20 @@
                         </svg>
                         Просмотр профиля
                     </a>
-               
-
-            <!-- ── Промокод ── -->
-            <div class="pform-card" style="margin-bottom:14px;">
-                <div class="pform-card-title"><i class="icon" data-icon="gift" aria-hidden="true"></i> Промокод</div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
-                    <input type="text" id="promoCodeInput" class="p-field-input" placeholder="ВВЕДИТЕ КОД" style="flex:1;min-width:160px;text-transform:uppercase;" maxlength="40">
-                    <button class="btn-team-settings" id="promoRedeemBtn" onclick="redeemPromoCode()">Активировать</button>
                 </div>
-                <div id="promoRedeemResult" style="margin-top:10px;font-size:13px;display:none;"></div>
+                <div id="ownView" class="pv-host"></div>
             </div>
 
-            <!-- ── Обзорная статистика: уровень / винрейт сезона / K-D / матчи ── -->
-            <div id="statOverviewCard" class="stat-overview-card" style="display:none;">
-                <div class="stat-donut-wrap">
-                    <div class="stat-donut" id="statFaceitDonut" style="--pct:0;--donut-color:#e6b022;">
-                        <span class="stat-donut-value" id="statFaceitDonutVal">—</span>
-                    </div>
-                    <div class="stat-donut-label">FACEIT LEVEL</div>
-                </div>
-                <div class="stat-donut-wrap" id="statWinrateWrap" style="display:none;">
-                    <div class="stat-donut" id="statWinrateDonut" style="--pct:0;--donut-color:#4caf82;">
-                        <span class="stat-donut-value" id="statWinrateDonutVal">—</span>
-                    </div>
-                    <div class="stat-donut-label" id="statWinrateLabel">ВИНРЕЙТ СЕЗОНА</div>
-                </div>
-                <div class="stat-mini-col">
-                    <div class="stat-mini-item">
-                        <span class="stat-mini-value" id="statKD">—</span>
-                        <span class="stat-mini-label">K/D</span>
-                    </div>
-                    <div class="stat-mini-item">
-                        <span class="stat-mini-value" id="statMatchesPlayed">—</span>
-                        <span class="stat-mini-label">Матчей</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="profile-tabs">
-                <button class="profile-tab-btn active" data-tab="myprofile">
-                    <i class="icon" data-icon="gamepad" aria-hidden="true"></i> Мой профиль
-                    <span class="tab-badge" id="profileIncompleteBadge" style="display:none;">!</span>
-                </button>
-                <button class="profile-tab-btn" data-tab="team"><i class="icon" data-icon="swords" aria-hidden="true"></i> Команда</button>
-                <button class="profile-tab-btn" data-tab="notifs">
-                    <i class="icon" data-icon="bell" aria-hidden="true"></i> Уведомления
-                    <span class="tab-badge" id="notifsBadge" style="display:none;"></span>
-                </button>
-            </div>
-
-
-            <!-- ══ ТАБ: МОЙ ПРОФИЛЬ — REDESIGNED ══ -->
-            <div class="profile-tab-content active" id="tab-myprofile">
+            <!-- ══ ТАБ: РЕДАКТИРОВАНИЕ (только владелец) ══ -->
+            <div class="profile-tab-content" id="tab-edit">
 
                 <div id="profileIncompleteWarning" class="pform-warning-banner" style="display:none;">
                     <i class="icon" data-icon="alert" aria-hidden="true"></i> <strong>Профиль не заполнен.</strong>
                     Укажите FACEIT уровень и количество часов — без этого нельзя создать команду или принять приглашение.
                 </div>
 
-                <!-- ── Последние матчи ── -->
-                <div id="recentMatchesBlock" class="recent-matches-block" style="display:none;">
-                    <div class="pform-card-title" style="margin-bottom:14px;"><i class="icon" data-icon="clock" aria-hidden="true"></i> Последние матчи</div>
-                    <div id="recentMatchesTableWrap" class="matches-table-wrap"></div>
-                </div>
-
+                <div class="pe-layout">
+                    <div class="pe-form">
                 <div class="pform-grid">
 
                     <!-- Игровые данные -->
@@ -352,13 +307,6 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
-
-                        <div id="statsError" class="p-modal-error" style="display:none;"></div>
-                        <div id="statsSuccess" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.25);border-radius:8px;padding:10px 14px;color:#4caf82;font-size:13px;font-weight:600;margin-bottom:4px;"><i class="icon" data-icon="checkCircle" aria-hidden="true"></i> Данные сохранены!</div>
-
-                        <button id="statsSaveBtn" class="p-btn-save pform-save-btn" onclick="saveProfileStats()">
-                            Сохранить изменения
-                        </button>
                     </div>
 
                     <!-- Кастомизация + Инвентарь -->
@@ -410,8 +358,39 @@
                         </div>
                     </div>
 
+            <!-- ── Промокод ── -->
+            <div class="pform-card" style="margin-bottom:14px;">
+                <div class="pform-card-title"><i class="icon" data-icon="gift" aria-hidden="true"></i> Промокод</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+                    <input type="text" id="promoCodeInput" class="p-field-input" placeholder="ВВЕДИТЕ КОД" style="flex:1;min-width:160px;text-transform:uppercase;" maxlength="40">
+                    <button class="btn-team-settings" id="promoRedeemBtn" onclick="redeemPromoCode()">Активировать</button>
                 </div>
-            </div><!-- /tab-myprofile -->
+                <div id="promoRedeemResult" style="margin-top:10px;font-size:13px;display:none;"></div>
+            </div>
+                </div><!-- /pform-grid -->
+                    </div><!-- /pe-form -->
+
+                    <aside class="pe-preview">
+                        <div class="pe-preview-head">
+                            <span class="pform-card-title" style="margin:0;"><i class="icon" data-icon="palette" aria-hidden="true"></i> Предпросмотр</span>
+                            <span class="pe-preview-hint">так профиль видят другие игроки</span>
+                        </div>
+                        <div id="editPreview" class="pv-host pv-host--preview"></div>
+                    </aside>
+                </div><!-- /pe-layout -->
+
+                <div class="pe-savebar">
+                    <div class="pe-savebar-btns">
+                        <button type="button" id="statsSaveBtn" class="p-btn-save" onclick="saveProfileStats()" disabled>Сохранить изменения</button>
+                        <button type="button" id="statsCancelBtn" class="pe-btn-cancel" onclick="cancelProfileEdit()" disabled>Отменить</button>
+                    </div>
+                    <div class="pe-savebar-msgs">
+                        <span id="editDirtyHint" class="pe-dirty-hint" style="display:none;">Есть несохранённые изменения</span>
+<div id="statsError" class="p-modal-error" style="display:none;"></div>
+<div id="statsSuccess" style="display:none;background:rgba(76,175,130,0.1);border:1px solid rgba(76,175,130,0.25);border-radius:8px;padding:10px 14px;color:#4caf82;font-size:13px;font-weight:600;margin-bottom:4px;"><i class="icon" data-icon="checkCircle" aria-hidden="true"></i> Данные сохранены!</div>
+                    </div>
+                </div>
+            </div><!-- /tab-edit -->
 
 
             <!-- ══ ТАБ: КОМАНДА ══ -->
@@ -521,7 +500,7 @@
             <div class="p-modal-body" style="gap:20px;">
                 <div style="background:rgba(91,141,232,0.07);border:1px solid rgba(91,141,232,0.2);border-radius:10px;padding:16px 18px;">
                     <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#5b8de8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="gamepad" aria-hidden="true"></i> Шаг 0 — Заполни профиль</div>
-                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Перейди во вкладку <strong style="color:white;">«Мой профиль»</strong> и укажи FACEIT уровень и количество часов в CS2. Без этого нельзя создать команду или принять приглашение.</p>
+                    <p style="font-size:13px;line-height:1.7;color:#aebbc7;">Перейди во вкладку <strong style="color:white;">«Редактирование»</strong> и укажи FACEIT уровень и количество часов в CS2. Без этого нельзя создать команду или принять приглашение.</p>
                 </div>
                 <div style="background:rgba(230,176,34,0.07);border:1px solid rgba(230,176,34,0.2);border-radius:10px;padding:16px 18px;">
                     <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:#e6b022;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;"><i class="icon" data-icon="swords" aria-hidden="true"></i> Шаг 1 — Создание команды</div>

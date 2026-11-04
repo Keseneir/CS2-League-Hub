@@ -4,13 +4,30 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     let _profileData    = null;
     let _inviteTargetId = null;
 
+    // ── Редактор профиля: сохранённое состояние и несохранённый черновик ─────
+    // _draft живёт только в браузере владельца и уходит на сервер только по «Сохранить».
+    let _saved        = null;   // последнее сохранённое на сервере
+    let _draft        = null;   // текущие (возможно несохранённые) правки
+    let _inv          = [];     // личный инвентарь из /api/shop/inventory (itemId — полный ShopItem)
+    let _invOk        = false;
+    let _invLoaded    = false;
+    let _formBuilt    = false;
+    let _saving       = false;
+    let _matchesCache = null;   // последние матчи для вкладки «Профиль» и превью
+    const BIO_MAX     = 300;    // тот же лимит, что на сервере (routes/users.js, models/User.js)
+    const SLOT_TYPE   = { avatarFrame: "avatar_frame", profileBg: "profile_bg" };
+    const SLOT_LABEL  = { avatarFrame: "Рамка аватара", profileBg: "Фон профиля" };
+    const AVATAR_FALLBACK = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 fill=%27%231a2128%27/%3E%3Ccircle cx=%2712%27 cy=%278.5%27 r=%274%27 fill=%27%235c6b7f%27/%3E%3Cpath d=%27M4 21a8 8 0 0 1 16 0z%27 fill=%27%235c6b7f%27/%3E%3C/svg%3E";
+    const SVG_TG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>';
+    const SVG_DC = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>';
+
     
 
     function avatarEl(src, name, cls) {
-        if (src) return `<img src="${src}" alt="${name}" class="${cls}" onerror="this.style.display='none'">`;
+        if (src) return `<img src="${esc(src)}" alt="${esc(name)}" class="${cls}" onerror="this.style.display='none'">`;
         const initials = (name || "?").trim().split(/\s+/).map(w => w[0]).join("").toUpperCase().slice(0, 2);
         const ph = cls.includes("member") ? "member-avatar-placeholder" : "friend-avatar-placeholder";
-        return `<div class="${ph}">${initials}</div>`;
+        return `<div class="${ph}">${esc(initials)}</div>`;
     }
 
     // ── Палитра уровней FACEIT ──────────────────────────────────────────────
@@ -176,252 +193,255 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     }
 
     async function loadPublicProfile(steamId) {
+        const pubLoading = document.getElementById("publicLoading");
         try {
             const [pubRes, meRes] = await Promise.all([
-                fetch(`/api/users/${steamId}/public`),
+                fetch(`/api/users/${encodeURIComponent(steamId)}/public`),
                 fetch("/api/profile").catch(() => null)
             ]);
-
-            const pubLoading = document.getElementById("publicLoading");
             if (pubLoading) pubLoading.style.display = "none";
 
-            if (!pubRes.ok) {
-                const pubHidden = document.getElementById("publicHidden");
-                if (pubHidden) pubHidden.style.display = "block";
-                return;
-            }
-
-            const data = await pubRes.json();
-
-            if (data.isPrivate) {
-                const pubHidden = document.getElementById("publicHidden");
-                if (pubHidden) pubHidden.style.display = "block";
-                return;
-            }
-
-            let meData = null;
+            let me = null;
             if (meRes && meRes.ok) {
-                try { meData = await meRes.json(); } catch {}
+                try { me = await meRes.json(); } catch {}
             }
 
-            renderPublicProfile(data, meData);
+            // Владелец открыл свой профиль по ?id=: берём его данные из /api/profile
+            // (авторизованный запрос), публичный API при этом не ослабляется.
+            if (me && me.steamId && String(me.steamId) === String(steamId)) {
+                showPublicView(me, { selfPrivate: !!me.isPrivate });
+                return;
+            }
+
+            if (!pubRes.ok) { showPublicHidden(); return; }
+            const data = await pubRes.json();
+            showPublicView(data, {});
         } catch {
-            const pubLoading = document.getElementById("publicLoading");
             if (pubLoading) pubLoading.innerHTML = '<p style="color:var(--text-gray);text-align:center;padding:40px;">Не удалось загрузить профиль.</p>';
         }
     }
 
-    // ── Обзорная статистика (донаты FACEIT-уровня / винрейта сезона) ────────
-    // ids: { card, faceitDonut, faceitVal, winrateWrap, winrateDonut, winrateVal, winrateLabel, kd, matches }
-    function renderStatOverview(ids, data) {
-        const card = document.getElementById(ids.card);
-        if (!card) return;
+    function showPublicHidden() {
+        const el = document.getElementById("publicHidden");
+        if (el) el.style.display = "block";
+    }
 
-        const hasFaceit = data.faceitLevel !== null && data.faceitLevel !== undefined && data.faceitLevel > 0;
-        const stats      = data.stats || {};
-        const seasonStat = data.seasonStats || null;
-        const totalMatches = (stats.wins || 0) + (stats.losses || 0);
+    function showPublicView(vd, opts) {
+        const content = document.getElementById("publicContent");
+        const host    = document.getElementById("pubView");
+        if (!content || !host) return;
+        content.style.display = "block";
 
-        if (!hasFaceit && !seasonStat && !totalMatches) { card.style.display = "none"; return; }
-        card.style.display = "flex";
+        const root = ensureView(host);
+        renderView(root, vd, opts);
 
-        const faceitDonut = document.getElementById(ids.faceitDonut);
-        const faceitVal   = document.getElementById(ids.faceitVal);
-        if (faceitDonut && faceitVal) {
-            if (hasFaceit) {
-                faceitDonut.style.setProperty("--pct", (data.faceitLevel / 10) * 100);
-                faceitDonut.style.setProperty("--donut-color", faceitLevelColor(data.faceitLevel));
-                faceitVal.textContent = data.faceitLevel;
+        // Чужой приватный профиль: косметику и остальные данные не показываем
+        const hide = !!vd.isPrivate && !(opts && opts.selfPrivate);
+        applyCosmeticCSS(hide ? {} : (vd.equippedCosmetics || {}));
+
+        if (!hide && vd.steamId) {
+            fetchMatches(vd.steamId).then(m => renderMatches(root, m));
+        }
+    }
+
+    // ── Общий компонент профиля (шаблон #profileViewTpl) ────────────────────
+    function ensureView(host) {
+        if (!host.firstElementChild) {
+            const tpl = document.getElementById("profileViewTpl");
+            host.appendChild(tpl.content.cloneNode(true));
+            const root = host.firstElementChild;
+            root.querySelectorAll("[data-ico]").forEach(el => {
+                el.insertAdjacentHTML("afterbegin", iconSvg(el.dataset.ico) + " ");
+            });
+        }
+        return host.firstElementChild;
+    }
+
+    function q(root, key) { return root.querySelector(`[data-pv="${key}"]`); }
+
+    // vd: { displayName, avatar, rank, rankColor, faceitLevel, hoursInCS2, bio, telegramUsername,
+    //       discordUsername, stats, seasonStats, team, isPrivate }
+    // opts.selfPrivate — владелец смотрит свой скрытый профиль: показываем всё + пометку.
+    function renderView(root, vd, opts) {
+        opts = opts || {};
+        const hide = !!vd.isPrivate && !opts.selfPrivate;
+
+        // Аватар и имя видны всегда
+        const av  = q(root, "avatar");
+        const src = vd.avatar || AVATAR_FALLBACK;
+        if (av.dataset.src !== src) {
+            av.dataset.src = src;
+            av.onerror = function() { this.onerror = null; this.dataset.src = AVATAR_FALLBACK; this.src = AVATAR_FALLBACK; };
+            av.src = src;
+        }
+        q(root, "name").textContent = vd.displayName || "—";
+
+        q(root, "private").hidden  = !hide;
+        q(root, "selfNote").hidden = !(vd.isPrivate && opts.selfPrivate);
+        q(root, "body").hidden     = hide;
+
+        // Ранг
+        const rankEl = q(root, "rank");
+        if (hide) {
+            rankEl.hidden = true;
+        } else {
+            rankEl.hidden = false;
+            rankEl.textContent = vd.rank || "Unranked";
+            if (vd.rankColor && /^#[0-9a-fA-F]{3,8}$/.test(vd.rankColor)) {
+                rankEl.style.color       = vd.rankColor;
+                rankEl.style.borderColor = vd.rankColor + "55";
+                rankEl.style.background  = vd.rankColor + "18";
             } else {
-                faceitDonut.style.setProperty("--pct", 0);
-                faceitDonut.style.setProperty("--donut-color", faceitLevelColor(null));
-                faceitVal.textContent = "—";
+                rankEl.style.color = rankEl.style.borderColor = rankEl.style.background = "";
             }
         }
 
-        const winrateWrap  = document.getElementById(ids.winrateWrap);
-        const winrateDonut = document.getElementById(ids.winrateDonut);
-        const winrateVal   = document.getElementById(ids.winrateVal);
-        const winrateLabel = document.getElementById(ids.winrateLabel);
-        if (winrateWrap && seasonStat && seasonStat.matches > 0) {
-            winrateWrap.style.display = "flex";
-            winrateDonut.style.setProperty("--pct", seasonStat.winPct);
-            winrateVal.textContent = seasonStat.winPct + "%";
-            if (winrateLabel) winrateLabel.textContent = `ВИНРЕЙТ · ${seasonStat.seasonName}`;
-        } else if (winrateWrap) {
-            winrateWrap.style.display = "none";
+        // Тег команды в шапке
+        const tagEl = q(root, "teamTag");
+        if (!hide && vd.team && vd.team.tag) {
+            tagEl.hidden = false;
+            tagEl.textContent = `[${vd.team.tag}] ${vd.team.name || ""}`.trim();
+            tagEl.href = `/team.html?tag=${encodeURIComponent(vd.team.tag)}`;
+        } else {
+            tagEl.hidden = true;
         }
 
-        const kdEl = document.getElementById(ids.kd);
-        if (kdEl) {
-            kdEl.textContent = (stats.deaths || 0) > 0
-                ? (stats.kills / stats.deaths).toFixed(2)
-                : (stats.kills ? stats.kills.toFixed(2) : "—");
+        // Бейджи FACEIT / часы (пустые не показываем)
+        const badges = q(root, "badges");
+        badges.textContent = "";
+        if (!hide) {
+            if (Number.isFinite(vd.faceitLevel) && vd.faceitLevel > 0) {
+                const color = faceitLevelColor(vd.faceitLevel);
+                const chip = document.createElement("span");
+                chip.className = "pv-chip";
+                chip.style.background  = color + "20";
+                chip.style.border      = `1px solid ${color}55`;
+                chip.style.color       = color;
+                chip.textContent = `FACEIT lv${vd.faceitLevel}`;
+                badges.appendChild(chip);
+            }
+            if (Number.isFinite(vd.hoursInCS2)) {
+                const chip = document.createElement("span");
+                chip.className = "pv-chip pv-chip--hours";
+                chip.innerHTML = iconSvg("clock") + " " + esc(vd.hoursInCS2) + " ч. в CS2";
+                badges.appendChild(chip);
+            }
+        }
+        badges.hidden = !badges.children.length;
+
+        if (hide) return;
+
+        // О себе
+        const bio = (vd.bio || "").trim();
+        q(root, "bioBlock").hidden = !bio;
+        q(root, "bio").textContent = bio;
+
+        // Контакты
+        const links = [];
+        if (vd.telegramUsername) {
+            links.push(`<a class="pv-social pv-social--tg" href="https://t.me/${encodeURIComponent(vd.telegramUsername)}" target="_blank" rel="noopener noreferrer">${SVG_TG} @${esc(vd.telegramUsername)}</a>`);
+        }
+        if (vd.discordUsername) {
+            links.push(`<span class="pv-social pv-social--dc">${SVG_DC} ${esc(vd.discordUsername)}</span>`);
+        }
+        q(root, "socialsBlock").hidden = !links.length;
+        q(root, "socials").innerHTML   = links.join("");
+
+        // Команда
+        const teamBlock = q(root, "teamBlock");
+        if (vd.team && vd.team.tag) {
+            teamBlock.hidden = false;
+            const card = q(root, "teamCard");
+            const logoHtml = vd.team.logo
+                ? `<img src="${esc(vd.team.logo)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
+                : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.25);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--accent);flex-shrink:0;">${esc(String(vd.team.tag || "?").slice(0, 2))}</div>`;
+            card.href = `/team.html?tag=${encodeURIComponent(vd.team.tag)}`;
+            card.innerHTML = `${logoHtml}<div style="flex:1;min-width:0;"><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;overflow-wrap:anywhere;">${esc(vd.team.name)}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${esc(vd.team.tag)}]</div></div><div class="pv-team-go">Перейти на страницу команды ${iconSvg("link")}</div>`;
+        } else {
+            teamBlock.hidden = true;
         }
 
-        const matchesEl = document.getElementById(ids.matches);
-        if (matchesEl) matchesEl.textContent = totalMatches || "—";
+        renderStatOverview(root, vd);
     }
 
-    // ── Таблица последних матчей ─────────────────────────────────────────
-    async function loadAndRenderMatches(steamId, blockId, wrapId) {
-        const block = document.getElementById(blockId);
-        const wrap  = document.getElementById(wrapId);
-        if (!block || !wrap) return;
+    // ── Обзорная статистика (донаты FACEIT-уровня / винрейта сезона) ────────
+    function renderStatOverview(root, data) {
+        const card = q(root, "statCard");
+        const hasFaceit    = Number.isFinite(data.faceitLevel) && data.faceitLevel > 0;
+        const stats        = data.stats || {};
+        const seasonStat   = data.seasonStats || null;
+        const totalMatches = (stats.wins || 0) + (stats.losses || 0);
 
-        try {
-            const res = await fetch(`/api/users/${steamId}/matches?limit=6`);
-            if (!res.ok) { block.style.display = "none"; return; }
-            const matches = await res.json();
+        if (!hasFaceit && !seasonStat && !totalMatches) { card.hidden = true; return; }
+        card.hidden = false;
 
-            if (!matches.length) { block.style.display = "none"; return; }
-            block.style.display = "block";
-
-            wrap.innerHTML = matches.map(m => {
-                const dateStr = m.playedAt
-                    ? new Date(m.playedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })
-                    : "";
-                const kdaStr = (m.kills !== null && m.kills !== undefined)
-                    ? `${m.kills}/${m.deaths}/${m.assists}`
-                    : "";
-                return `
-                    <div class="match-row-item">
-                        <span class="match-result-badge ${m.result === "win" ? "win" : "loss"}">${m.result === "win" ? "WIN" : "LOSS"}</span>
-                        <span class="match-map">${m.map ? esc(m.map) : "—"}</span>
-                        <span class="match-opponent">vs ${m.opponentTeam ? `[${esc(m.opponentTeam.tag)}] ${esc(m.opponentTeam.name)}` : "—"}</span>
-                        <span class="match-score">${m.score ? esc(m.score) : "—"}</span>
-                        <span class="match-kda">${kdaStr}</span>
-                        <span class="match-date">${dateStr}</span>
-                    </div>`;
-            }).join("");
-        } catch {
-            block.style.display = "none";
+        const faceitDonut = q(root, "faceitDonut");
+        const faceitVal   = q(root, "faceitVal");
+        if (hasFaceit) {
+            faceitDonut.style.setProperty("--pct", (data.faceitLevel / 10) * 100);
+            faceitDonut.style.setProperty("--donut-color", faceitLevelColor(data.faceitLevel));
+            faceitVal.textContent = data.faceitLevel;
+        } else {
+            faceitDonut.style.setProperty("--pct", 0);
+            faceitDonut.style.setProperty("--donut-color", faceitLevelColor(null));
+            faceitVal.textContent = "—";
         }
+
+        const winrateWrap = q(root, "winrateWrap");
+        if (seasonStat && seasonStat.matches > 0) {
+            winrateWrap.hidden = false;
+            q(root, "winrateDonut").style.setProperty("--pct", seasonStat.winPct);
+            q(root, "winrateVal").textContent   = seasonStat.winPct + "%";
+            q(root, "winrateLabel").textContent = `ВИНРЕЙТ · ${seasonStat.seasonName}`;
+        } else {
+            winrateWrap.hidden = true;
+        }
+
+        q(root, "kd").textContent = (stats.deaths || 0) > 0
+            ? (stats.kills / stats.deaths).toFixed(2)
+            : (stats.kills ? stats.kills.toFixed(2) : "—");
+        q(root, "matchesPlayed").textContent = totalMatches || "—";
+    }
+
+    // ── Последние матчи ──────────────────────────────────────────────────
+    async function fetchMatches(steamId) {
+        try {
+            const res = await fetch(`/api/users/${encodeURIComponent(steamId)}/matches?limit=6`);
+            if (!res.ok) return [];
+            const m = await res.json();
+            return Array.isArray(m) ? m : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function renderMatches(root, matches) {
+        const block = q(root, "matchesBlock");
+        const wrap  = q(root, "matchesWrap");
+        if (!block || !wrap) return;
+        if (!matches || !matches.length) { block.hidden = true; wrap.innerHTML = ""; return; }
+        block.hidden = false;
+        wrap.innerHTML = matches.map(m => {
+            const dateStr = m.playedAt
+                ? new Date(m.playedAt).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" })
+                : "";
+            const kdaStr = (m.kills !== null && m.kills !== undefined)
+                ? `${m.kills}/${m.deaths}/${m.assists}`
+                : "";
+            return `
+                <div class="match-row-item">
+                    <span class="match-result-badge ${m.result === "win" ? "win" : "loss"}">${m.result === "win" ? "WIN" : "LOSS"}</span>
+                    <span class="match-map">${m.map ? esc(m.map) : "—"}</span>
+                    <span class="match-opponent">vs ${m.opponentTeam ? `[${esc(m.opponentTeam.tag)}] ${esc(m.opponentTeam.name)}` : "—"}</span>
+                    <span class="match-score">${m.score ? esc(m.score) : "—"}</span>
+                    <span class="match-kda">${kdaStr}</span>
+                    <span class="match-date">${dateStr}</span>
+                </div>`;
+        }).join("");
     }
 
     function esc(s) {
-        return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-    }
-
-    function renderPublicProfile(data, me) {
-        const pubContent = document.getElementById("publicContent");
-        if (pubContent) pubContent.style.display = "block";
-
-        const avatar = document.getElementById("pubAvatar");
-        if (avatar) {
-            if (data.avatar) { avatar.src = data.avatar; avatar.style.display = ""; avatar.onerror = function() { this.style.display = "none"; }; }
-            else { avatar.style.display = "none"; }
-        }
-
-        // Применяем косметику владельца публичного профиля
-        if (data.equippedCosmetics && window._applyCosmeticCSS) {
-            window._applyCosmeticCSS(data.equippedCosmetics);
-        }
-
-        const nameEl = document.getElementById("pubName");
-        if (nameEl) nameEl.textContent = data.displayName || "—";
-
-        const rankEl = document.getElementById("pubRank");
-        if (rankEl) {
-            rankEl.textContent = data.rank || "Unranked";
-            if (data.rankColor) {
-                rankEl.style.color       = data.rankColor;
-                rankEl.style.borderColor = data.rankColor + "55";
-                rankEl.style.background  = data.rankColor + "18";
-            }
-        }
-
-        if (data.team) {
-            const tag = document.getElementById("pubTeamTag");
-            if (tag) { tag.textContent = `[${data.team.tag}] ${data.team.name}`; tag.style.display = "inline-flex"; }
-        }
-
-        const friendBtnWrap = document.getElementById("pubFriendBtnWrap");
-        const friendBtn     = document.getElementById("pubFriendBtn");
-        if (friendBtnWrap && me && me.steamId && me.steamId !== data.steamId) {
-            friendBtnWrap.style.display = "block";
-            const isFriend = (me.friends || []).some(f => f.steamId === data.steamId || f._id === data._id);
-            if (isFriend) {
-                friendBtn.innerHTML = iconSvg("checkCircle") + " Уже в друзьях";
-                friendBtn.style.background  = "rgba(76,175,130,0.12)";
-                friendBtn.style.borderColor = "rgba(76,175,130,0.35)";
-                friendBtn.style.color       = "#4caf82";
-                friendBtn.disabled = true;
-            }
-            friendBtn.dataset.steamId = data.steamId;
-        }
-
-        const faceitBadge = document.getElementById("pubFaceitBadge");
-        if (faceitBadge && data.faceitLevel !== null && data.faceitLevel !== undefined) {
-            const label = data.faceitLevel === 0 ? "FACEIT: нет аккаунта" : `FACEIT lv${data.faceitLevel}`;
-            const color = faceitLevelColor(data.faceitLevel);
-            faceitBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:${color}20;border:1px solid ${color}55;color:${color};border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${label}</span>`;
-            faceitBadge.style.display = "block";
-        }
-
-        const hoursBadge = document.getElementById("pubHoursBadge");
-        if (hoursBadge && data.hoursInCS2 !== null && data.hoursInCS2 !== undefined) {
-            hoursBadge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.12);border:1px solid rgba(91,141,232,0.3);color:#5b8de8;border-radius:6px;padding:5px 12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">${iconSvg("clock")} ${data.hoursInCS2} ч. в CS2</span>`;
-            hoursBadge.style.display = "block";
-        }
-
-        if (data.bio) {
-            const bioBlock = document.getElementById("pubBioBlock");
-            const bioText  = document.getElementById("pubBioText");
-            if (bioBlock) bioBlock.style.display = "block";
-            if (bioText)  bioText.textContent    = data.bio;
-        }
-
-        const socialsBlock = document.getElementById("pubSocialsBlock");
-        const socialsRow   = document.getElementById("pubSocialsRow");
-        if (socialsBlock && socialsRow) {
-            const links = [];
-            if (data.telegramUsername) {
-                links.push(`<a href="https://t.me/${data.telegramUsername}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(91,141,232,0.10);border:1px solid rgba(91,141,232,0.25);color:#5b8de8;border-radius:6px;padding:6px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;text-decoration:none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.6-1.9-1.2 1.2c-.1.1-.3.2-.6.2l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1L6.6 15.4 4 14.6c-.6-.2-.6-.6.1-.8l10.9-4.2c.5-.2 1 .1.9.6z"/></svg>
-                    @${data.telegramUsername}
-                </a>`);
-            }
-            if (data.discordUsername) {
-                links.push(`<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(114,137,218,0.10);border:1px solid rgba(114,137,218,0.25);color:#7289da;border-radius:6px;padding:6px 14px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0A13 13 0 0 0 8.6 3a19.7 19.7 0 0 0-4.9 1.4C.5 9 -.3 13.5.1 17.9a20 20 0 0 0 6 3c.5-.7.9-1.4 1.3-2.1a13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1c.4.7.8 1.4 1.2 2a19.9 19.9 0 0 0 6.1-3c.5-5-1-9.4-3.6-13.5zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4c1.2 0 2.2 1.1 2.2 2.4s-1 2.4-2.2 2.4z"/></svg>
-                    ${data.discordUsername}
-                </span>`);
-            }
-            if (links.length) {
-                socialsBlock.style.display = "block";
-                socialsRow.innerHTML = links.join("");
-            }
-        }
-
-        if (data.team) {
-            const teamBlock = document.getElementById("pubTeamBlock");
-            const teamCard  = document.getElementById("pubTeamCard");
-            if (teamBlock) teamBlock.style.display = "block";
-            if (teamCard) {
-                const logoHtml = data.team.logo
-                    ? `<img src="${data.team.logo}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
-                    : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.25);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--accent);flex-shrink:0;">${(data.team.tag || "?").slice(0, 2)}</div>`;
-                teamCard.href = `/team.html?tag=${encodeURIComponent(data.team.tag)}`;
-                teamCard.innerHTML = `${logoHtml}<div style="flex:1;min-width:0;"><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;">${data.team.name}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${data.team.tag}]</div></div><div style="display:flex;align-items:center;gap:6px;color:#5c6b7f;font-size:12px;font-weight:600;flex-shrink:0;">Перейти на страницу команды ${iconSvg("link")}</div>`;
-            }
-        }
-
-        renderStatOverview({
-            card:         "pubStatOverviewCard",
-            faceitDonut:  "pubFaceitDonut",
-            faceitVal:    "pubFaceitDonutVal",
-            winrateWrap:  "pubWinrateWrap",
-            winrateDonut: "pubWinrateDonut",
-            winrateVal:   "pubWinrateDonutVal",
-            winrateLabel: "pubWinrateLabel",
-            kd:           "pubStatKD",
-            matches:      "pubStatMatchesPlayed",
-        }, data);
-
-        if (data.steamId) {
-            loadAndRenderMatches(data.steamId, "pubRecentMatchesBlock", "pubRecentMatchesTableWrap");
-        }
+        return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
     }
 
     window.pubAddFriend = async function() {
@@ -486,53 +506,40 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         if (loading) loading.style.display = "none";
         if (content) content.style.display = "block";
 
-        const avatarEl2 = document.getElementById("profileAvatar");
-        if (avatarEl2) avatarEl2.src = d.avatar || "";
-
-        const nameEl = document.getElementById("profileDisplayName");
-        if (nameEl) nameEl.textContent = d.displayName || "—";
-
-        const rankEl = document.getElementById("profileRankBadge");
-        if (rankEl) rankEl.textContent = d.rank || "Unranked";
-
-        if (d.team) {
-            const tag = document.getElementById("profileTeamTagBadge");
-            if (tag) { tag.textContent = `[${d.team.tag}] ${d.team.name}`; tag.style.display = "inline-flex"; }
-        }
-
         const helpBtn = document.getElementById("profileHelpBtn");
         if (helpBtn) helpBtn.style.display = "inline-flex";
 
-        // ── Применяем косметику ──────────────────────────────────────────
+        // ── Вкладка «Профиль»: только сохранённые данные (как видят другие) ──
+        const ownRoot = ensureView(document.getElementById("ownView"));
+        renderView(ownRoot, d, { selfPrivate: !!d.isPrivate });
         applyCosmeticCSS(d.equippedCosmetics || {});
 
-        await renderMyProfileTab(d);
+        // ── Вкладка «Редактирование»: сохранённое + черновик + превью ───────
+        if (!_invLoaded) await loadInventory();
+        syncEditor(d);
+
         renderTeamTab(d);
         renderNotifsTab(d);
         updateBadges(d);
 
-        renderStatOverview({
-            card:         "statOverviewCard",
-            faceitDonut:  "statFaceitDonut",
-            faceitVal:    "statFaceitDonutVal",
-            winrateWrap:  "statWinrateWrap",
-            winrateDonut: "statWinrateDonut",
-            winrateVal:   "statWinrateDonutVal",
-            winrateLabel: "statWinrateLabel",
-            kd:           "statKD",
-            matches:      "statMatchesPlayed",
-        }, d);
-
         if (d.steamId) {
-            loadAndRenderMatches(d.steamId, "recentMatchesBlock", "recentMatchesTableWrap");
+            fetchMatches(d.steamId).then(m => {
+                _matchesCache = m;
+                renderMatches(ownRoot, m);
+                const prev = document.getElementById("editPreview");
+                if (prev && prev.firstElementChild) {
+                    renderMatches(prev.firstElementChild, m);
+                    prev.firstElementChild._m = true;
+                }
+            });
         }
 
- // Кнопка «Просмотр профиля» → публичная страница
-    const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
-    if (viewPublicProfileLink && d.steamId) {
-        viewPublicProfileLink.href  = `/profile.html?id=${d.steamId}`;
-        viewPublicProfileLink.style.display = "inline-flex";
-     }
+        // Кнопка «Просмотр профиля» → публичная страница
+        const viewPublicProfileLink = document.getElementById("viewPublicProfileLink");
+        if (viewPublicProfileLink && d.steamId) {
+            viewPublicProfileLink.href  = `/profile.html?id=${encodeURIComponent(d.steamId)}`;
+            viewPublicProfileLink.style.display = "inline-flex";
+        }
     }
 
     // ── Инъекция CSS косметики ─────────────────────────────────────────────
@@ -565,11 +572,11 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     function injectRawCosmeticCss(css, selectors) {
         return selectors.map(sel => css.split("%SEL%").join(sel)).join("\n");
     }
-
-
-
-    function applyCosmeticCSS(cosmetics) {
+    // Собирает CSS косметики для заданных селекторов (общий код для профиля и превью).
+    // o: { frameSels: [...], avatarSels: [...], bgSel: "..." }
+    function buildCosmeticStyles(cosmetics, o) {
         let styles = "";
+        let hasBg  = false;
 
         // ── Рамка аватарки ────────────────────────────────────────────────
         const frame = cosmetics.avatarFrame;
@@ -582,25 +589,15 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 if (isRawCosmeticCss(cleanCss)) {
                     // Сырой CSS (свои селекторы, ::before/::after) — вешаем на div-обёртку,
                     // а не на <img>: псевдоэлементы на replaced-элементах браузер не рисует.
-                    styles += injectRawCosmeticCss(cleanCss, ["#profileAvatarFrameWrap", "#pubAvatarFrameWrap"]) + "\n";
+                    styles += injectRawCosmeticCss(cleanCss, o.frameSels) + "\n";
                 } else {
-                    const css = addImportant(cleanCss);
-                    styles += `#profileAvatar { ${css} }\n`;
-                    styles += `#pubAvatar     { ${css} }\n`;
+                    styles += `${o.avatarSels.join(", ")} { ${addImportant(cleanCss)} }\n`;
                 }
             }
         }
 
         // ── Фон профиля ───────────────────────────────────────────────────
-        // ВАЖНО: применяем к #_cosmetic_bg_layer (position:fixed, will-change:transform),
-        // а не к body — иначе браузер перерисовывает всю страницу на каждом кадре анимации (15fps!)
         const bg = cosmetics.profileBg;
-        let bgLayer = document.getElementById("_cosmetic_bg_layer");
-        if (!bgLayer) {
-            bgLayer = document.createElement("div");
-            bgLayer.id = "_cosmetic_bg_layer";
-            document.body.insertBefore(bgLayer, document.body.firstChild);
-        }
         if (bg && (bg.css || bg.keyframes)) {
             const src = (bg.keyframes || "") + "\n" + (bg.css || "");
             const extracted = extractKeyframes(src);
@@ -608,163 +605,333 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             const cleanCss = extracted.cleanCss;
             if (cleanCss) {
                 if (isRawCosmeticCss(cleanCss)) {
-                    styles += injectRawCosmeticCss(cleanCss, ["#_cosmetic_bg_layer"]) + "\n";
+                    styles += injectRawCosmeticCss(cleanCss, [o.bgSel]) + "\n";
                 } else {
-                    // Применяем к изолированному слою, не к body
-                    styles += `#_cosmetic_bg_layer { ${cleanCss} }\n`;
+                    styles += `${o.bgSel} { ${cleanCss} }\n`;
                 }
-                bgLayer.classList.add("active");
+                hasBg = true;
             }
-            styles += `#profileCoverArea { background: transparent !important; border-color: transparent !important; }\n`;
-            styles += `#pubCoverArea     { background: transparent !important; border-color: transparent !important; }\n`;
-        } else {
-            bgLayer.classList.remove("active");
         }
+        return { styles, hasBg };
+    }
 
-        let el = document.getElementById("_cosmetic_styles");
+    function setStyleEl(id, css) {
+        let el = document.getElementById(id);
         if (!el) {
             el = document.createElement("style");
-            el.id = "_cosmetic_styles";
+            el.id = id;
             document.head.appendChild(el);
         }
-        el.textContent = styles;
+        el.textContent = css;
+    }
+
+    // Косметика самого профиля (публичная страница и вкладка «Профиль»).
+    // ВАЖНО: фон вешаем на #_cosmetic_bg_layer (position:fixed, will-change:transform),
+    // а не на body — иначе браузер перерисовывает всю страницу на каждом кадре анимации.
+    function applyCosmeticCSS(cosmetics) {
+        const r = buildCosmeticStyles(cosmetics || {}, {
+            frameSels:  ["#pubView .pv-frame-wrap", "#ownView .pv-frame-wrap"],
+            avatarSels: ["#pubView .pv-avatar", "#ownView .pv-avatar"],
+            bgSel:      "#_cosmetic_bg_layer",
+        });
+
+        let bgLayer = document.getElementById("_cosmetic_bg_layer");
+        if (!bgLayer) {
+            bgLayer = document.createElement("div");
+            bgLayer.id = "_cosmetic_bg_layer";
+            document.body.insertBefore(bgLayer, document.body.firstChild);
+        }
+        bgLayer.classList.toggle("active", r.hasBg);
+        setStyleEl("_cosmetic_styles", r.styles);
+    }
+
+    // Косметика в превью редактора (локальный слой внутри превью, не затрагивает остальную страницу).
+    function applyPreviewCosmeticCSS(cosmetics, root) {
+        const r = buildCosmeticStyles(cosmetics || {}, {
+            frameSels:  ["#editPreview .pv-frame-wrap"],
+            avatarSels: ["#editPreview .pv-avatar"],
+            bgSel:      "#editPreview .pv-bg",
+        });
+        setStyleEl("_cosmetic_styles_preview", r.styles);
+        const bgEl = root && q(root, "bg");
+        if (bgEl) bgEl.classList.toggle("active", r.hasBg);
     }
 
     // Экспортируем для публичного профиля
     window._applyCosmeticCSS = applyCosmeticCSS;
 
-    //таб мой профиль
+    // ═══ Вкладки: Профиль / Редактирование / Команда / Уведомления ═══════════
+    function activateTab(name) {
+        document.querySelectorAll(".profile-tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+        document.querySelectorAll(".profile-tab-content").forEach(c => c.classList.toggle("active", c.id === "tab-" + name));
+        // На вкладке редактирования глобальный фон страницы скрыт: фон показывает само превью
+        document.body.classList.toggle("pe-active", name === "edit");
+        if (name === "edit") {
+            updatePreview();
+            // Инвентарь перечитываем при входе (например, после промокода); черновик не трогаем
+            loadInventory().then(() => { renderCosmeticsSection(); updatePreview(); });
+        }
+    }
 
-    async function renderMyProfileTab(d) {
-        const faceit = d.faceitLevel ?? null;
-        const hours  = d.hoursInCS2  ?? null;
-        const bio    = d.bio         || "";
-        const priv   = d.isPrivate   || false;
+    // ═══ Редактирование профиля ═════════════════════════════════════════════
+    function normTg(s) { return String(s || "").trim().replace(/^@/, ""); }
 
-        const group = document.getElementById("faceitBtnGroup");
-        if (group) {
-            const levels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-            group.innerHTML = levels.map(lv => {
-                const label = lv === 0 ? "Нет" : `lv${lv}`;
-                const sel   = faceit === lv;
-                const color = faceitLevelColor(lv === 0 ? null : lv);
-                return `<button type="button"
-                    data-level="${lv}"
-                    onclick="selectFaceit(${lv})"
-                    style="padding:7px 13px;border-radius:6px;cursor:pointer;transition:all 0.2s;
-                           font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
-                           border:1px solid ${sel ? color : "var(--border)"};
-                           background:${sel ? color + "26" : "#0e1318"};
-                           color:${sel ? color : "var(--text-gray)"};"
-                >${label}</button>`;
-            }).join("");
+    function savedFromProfile(d) {
+        const eq = d.equippedCosmetics || {};
+        return {
+            faceitLevel: d.faceitLevel ?? null,
+            hoursInCS2:  d.hoursInCS2  ?? null,
+            bio:         d.bio || "",
+            isPrivate:   !!d.isPrivate,
+            telegram:    d.telegramUsername || "",
+            discord:     d.discordUsername  || "",
+            // equippedCosmetics.* хранит _id предмета ShopItem (= personalInventory[].itemId)
+            avatarFrame: (eq.avatarFrame && eq.avatarFrame._id) || null,
+            profileBg:   (eq.profileBg   && eq.profileBg._id)   || null,
+        };
+    }
+
+    function isDirty() {
+        if (!_saved || !_draft) return false;
+        return _draft.faceitLevel !== _saved.faceitLevel
+            || _draft.hoursInCS2  !== _saved.hoursInCS2
+            || _draft.bio         !== _saved.bio
+            || _draft.isPrivate   !== _saved.isPrivate
+            || normTg(_draft.telegram) !== normTg(_saved.telegram)
+            || String(_draft.discord).trim() !== String(_saved.discord).trim()
+            || _draft.avatarFrame !== _saved.avatarFrame
+            || _draft.profileBg   !== _saved.profileBg;
+    }
+
+    // Вызывается после каждой загрузки профиля с сервера (в т.ч. фоновой).
+    // Несохранённые правки при этом не затираются.
+    function syncEditor(d) {
+        const next     = savedFromProfile(d);
+        const wasDirty = !!(_saved && _draft && isDirty());
+        const changed  = !_saved || JSON.stringify(next) !== JSON.stringify(_saved);
+        _saved = next;
+
+        if (!_draft || !wasDirty) {
+            _draft = Object.assign({}, _saved);
+            if (changed || !_formBuilt) fillEditorForm();
         }
 
-        const faceitInput = document.getElementById("statFaceit");
-        if (faceitInput) faceitInput.value = faceit !== null ? String(faceit) : "";
+        updateIncompleteUI(d);
+        renderCosmeticsSection();
+        updatePreview();
+        updateEditorState();
+    }
 
-        const hoursInput = document.getElementById("statHours");
-        if (hoursInput && hours !== null) hoursInput.value = hours;
-
-        const bioInput = document.getElementById("statBio");
-        if (bioInput) {
-            bioInput.value = bio;
-            const counter = document.getElementById("bioCharCount");
-            if (counter) counter.textContent = bio.length;
-            bioInput.addEventListener("input", function() {
-                const c = document.getElementById("bioCharCount");
-                if (c) c.textContent = this.value.length;
-            });
-        }
-
-        const privToggle = document.getElementById("statPrivate");
-        if (privToggle) privToggle.checked = priv;
-
-        const tgInput = document.getElementById("statTelegram");
-        if (tgInput) tgInput.value = d.telegramUsername || "";
-        const dcInput = document.getElementById("statDiscord");
-        if (dcInput) dcInput.value = d.discordUsername  || "";
-
+    function updateIncompleteUI(d) {
         const isIncomplete = (d.faceitLevel === null || d.faceitLevel === undefined) ||
                              (d.hoursInCS2  === null || d.hoursInCS2  === undefined);
         const warning = document.getElementById("profileIncompleteWarning");
         if (warning) warning.style.display = isIncomplete ? "block" : "none";
-
         const badge = document.getElementById("profileIncompleteBadge");
         if (badge) badge.style.display = isIncomplete ? "inline-flex" : "none";
-
-        // ── Секция кастомизации ──────────────────────────────────────────
-        await renderCosmeticsSection(d);
     }
 
-     async function renderCosmeticsSection(d) {
-        // ─ Слоты "надето" — берём из profileData (там уже populate) ──────
-        const cosmetics  = d.equippedCosmetics  || {};
+    function renderFaceitButtons() {
+        const group = document.getElementById("faceitBtnGroup");
+        if (!group || !_draft) return;
+        const faceit = _draft.faceitLevel;
+        group.innerHTML = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(lv => {
+            const label = lv === 0 ? "Нет" : `lv${lv}`;
+            const sel   = faceit === lv;
+            const color = faceitLevelColor(lv === 0 ? null : lv);
+            return `<button type="button" data-level="${lv}"
+                style="padding:7px 13px;border-radius:6px;cursor:pointer;transition:all 0.2s;
+                       font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;
+                       border:1px solid ${sel ? color : "var(--border)"};
+                       background:${sel ? color + "26" : "#0e1318"};
+                       color:${sel ? color : "var(--text-gray)"};"
+            >${label}</button>`;
+        }).join("");
+        const hidden = document.getElementById("statFaceit");
+        if (hidden) hidden.value = faceit !== null ? String(faceit) : "";
+    }
 
+    function updateBioCounter() {
+        const bioInput = document.getElementById("statBio");
+        const counter  = document.getElementById("bioCharCount");
+        if (!bioInput || !counter) return;
+        const n = bioInput.value.length;
+        counter.textContent = n;
+        const wrap = counter.parentElement;
+        if (wrap) wrap.style.color = n >= BIO_MAX ? "#e05c5c" : (n >= BIO_MAX * 0.9 ? "#e6b022" : "");
+    }
+
+    // Заполняет поля формы значениями из черновика
+    function fillEditorForm() {
+        if (!_draft) return;
+        wireEditorOnce();
+        renderFaceitButtons();
+
+        const hoursInput = document.getElementById("statHours");
+        if (hoursInput) hoursInput.value = _draft.hoursInCS2 !== null ? _draft.hoursInCS2 : "";
+
+        const bioInput = document.getElementById("statBio");
+        if (bioInput) bioInput.value = _draft.bio;
+        updateBioCounter();
+
+        const privToggle = document.getElementById("statPrivate");
+        if (privToggle) privToggle.checked = _draft.isPrivate;
+
+        const tgInput = document.getElementById("statTelegram");
+        if (tgInput) tgInput.value = _draft.telegram;
+        const dcInput = document.getElementById("statDiscord");
+        if (dcInput) dcInput.value = _draft.discord;
+    }
+
+    // Обработчики вешаются один раз (раньше они добавлялись при каждой перерисовке)
+    function wireEditorOnce() {
+        if (_formBuilt) return;
+        _formBuilt = true;
+
+        const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+
+        const group = document.getElementById("faceitBtnGroup");
+        if (group) group.addEventListener("click", e => {
+            const b = e.target.closest("button[data-level]");
+            if (!b || !_draft) return;
+            _draft.faceitLevel = parseInt(b.dataset.level, 10);
+            renderFaceitButtons();
+            onDraftChanged();
+        });
+
+        on("statHours", "input", function() {
+            if (!_draft) return;
+            const v = this.value.trim();
+            _draft.hoursInCS2 = v === "" ? null : Number(v);
+            if (Number.isNaN(_draft.hoursInCS2)) _draft.hoursInCS2 = null;
+            onDraftChanged();
+        });
+
+        on("statBio", "input", function() {
+            if (!_draft) return;
+            if (this.value.length > BIO_MAX) this.value = this.value.slice(0, BIO_MAX);
+            _draft.bio = this.value;
+            updateBioCounter();
+            onDraftChanged();
+        });
+
+        on("statPrivate", "change", function() {
+            if (!_draft) return;
+            _draft.isPrivate = this.checked;
+            onDraftChanged();
+        });
+
+        on("statTelegram", "input", function() { if (_draft) { _draft.telegram = this.value; onDraftChanged(); } });
+        on("statDiscord",  "input", function() { if (_draft) { _draft.discord  = this.value; onDraftChanged(); } });
+
+        const grid = document.getElementById("inventoryItemsGrid");
+        if (grid) grid.addEventListener("click", e => {
+            const b = e.target.closest("button[data-act]");
+            if (!b) return;
+            if (b.dataset.act === "equip") window.equipCosmetic(b.dataset.id, b.dataset.slot);
+            else window.unequipCosmetic(b.dataset.slot);
+        });
+    }
+
+    function onDraftChanged() {
+        const errEl = document.getElementById("statsError");
+        if (errEl) errEl.style.display = "none";
+        const okEl = document.getElementById("statsSuccess");
+        if (okEl) okEl.style.display = "none";
+        updatePreview();
+        updateEditorState();
+    }
+
+    function updateEditorState() {
+        const dirty  = isDirty();
+        const save   = document.getElementById("statsSaveBtn");
+        const cancel = document.getElementById("statsCancelBtn");
+        const hint   = document.getElementById("editDirtyHint");
+        if (save)   save.disabled   = !dirty || _saving;
+        if (cancel) cancel.disabled = !dirty || _saving;
+        if (hint)   hint.style.display = dirty ? "" : "none";
+    }
+
+    // ── Косметика: выбор только из реального инвентаря игрока ───────────────
+    async function loadInventory() {
+        try {
+            const r = await fetch("/api/shop/inventory");
+            if (r.ok) {
+                const j = await r.json();
+                _inv   = (j.personal || []).filter(e => e && e.itemId);
+                _invOk = true;
+            } else {
+                _invOk = false;
+            }
+        } catch {
+            _invOk = false;
+        }
+        _invLoaded = true;
+    }
+
+    // id предмета (ShopItem._id) → объект предмета с css/keyframes для превью
+    function resolveCosmetic(slot, id) {
+        if (!id) return null;
+        const hit = _inv.find(e => e.itemId && String(e.itemId._id) === String(id));
+        if (hit) return hit.itemId;
+        const cur = _profileData && _profileData.equippedCosmetics && _profileData.equippedCosmetics[slot];
+        if (cur && String(cur._id) === String(id)) return cur;
+        return null;
+    }
+
+    function renderCosmeticsSection() {
+        if (!_draft) return;
+
+        // Слоты «Сейчас выбрано» (по черновику)
         const slotCfg = {
-            avatarFrame: { nameId: "slotAvatarFrameName", btnId: "unequipAvatarFrameBtn" },
-            profileBg:   { nameId: "slotProfileBgName",   btnId: "unequipProfileBgBtn"   },
+            avatarFrame: { nameId: "slotAvatarFrameName", btnId: "unequipAvatarFrameBtn", slotId: "slotAvatarFrame", empty: "Не надета" },
+            profileBg:   { nameId: "slotProfileBgName",   btnId: "unequipProfileBgBtn",   slotId: "slotProfileBg",   empty: "Не надет"  },
         };
-
         for (const [slot, cfg] of Object.entries(slotCfg)) {
-            const item  = cosmetics[slot];
+            const item   = resolveCosmetic(slot, _draft[slot]);
             const nameEl = document.getElementById(cfg.nameId);
             const btnEl  = document.getElementById(cfg.btnId);
+            const slotEl = document.getElementById(cfg.slotId);
             if (!nameEl) continue;
-
-            const slotEl = document.getElementById(slot === "avatarFrame" ? "slotAvatarFrame" : "slotProfileBg");
             if (item && item.name) {
                 nameEl.textContent = item.name;
-                nameEl.className = "cslot-filled";
-                if (btnEl) btnEl.style.display = "";
+                nameEl.className   = "cslot-filled";
+                if (btnEl)  btnEl.style.display = "";
                 if (slotEl) slotEl.classList.add("has-item");
             } else {
-                nameEl.textContent = slot === "avatarFrame" ? "Не надета" : "Не надет";
-                nameEl.className = "cslot-empty";
-                if (btnEl) btnEl.style.display = "none";
+                nameEl.textContent = cfg.empty;
+                nameEl.className   = "cslot-empty";
+                if (btnEl)  btnEl.style.display = "none";
                 if (slotEl) slotEl.classList.remove("has-item");
             }
         }
 
-        // ─ Инвентарь — грузим отдельно через /api/shop/inventory ─────────
-        // /api/profile возвращает personalInventory без populate полей предмета.
-        // /api/shop/inventory делает полный populate — name, type, cosmeticType и т.д.
+        // Сетка инвентаря
         const grid      = document.getElementById("inventoryItemsGrid");
         const emptyNote = document.getElementById("inventoryEmptyNote");
         if (!grid) return;
 
-        grid.innerHTML = `<div style="color:var(--text-gray);font-size:13px;padding:8px 0;">Загрузка...</div>`;
-
-        let shopInv = null;
-        try {
-            const r = await fetch("/api/shop/inventory");
-            if (r.ok) shopInv = await r.json();
-        } catch {}
-
+        if (!_invOk) {
+            grid.innerHTML = `<div style="color:#e05c5c;font-size:13px;padding:8px 0;">Не удалось загрузить инвентарь. Обновите страницу.</div>`;
+            if (emptyNote) emptyNote.style.display = "none";
+            return;
+        }
         grid.innerHTML = "";
 
-        const personal = (shopInv?.personal || []).filter(e => e && e.itemId);
-
-        if (personal.length === 0) {
+        if (_inv.length === 0) {
             if (emptyNote) emptyNote.style.display = "";
             return;
         }
         if (emptyNote) emptyNote.style.display = "none";
 
-        // cosmeticType из базы: "avatar_frame" | "profile_bg" | "team_bg"
-        // slot для equip-эндпоинта:  "avatarFrame" | "profileBg"
-        const ctMap = {
-            "avatar_frame": "avatarFrame",
-            "profile_bg":   "profileBg",
-        };
         const cosmeticLabels = {
-            "avatar_frame": iconSvg("image") + " Рамка аватара",
+            "avatar_frame": iconSvg("image")   + " Рамка аватара",
             "profile_bg":   iconSvg("palette") + " Фон профиля",
-            "team_bg":      iconSvg("shield") + " Фон команды",
         };
+        const slotByType = { "avatar_frame": "avatarFrame", "profile_bg": "profileBg" };
+        const seen = new Set();   // один и тот же предмет, купленный дважды, показываем один раз
 
-        personal.forEach(({ itemId, consumed }) => {
-
+        _inv.forEach(({ itemId, consumed }) => {
             // ── Буст монет: расходник, не надевается ──────────────────────
             if (itemId.type === "boost") {
                 const card = document.createElement("div");
@@ -772,7 +939,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 card.innerHTML = `
                     <div class="cic-icon">${itemId.icon || iconSvg("coins")}</div>
                     <div class="cic-meta">
-                        <div class="cic-name">${itemId.name}</div>
+                        <div class="cic-name">${esc(itemId.name)}</div>
                         <div class="cic-type">${consumed
                             ? iconSvg("checkCircle") + " Использован"
                             : iconSvg("zap") + " Активен — сработает в следующем матче"}</div>
@@ -793,7 +960,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 card.innerHTML = `
                     <div class="cic-icon">${itemId.icon || iconSvg("gift")}</div>
                     <div class="cic-meta">
-                        <div class="cic-name">${itemId.name}</div>
+                        <div class="cic-name">${esc(itemId.name)}</div>
                         <div class="cic-type">${iconSvg("shield")} Командный предмет</div>
                     </div>
                     <div class="cic-btn" style="opacity:0.5;cursor:default;background:transparent;
@@ -804,142 +971,186 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             }
 
             // ── Личная косметика: рамка / фон профиля ─────────────────────
-            const slot = ctMap[itemId.cosmeticType];
-            if (!slot) return; // неизвестный тип — пропускаем
+            const slot = slotByType[itemId.cosmeticType];
+            if (!slot) return;   // неизвестный тип — пропускаем
+            const id = String(itemId._id);
+            if (seen.has(id)) return;
+            seen.add(id);
 
-            // Проверяем надет ли предмет (cosmetics грузятся из profileData с populate)
-            const equippedItem = cosmetics[slot];
-            const isEquipped   = equippedItem &&
-                (equippedItem._id || equippedItem).toString() === (itemId._id || itemId).toString();
-
-            const typeLabel = cosmeticLabels[itemId.cosmeticType] || itemId.cosmeticType || "Предмет";
-            const icon      = itemId.icon || (itemId.cosmeticType === "avatar_frame" ? iconSvg("image") : iconSvg("palette"));
+            const isSelected = _draft[slot] === id;
+            const typeLabel  = cosmeticLabels[itemId.cosmeticType] || "Предмет";
+            const icon       = itemId.icon || (itemId.cosmeticType === "avatar_frame" ? iconSvg("image") : iconSvg("palette"));
 
             const card = document.createElement("div");
-            card.className = "cosmetic-inv-card" + (isEquipped ? " is-equipped" : "");
+            card.className = "cosmetic-inv-card" + (isSelected ? " is-equipped" : "");
             card.innerHTML = `
                 <div class="cic-icon">${icon}</div>
                 <div class="cic-meta">
-                    <div class="cic-name">${itemId.name}</div>
+                    <div class="cic-name">${esc(itemId.name)}</div>
                     <div class="cic-type">${typeLabel}</div>
                 </div>
-                <button class="cic-btn ${isEquipped ? "cic-btn-off" : "cic-btn-on"}"
-                    onclick="${isEquipped
-                        ? `unequipCosmetic('${slot}')`
-                        : `equipCosmetic('${itemId._id}', '${slot}', this)`}">
-                    ${isEquipped ? "Снять" : "Надеть"}
+                <button type="button" class="cic-btn ${isSelected ? "cic-btn-off" : "cic-btn-on"}"
+                    data-act="${isSelected ? "unequip" : "equip"}" data-slot="${slot}" data-id="${esc(id)}">
+                    ${isSelected ? "Снять" : "Надеть"}
                 </button>
             `;
             grid.appendChild(card);
         });
     }
 
-    window.selectFaceit = function(level) {
-        const hiddenInput = document.getElementById("statFaceit");
-        if (hiddenInput) hiddenInput.value = String(level);
-        document.querySelectorAll("#faceitBtnGroup button").forEach(btn => {
-            const lv  = parseInt(btn.dataset.level);
-            const sel = lv === level;
-            const color = faceitLevelColor(lv === 0 ? null : lv);
-            btn.style.border     = `1px solid ${sel ? color : "var(--border)"}`;
-            btn.style.background = sel ? color + "26" : "#0e1318";
-            btn.style.color      = sel ? color : "var(--text-gray)";
-        });
+    // Выбор/снятие косметики меняют только черновик; на сервер уходит по «Сохранить».
+    window.equipCosmetic = function(itemId, slot) {
+        if (!_draft || !SLOT_TYPE[slot]) return;
+        const entry = _inv.find(e => e.itemId && String(e.itemId._id) === String(itemId));
+        // Только предмет из реального инвентаря и только подходящего типа для слота
+        if (!entry || entry.itemId.cosmeticType !== SLOT_TYPE[slot]) return;
+        _draft[slot] = String(entry.itemId._id);
+        renderCosmeticsSection();
+        onDraftChanged();
     };
 
+    window.unequipCosmetic = function(slot) {
+        if (!_draft || !SLOT_TYPE[slot]) return;
+        _draft[slot] = null;
+        renderCosmeticsSection();
+        onDraftChanged();
+    };
+
+    // ── Живой предпросмотр (тот же компонент, что и публичный профиль) ──────
+    function buildPreviewData() {
+        const d = _profileData || {};
+        const h = _draft.hoursInCS2;
+        return {
+            steamId:          d.steamId,
+            displayName:      d.displayName,
+            avatar:           d.avatar,
+            rank:             d.rank,
+            rankColor:        d.rankColor,
+            stats:            d.stats,
+            seasonStats:      d.seasonStats,
+            team:             d.team,
+            faceitLevel:      _draft.faceitLevel,
+            hoursInCS2:       (typeof h === "number" && isFinite(h) && h >= 0) ? h : null,
+            bio:              _draft.bio,
+            telegramUsername: normTg(_draft.telegram),
+            discordUsername:  String(_draft.discord).trim(),
+            isPrivate:        _draft.isPrivate,
+            equippedCosmetics: {
+                avatarFrame: resolveCosmetic("avatarFrame", _draft.avatarFrame),
+                profileBg:   resolveCosmetic("profileBg",   _draft.profileBg),
+            },
+        };
+    }
+
+    function updatePreview() {
+        const host = document.getElementById("editPreview");
+        if (!host || !_draft || !_profileData) return;
+        const root = ensureView(host);
+        const vd   = buildPreviewData();
+        renderView(root, vd, {});
+        // У приватного профиля посетители не видят косметику — превью тоже
+        applyPreviewCosmeticCSS(vd.isPrivate ? {} : vd.equippedCosmetics, root);
+        if (_matchesCache && !root._m) { renderMatches(root, _matchesCache); root._m = true; }
+    }
+
+    // ── Сохранить / Отменить ───────────────────────────────────────────────
     window.saveProfileStats = async function() {
-        const faceitVal = document.getElementById("statFaceit")?.value;
-        const hoursVal  = document.getElementById("statHours")?.value;
-        const bioVal    = document.getElementById("statBio")?.value   || "";
-        const privVal   = document.getElementById("statPrivate")?.checked || false;
-        const tgVal     = (document.getElementById("statTelegram")?.value || "").trim().replace(/^@/, "");
-        const dcVal     = (document.getElementById("statDiscord")?.value  || "").trim();
+        if (_saving || !_draft || !isDirty()) return;
 
         const errEl     = document.getElementById("statsError");
         const successEl = document.getElementById("statsSuccess");
         const btn       = document.getElementById("statsSaveBtn");
+        const fail = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; } };
 
         if (errEl)     errEl.style.display    = "none";
         if (successEl) successEl.style.display = "none";
 
-        if (faceitVal === "" || faceitVal === undefined) {
-            if (errEl) { errEl.textContent = "Выберите FACEIT уровень (или «Нет» если нет аккаунта)"; errEl.style.display = "block"; }
-            return;
-        }
-        if (!hoursVal && hoursVal !== "0") {
-            if (errEl) { errEl.textContent = "Укажите количество часов в CS2"; errEl.style.display = "block"; }
-            return;
-        }
+        if (_draft.faceitLevel === null) return fail("Выберите FACEIT уровень (или «Нет» если нет аккаунта)");
+        if (_draft.hoursInCS2  === null) return fail("Укажите количество часов в CS2");
 
-        if (btn) { btn.disabled = true; btn.textContent = "Сохранение..."; }
+        _saving = true;
+        updateEditorState();
+        if (btn) btn.textContent = "Сохранение...";
 
         try {
+            // 1) Поля профиля
             const res = await fetch("/api/profile/stats", {
                 method:  "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body:    JSON.stringify({
-                    faceitLevel:      Number(faceitVal),
-                    hoursInCS2:       Number(hoursVal),
-                    bio:              bioVal,
-                    isPrivate:        privVal,
-                    telegramUsername: tgVal,
-                    discordUsername:  dcVal,
+                    faceitLevel:      _draft.faceitLevel,
+                    hoursInCS2:       _draft.hoursInCS2,
+                    bio:              _draft.bio,
+                    isPrivate:        _draft.isPrivate,
+                    telegramUsername: normTg(_draft.telegram),
+                    discordUsername:  String(_draft.discord).trim(),
                 })
             });
-            const data = await res.json();
-            if (!res.ok) {
-                if (errEl) { errEl.textContent = data.error || "Ошибка сервера"; errEl.style.display = "block"; }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { fail(data.error || "Ошибка сервера"); return; }
+
+            // 2) Косметика: сервер сам проверяет, что предмет есть в инвентаре и подходит слоту
+            const failed = [];
+            const keep   = {};
+            for (const slot of ["avatarFrame", "profileBg"]) {
+                if (_draft[slot] === _saved[slot]) continue;
+                const r = await fetch("/api/shop/equip/personal", {
+                    method:  "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body:    JSON.stringify({ itemId: _draft[slot], slot }),
+                });
+                if (!r.ok) {
+                    const e = await r.json().catch(() => ({}));
+                    failed.push(`${SLOT_LABEL[slot]}: ${e.error || "ошибка"}`);
+                    keep[slot] = _draft[slot];
+                }
+            }
+
+            // 3) Перечитываем сохранённое состояние с сервера
+            const pr = await fetch("/api/profile");
+            if (!pr.ok) { fail("Сохранено, но не удалось обновить страницу — перезагрузите её"); return; }
+            _profileData = await pr.json();
+            _saved = savedFromProfile(_profileData);
+            _draft = Object.assign({}, _saved, keep);
+            await renderProfile(_profileData);
+            fillEditorForm();
+            updatePreview();
+            updateEditorState();
+
+            if (failed.length) {
+                fail("Часть изменений не сохранена. " + failed.join("; "));
+                showToast("Часть изменений не сохранена", "err");
             } else {
                 if (successEl) {
                     successEl.style.display = "block";
-                    setTimeout(() => { if (successEl) successEl.style.display = "none"; }, 3000);
+                    setTimeout(() => { successEl.style.display = "none"; }, 3000);
                 }
-                await refreshProfile();
+                showToast("Профиль сохранён", "ok");
             }
         } catch {
-            if (errEl) { errEl.textContent = "Ошибка соединения"; errEl.style.display = "block"; }
+            fail("Ошибка соединения");
         } finally {
-            if (btn) { btn.disabled = false; btn.textContent = "Сохранить"; }
+            _saving = false;
+            if (btn) btn.textContent = "Сохранить изменения";
+            updateEditorState();
         }
     };
 
-    window.equipCosmetic = async function equipCosmetic(itemId, slot, btn) {
-        if (btn) { btn.disabled = true; btn.textContent = "..."; }
-        try {
-            const r = await fetch("/api/shop/equip/personal", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ itemId, slot }),
-            });
-            const data = await r.json();
-            if (!r.ok) {
-                alert(data.error || "Ошибка");
-                if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
-                return;
-            }
-            await refreshProfile();
-        } catch (e) {
-            console.error("equipCosmetic:", e);
-            if (btn) { btn.disabled = false; btn.textContent = "Надеть"; }
-        }
-    }
- 
-    window.unequipCosmetic = async function unequipCosmetic(slot) {
-        try {
-            const r = await fetch("/api/shop/equip/personal", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ itemId: null, slot }),
-            });
-            const data = await r.json();
-            if (!r.ok) { alert(data.error || "Ошибка"); return; }
-            await refreshProfile();
-        } catch (e) {
-            console.error("unequipCosmetic:", e);
-        }
-    }
+    window.cancelProfileEdit = function() {
+        if (_saving || !_saved) return;
+        _draft = Object.assign({}, _saved);
+        fillEditorForm();
+        renderCosmeticsSection();
+        updatePreview();
+        updateEditorState();
+        const errEl = document.getElementById("statsError");
+        if (errEl) errEl.style.display = "none";
+        const okEl = document.getElementById("statsSuccess");
+        if (okEl) okEl.style.display = "none";
+    };
 
-
+    // Часы из Steam сохраняются на сервере сразу (это отдельный запрос), поэтому
+    // обновляем и черновик, и поле, чтобы они не считались «несохранёнными».
     window.syncSteamHours = async function() {
         const btn      = document.getElementById("syncSteamBtn");
         const statusEl = document.getElementById("syncSteamStatus");
@@ -957,12 +1168,12 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 }
             } else {
                 if (hoursEl) hoursEl.value = data.hoursInCS2;
+                if (_draft) _draft.hoursInCS2 = data.hoursInCS2;
                 if (statusEl) {
-                    statusEl.innerHTML     = iconSvg("check") + ` Получено ${data.hoursInCS2} ч. из Steam`;
+                    statusEl.innerHTML     = iconSvg("check") + ` Получено ${esc(data.hoursInCS2)} ч. из Steam`;
                     statusEl.style.color   = "#4caf82";
                     statusEl.style.display = "block";
                 }
-                // auto-update hidden faceit if already set, refresh badges
                 await refreshProfile();
             }
         } catch {
@@ -976,14 +1187,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         }
     };
 
-    window.switchToMyProfileTab = function() {
-        document.querySelectorAll(".profile-tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".profile-tab-content").forEach(c => c.classList.remove("active"));
-        const btn = document.querySelector('.profile-tab-btn[data-tab="myprofile"]');
-        const tab = document.getElementById("tab-myprofile");
-        if (btn) btn.classList.add("active");
-        if (tab) tab.classList.add("active");
-    };
+    // Кнопка «Заполнить профиль» во вкладке «Команда» ведёт во вкладку редактирования
+    window.switchToMyProfileTab = function() { activateTab("edit"); };
 
     //там команда
 
@@ -1014,7 +1219,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const logoEl2 = document.getElementById("teamLogoEl");
         if (logoEl2) {
             if (team.logo) {
-                logoEl2.innerHTML = `<img src="${team.logo}" alt="${team.name}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
+                logoEl2.innerHTML = `<img src="${esc(team.logo)}" alt="${esc(team.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" onerror="this.style.display='none'">`;
             } else {
                 logoEl2.textContent = team.tag || "?";
             }
@@ -1060,13 +1265,13 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const isMe    = m._id?.toString() === d._id?.toString();
         const myCap   = d.isCaptain;
         const mId     = m._id?.toString();
-        const nameEsc = (m.displayName || "Игрок").replace(/'/g, "\\'");
+        const nameArg = esc(JSON.stringify(m.displayName || "Игрок"));
         const clickAttr = (myCap && !isMe)
-            ? `onclick="openMemberModal('${mId}','${nameEsc}',${isCap})" style="cursor:pointer;" title="Управление игроком"`
+            ? `onclick="openMemberModal('${mId}',${nameArg},${isCap})" style="cursor:pointer;" title="Управление игроком"`
             : "";
         return `<div class="member-row" ${clickAttr}>
             ${avatarEl(m.avatar, m.displayName, "member-avatar")}
-            <span class="member-name">${m.displayName || "Игрок"}${isCap ? `<span class="captain-crown" title="Капитан">${iconSvg("crown")}</span>` : ""}</span>
+            <span class="member-name">${esc(m.displayName || "Игрок")}${isCap ? `<span class="captain-crown" title="Капитан">${iconSvg("crown")}</span>` : ""}</span>
             ${(myCap && !isMe) ? '<span style="font-size:11px;color:var(--gray2);margin-left:auto;padding-right:4px;">⋯</span>' : ""}
         </div>`;
     }
@@ -1133,10 +1338,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const role = inv.role === "sub" ? "Замена" : "Основной состав";
         if (!team) return "";
         return `<div class="friend-row">
-            <div class="friend-avatar-placeholder" style="border-radius:8px;background:var(--accent-dim);color:var(--accent);">${(team.tag || "?").slice(0, 2)}</div>
+            <div class="friend-avatar-placeholder" style="border-radius:8px;background:var(--accent-dim);color:var(--accent);">${esc((team.tag || "?").slice(0, 2))}</div>
             <div class="friend-info">
-                <div class="friend-name">[${team.tag}] ${team.name}</div>
-                <div class="friend-sub">Роль: ${role} · от ${from?.displayName || "?"}</div>
+                <div class="friend-name">[${esc(team.tag)}] ${esc(team.name)}</div>
+                <div class="friend-sub">Роль: ${role} · от ${esc(from?.displayName || "?")}</div>
             </div>
             <div class="friend-actions">
                 <button class="btn-fr btn-fr-accept" onclick="acceptTeamInvite('${team._id}')">${iconSvg("check")} Принять</button>
@@ -1196,7 +1401,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         return `<div class="friend-row">
             ${avatarEl(u.avatar, u.displayName, "friend-avatar")}
             <div class="friend-info">
-                <div class="friend-name">${u.displayName}</div>
+                <div class="friend-name">${esc(u.displayName)}</div>
                 <div class="friend-sub">Steam ID: ${u.steamId}</div>
             </div>
             <div class="friend-actions">
@@ -1594,21 +1799,16 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
     async function refreshProfile() {
         try {
             const res = await fetch("/api/profile");
+            if (!res.ok) return;
             _profileData = await res.json();
-            renderProfile(_profileData);
+            await renderProfile(_profileData);
         } catch {}
     }
 
     //табы
 
     document.querySelectorAll(".profile-tab-btn").forEach(btn => {
-        btn.addEventListener("click", function() {
-            document.querySelectorAll(".profile-tab-btn").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".profile-tab-content").forEach(c => c.classList.remove("active"));
-            this.classList.add("active");
-            const tab = document.getElementById("tab-" + this.dataset.tab);
-            if (tab) tab.classList.add("active");
-        });
+        btn.addEventListener("click", function() { activateTab(this.dataset.tab); });
     });
 
     document.querySelectorAll(".p-modal-overlay").forEach(overlay => {

@@ -2259,3 +2259,125 @@ i.icon { display: inline-flex; }
 ._sp-attach-preview button {
     background: none; border: none; color: #e05c5c; cursor: pointer; font-size: 13px; margin-left: auto;
 }
+/* ═══════════════════════════════════════════════════════════════════
+   Редизайн профиля: общий компонент (.pv), вкладки «Профиль/Редактирование»
+   Все селекторы ограничены .page-profile, чтобы не влиять на другие страницы.
+   ═══════════════════════════════════════════════════════════════════ */
+.page-profile .pv { position: relative; min-width: 0; }
+.page-profile .pv [hidden] { display: none !important; }
+.page-profile .pv-inner { position: relative; z-index: 1; min-width: 0; }
+
+/* Локальный слой фона: используется только в превью (на страницах профиля работает глобальный) */
+.page-profile .pv-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    opacity: 0; transition: opacity 0.4s;
+}
+.page-profile .pv-bg.active { opacity: 1; }
+.page-profile #pubView .pv-bg,
+.page-profile #ownView .pv-bg { display: none; }
+
+.page-profile .pv-banner { height: 70px; }
+
+/* Шапка */
+.page-profile .pv-header { position: relative; border-top: 2px solid rgba(230,176,34,0.45); }
+.page-profile .pv-head-main { flex: 1; min-width: 0; }
+.page-profile .pv-name { overflow-wrap: anywhere; }
+.page-profile .pv-frame-wrap { position: relative; z-index: 0; flex-shrink: 0; align-self: flex-start; }
+.page-profile .pv-avatar { border: 3px solid var(--bg); transition: box-shadow 0.3s; }
+.page-profile .pv-team-tag { text-decoration: none; display: inline-flex; max-width: 100%; overflow-wrap: anywhere; }
+.page-profile .pv-team-tag:hover { background: rgba(76,175,130,0.2); }
+.page-profile .pv-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.page-profile .pv-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 6px; padding: 5px 12px;
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+}
+.page-profile .pv-chip--hours { background: rgba(91,141,232,0.12); border: 1px solid rgba(91,141,232,0.3); color: #5b8de8; }
+
+/* Блоки */
+.page-profile .pv-card { margin-bottom: 14px; }
+.page-profile .pv-bio { color: #aebbc7; font-size: 14px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-profile .pv-socials { display: flex; gap: 10px; flex-wrap: wrap; }
+.page-profile .pv-social {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    border-radius: 6px; padding: 6px 14px; text-decoration: none; overflow-wrap: anywhere;
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 12px;
+}
+.page-profile .pv-social--tg { background: rgba(91,141,232,0.10); border: 1px solid rgba(91,141,232,0.25); color: #5b8de8; }
+.page-profile .pv-social--dc { background: rgba(114,137,218,0.10); border: 1px solid rgba(114,137,218,0.25); color: #7289da; }
+.page-profile .pv-team-card { margin-bottom: 0; min-width: 0; }
+.page-profile .pv-team-go { font-size: 11px; color: var(--accent); white-space: nowrap; }
+.page-profile .pv .stat-overview-card { margin-bottom: 14px; }
+
+/* Сообщения «профиль приватный» / «ваш профиль скрыт» */
+.page-profile .pv-note { display: flex; align-items: center; gap: 14px; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; }
+.page-profile .pv-note--private { background: var(--card-bg); border: 1px dashed var(--border); }
+.page-profile .pv-note--self { background: rgba(230,176,34,0.08); border: 1px solid rgba(230,176,34,0.25); color: var(--accent); font-size: 13px; font-weight: 600; }
+.page-profile .pv-note-icon { flex-shrink: 0; color: var(--text-gray); }
+.page-profile .pv-note-icon svg { width: 32px; height: 32px; }
+.page-profile .pv-note-title { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; text-transform: uppercase; color: white; margin-bottom: 4px; }
+.page-profile .pv-note-text { font-size: 13px; color: var(--text-gray); }
+
+/* Личный кабинет: широкий контейнер под форму + превью; остальные вкладки остаются 820px */
+body.page-profile #ownProfileWrap .container { max-width: 1040px; }
+.page-profile #tab-view,
+.page-profile #tab-team,
+.page-profile #tab-notifs { max-width: 820px; margin-left: auto; margin-right: auto; }
+.page-profile .pv-own-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+
+/* Вкладка «Редактирование» */
+.page-profile .pe-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.page-profile .pe-form { min-width: 0; }
+.page-profile .pe-preview { position: sticky; top: 80px; min-width: 0; }
+.page-profile .pe-preview-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.page-profile .pe-preview-hint { font-size: 11px; color: #5c6b7f; }
+.page-profile .pv-host--preview {
+    position: relative; overflow: hidden; min-width: 0;
+    border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+    background: var(--bg);
+}
+.page-profile .pv-host--preview .pv-banner { height: 16px; }
+/* В узком превью шапка собирается в колонку, как на мобильных */
+.page-profile .pv-host--preview .profile-header-card { flex-direction: column; text-align: center; padding: 22px 16px; gap: 14px; }
+.page-profile .pv-host--preview .profile-stats-row { justify-content: center; }
+.page-profile .pv-host--preview .pv-badges { justify-content: center; }
+.page-profile .pv-host--preview .pv-frame-wrap { align-self: center; }
+.page-profile .pv-host--preview .stat-overview-card { flex-wrap: wrap; justify-content: center; }
+
+/* Панель сохранения */
+.page-profile .pe-savebar {
+    position: sticky; bottom: 0; z-index: 5;
+    display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
+    margin-top: 16px; padding: 12px 16px;
+    background: rgba(14,19,24,0.97); border: 1px solid var(--border); border-radius: 12px;
+}
+.page-profile .pe-savebar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-profile .pe-savebar-btns .p-btn-save { padding: 10px 22px; font-size: 13px; }
+.page-profile .pe-btn-cancel {
+    padding: 10px 18px; border-radius: 8px; cursor: pointer;
+    background: transparent; border: 1px solid var(--border); color: var(--text-gray);
+    font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 13px;
+    transition: all 0.2s;
+}
+.page-profile .pe-btn-cancel:hover:not(:disabled) { color: white; border-color: #5c6b7f; }
+.page-profile .pe-btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-profile .pe-savebar-msgs { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.page-profile .pe-savebar-msgs .p-modal-error,
+.page-profile .pe-savebar-msgs #statsSuccess { margin: 0 !important; }
+.page-profile .pe-dirty-hint { font-size: 12px; color: var(--accent); font-weight: 600; }
+
+/* На вкладке редактирования глобальный фон скрыт — фон показывает превью */
+body.page-profile.pe-active #_cosmetic_bg_layer { opacity: 0; }
+
+@media (max-width: 900px) {
+    .page-profile .pe-layout { grid-template-columns: minmax(0, 1fr); }
+    .page-profile .pe-preview { position: static; }
+}
+@media (max-width: 600px) {
+    .page-profile .pv-banner { height: 40px; }
+    .page-profile .pv-badges { justify-content: center; }
+    .page-profile .pv .match-row-item { flex-wrap: wrap; }
+    .page-profile .pv-note { padding: 14px; }
+    /* поднимаем панель над плавающей кнопкой «Инструкция» */
+    .page-profile .pe-savebar { bottom: 72px; }
+}

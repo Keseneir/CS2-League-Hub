@@ -7,6 +7,7 @@ const Rank                = require("../models/Rank");
 const Season              = require("../models/Season");
 const TeamStat            = require("../models/TeamStat");
 const Match                = require("../models/Match");
+const ShopItem             = require("../models/ShopItem");
 const { requireAuth }     = require("../middleware/auth");
 const { ADMIN_STEAM_ID }  = require("../config/constants");
 
@@ -81,12 +82,20 @@ router.get("/profile", requireAuth, async (req, res) => {
 
     const seasonStats = team ? await getActiveSeasonStats(team._id) : null;
 
+    // Цвет ранга — для отображения собственного профиля тем же компонентом, что и публичный
+    let rankColor = null;
+    if (user.rank && user.rank !== "Unranked") {
+      const rankDoc = await Rank.findOne({ name: user.rank }).select("color").lean();
+      if (rankDoc) rankColor = rankDoc.color;
+    }
+
     res.json({
       _id:              user._id,
       steamId:          user.steamId,
       displayName:      user.displayName,
       avatar:           user.avatar,
       rank:             user.rank             || "Unranked",
+      rankColor,
       faceitLevel:      user.faceitLevel      ?? null,
       hoursInCS2:       user.hoursInCS2       ?? null,
       bio:              user.bio              || "",
@@ -325,8 +334,15 @@ router.post("/profile/equip", requireAuth, async (req, res) => {
     try {
         const { itemId, slot } = req.body;
  
-        if (!itemId || !["avatarFrame", "profileBg"].includes(slot)) {
+        if (!itemId || typeof itemId !== "string" || !["avatarFrame", "profileBg"].includes(slot)) {
             return res.status(400).json({ error: "Неверные параметры" });
+        }
+
+        // Тип предмета должен соответствовать слоту
+        const slotType = { avatarFrame: "avatar_frame", profileBg: "profile_bg" }[slot];
+        const item = await ShopItem.findById(itemId).select("cosmeticType").lean();
+        if (!item || item.cosmeticType !== slotType) {
+            return res.status(400).json({ error: "Этот предмет нельзя надеть в выбранный слот" });
         }
  
         // Проверяем, что предмет есть в инвентаре игрока

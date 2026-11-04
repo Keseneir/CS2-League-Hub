@@ -7,6 +7,9 @@ const { requireAuth } = require("../middleware/auth");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Какой cosmeticType допустим в каком слоте личной косметики
+const PERSONAL_SLOT_TYPE = { avatarFrame: "avatar_frame", profileBg: "profile_bg" };
+
 function isCaptainOrManager(team, userId) {
   const uid = userId.toString();
   return (
@@ -115,8 +118,15 @@ router.post("/equip/personal", requireAuth, async (req, res) => {
       return res.json({ ok: true, equipped: null });
     }
 
+    if (typeof itemId !== "string")
+      return res.status(400).json({ error: "Неверный itemId" });
+
     const item = await ShopItem.findById(itemId).lean();
     if (!item) return res.status(404).json({ error: "Предмет не найден" });
+
+    // Тип предмета должен соответствовать слоту (рамку нельзя надеть как фон и наоборот)
+    if (item.cosmeticType !== PERSONAL_SLOT_TYPE[slot])
+      return res.status(400).json({ error: "Этот предмет нельзя надеть в выбранный слот" });
 
     const user = await User.findById(req.user._id)
       .select("personalInventory equippedCosmetics").lean();

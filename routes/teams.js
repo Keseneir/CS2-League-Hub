@@ -685,3 +685,4 @@ router.post("/team/join/:token", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.disbandTeam = _disbandTeam;

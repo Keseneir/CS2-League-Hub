@@ -119,6 +119,18 @@
         .badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; font-family: 'Montserrat', sans-serif; white-space: nowrap; }
         .badge-active  { background: rgba(76,175,130,0.15); color: var(--green); }
         .badge-archive { background: rgba(92,107,127,0.15); color: var(--gray2); }
+
+        /* ── Чекбоксы выбора игроков ── */
+        .cb { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
+        .data-table th.cb-col, .data-table td.cb-col { width: 36px; padding-right: 0; }
+        .data-table tbody tr.row-selected { background: rgba(230,176,34,0.06); }
+        .bulk-bar {
+            display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: var(--accent-d); border: 1px solid rgba(230,176,34,0.3);
+            border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+            font-size: 13px; color: var(--gray);
+        }
+        .bulk-bar strong { color: var(--accent); }
         .badge-pending  { background: rgba(230,176,34,0.15); color: var(--accent); }
         .badge-accepted { background: rgba(76,175,130,0.15); color: var(--green); }
         .badge-rejected { background: rgba(224,92,92,0.15); color: var(--red); }
@@ -534,6 +546,11 @@
         </div>
         <div style="display:flex;gap:10px;margin-bottom:16px;">
             <input type="text" id="playerSearchInput" class="field-input" placeholder="🔍 Поиск по нику, SteamID или команде..." oninput="filterPlayersTable()" style="max-width:440px;">
+        </div>
+        <div class="bulk-bar" id="playersBulkBar">
+            <span>Выбрано: <strong id="playersSelectedCount">0</strong></span>
+            <button class="btn btn-danger btn-sm" onclick="bulkDeletePlayers()">🗑 Удалить выбранных</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearPlayerSelection()">Снять выбор</button>
         </div>
         <div class="data-table-wrap" id="playersTableWrap">
             <div class="empty-state"><div class="empty-state-icon">👤</div><p>Загрузка...</p></div>
@@ -1105,6 +1122,8 @@ let _lbStats    = [];
 let _allTeams   = [];
 let _editStatId = null;
 let _allPlayers = [];
+let _selectedPlayers = new Set();   // _id игроков, отмеченных чекбоксами
+const BULK_DELETE_CHUNK = 50;       // серверный лимит /users/bulk-delete
 let _allApps    = [];
 let _allRanks   = [];
 let _editRankId = null;
@@ -1840,6 +1859,7 @@ async function loadAllPlayers() {
             fetch("/api/ranks"),
         ]);
         _allPlayers = usersRes.ok ? await usersRes.json() : [];
+        _selectedPlayers = new Set([..._selectedPlayers].filter(id => _allPlayers.some(u => u._id === id)));
         if (ranksRes.ok) _allRanks = await ranksRes.json();
         document.getElementById("playersCount").textContent = `(${_allPlayers.length})`;
         renderPlayersTable(_allPlayers);
@@ -1867,6 +1887,7 @@ function renderPlayersTable(players) {
     const wrap = document.getElementById("playersTableWrap");
     if (!players.length) {
         wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><p>Игроки не найдены</p></div>`;
+        updateBulkBar();
         return;
     }
     //карта цветов ранги
@@ -1875,6 +1896,7 @@ function renderPlayersTable(players) {
 
     wrap.innerHTML = `<table class="data-table">
         <thead><tr>
+            <th class="cb-col"><input type="checkbox" class="cb" id="playersSelectAll" title="Выбрать всех в списке" onchange="toggleSelectAllPlayers(this)"></th>
             <th>Игрок</th>
             <th>Steam ID</th>
             <th>FACEIT / Часы</th>
@@ -1896,7 +1918,9 @@ function renderPlayersTable(players) {
             const teamStr = u.teamId ? `[${escAdmin(u.teamId.tag)}] ${escAdmin(u.teamId.name)}` : `<span style="color:var(--gray2);">—</span>`;
             const rankHtml = rankSwatchHtml(u.rank, rankColorMap[u.rank]);
             const esc      = (s) => (s || "").replace(/'/g, "\\'");
-            return `<tr>
+            const sel = _selectedPlayers.has(u._id);
+            return `<tr class="${sel ? "row-selected" : ""}">
+                <td class="cb-col"><input type="checkbox" class="cb player-cb" data-id="${u._id}" ${sel ? "checked" : ""} onchange="togglePlayerSelect(this)"></td>
                 <td>
                     <div class="player-profile-cell">
                         ${u.avatar
@@ -1923,6 +1947,80 @@ function renderPlayersTable(players) {
             </tr>`;
         }).join("")}</tbody>
     </table>`;
+    updateBulkBar();
+}
+
+//выбор игроков чекбоксами + массовое удаление
+function updateBulkBar() {
+    const bar = document.getElementById("playersBulkBar");
+    const cnt = document.getElementById("playersSelectedCount");
+    if (cnt) cnt.textContent = _selectedPlayers.size;
+    if (bar) bar.style.display = _selectedPlayers.size ? "flex" : "none";
+
+    const master = document.getElementById("playersSelectAll");
+    if (master) {
+        const boxes   = document.querySelectorAll("#playersTableWrap .player-cb");
+        const checked = [...boxes].filter(b => b.checked).length;
+        master.checked       = boxes.length > 0 && checked === boxes.length;
+        master.indeterminate = checked > 0 && checked < boxes.length;
+    }
+}
+
+function togglePlayerSelect(cb) {
+    if (cb.checked) _selectedPlayers.add(cb.dataset.id);
+    else            _selectedPlayers.delete(cb.dataset.id);
+    cb.closest("tr")?.classList.toggle("row-selected", cb.checked);
+    updateBulkBar();
+}
+
+// «Выбрать всех» действует только на строки, видимые сейчас (с учётом поиска)
+function toggleSelectAllPlayers(master) {
+    document.querySelectorAll("#playersTableWrap .player-cb").forEach(cb => {
+        cb.checked = master.checked;
+        if (master.checked) _selectedPlayers.add(cb.dataset.id);
+        else                _selectedPlayers.delete(cb.dataset.id);
+        cb.closest("tr")?.classList.toggle("row-selected", master.checked);
+    });
+    updateBulkBar();
+}
+
+function clearPlayerSelection() {
+    _selectedPlayers.clear();
+    filterPlayersTable();   // перерисует таблицу с текущим фильтром поиска
+}
+
+function bulkDeletePlayers() {
+    const ids = [..._selectedPlayers];
+    if (!ids.length) return;
+    const names   = ids.map(id => (_allPlayers.find(u => u._id === id)?.displayName) || "—");
+    const preview = names.slice(0, 10).map(n => `• ${n}`).join("\n") + (names.length > 10 ? `\n… и ещё ${names.length - 10}` : "");
+
+    _confirmAction(
+        `Удалить игроков (${ids.length}) из базы данных?\n\n${preview}\n\nЭто действие необратимо. Игроки будут исключены из команд, удалены из списков друзей и все их данные будут уничтожены.`,
+        async () => {
+            const deletedIds = new Set();
+            const failed     = [];
+            try {
+                for (let i = 0; i < ids.length; i += BULK_DELETE_CHUNK) {
+                    const res = await fetch("/api/admin/users/bulk-delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ids: ids.slice(i, i + BULK_DELETE_CHUNK) }),
+                    });
+                    const d = await res.json().catch(() => ({}));
+                    if (!res.ok) { toast(d.error || "Ошибка", "err"); break; }
+                    (d.deleted || []).forEach(x => deletedIds.add(x.id));
+                    (d.failed  || []).forEach(x => failed.push(x));
+                }
+            } catch { toast("Ошибка соединения", "err"); }
+
+            // удалённые убираем из выбора, неудавшиеся остаются отмеченными
+            deletedIds.forEach(id => _selectedPlayers.delete(id));
+            if (deletedIds.size && !failed.length) toast(`Удалено игроков: ${deletedIds.size}`, "ok");
+            else if (failed.length) toast(`Удалено: ${deletedIds.size}, не удалось: ${failed.length} — ${failed[0].error}`, "err");
+            await loadAllPlayers();
+        }
+    );
 }
 
 //написать игроку

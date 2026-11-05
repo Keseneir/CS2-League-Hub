@@ -379,38 +379,99 @@ router.patch("/users/:userId/rank", requireAdmin, async (req, res) => {
   }
 });
 
+// Удаление одного пользователя со всей очисткой связанных данных.
+// Общая логика для DELETE /users/:userId и POST /users/bulk-delete.
+// Возвращает { ok:true, user } или { ok:false, status, error }; ошибки БД пробрасываются наружу.
+async function deleteUserWithCleanup(userId) {
+  const user = await User.findById(userId);
+  if (!user) return { ok: false, status: 404, error: "Пользователь не найден" };
+  if (user.steamId === process.env.ADMIN_STEAM_ID)
+    return { ok: false, status: 400, error: "Нельзя удалить аккаунт администратора" };
+
+  if (user.teamId) {
+    const team = await Team.findById(user.teamId);
+    if (team) {
+      const uid = user._id.toString();
+      if (team.captainId.toString() === uid) {
+        await disbandTeam(user.teamId);
+      } else {
+        team.members = (team.members || []).filter(m => m.toString() !== uid);
+        team.subs    = (team.subs    || []).filter(s => s.toString() !== uid);
+        await team.save();
+      }
+    }
+  }
+
+  await User.updateMany({}, {
+    $pull: {
+      friends:        user._id,
+      friendRequests: { from: user._id },
+      teamInvites:    { from: user._id },
+    }
+  });
+
+  await Application.deleteMany({ userId: user._id });
+  await User.findByIdAndDelete(user._id);
+  return { ok: true, user: { id: String(user._id), steamId: user.steamId, displayName: user.displayName } };
+}
+
 router.delete("/users/:userId", requireAdmin, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
-    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
-    if (user.steamId === process.env.ADMIN_STEAM_ID)
-      return res.status(400).json({ error: "Нельзя удалить аккаунт администратора" });
+    const r = await deleteUserWithCleanup(req.params.userId);
+    if (!r.ok) return res.status(r.status).json({ error: r.error });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
 
-    if (user.teamId) {
-      const team = await Team.findById(user.teamId);
-      if (team) {
-        const uid = user._id.toString();
-        if (team.captainId.toString() === uid) {
-          await disbandTeam(user.teamId);
-        } else {
-          team.members = (team.members || []).filter(m => m.toString() !== uid);
-          team.subs    = (team.subs    || []).filter(s => s.toString() !== uid);
-          await team.save();
-        }
+// POST /api/admin/users/bulk-delete  { ids: ["<userId>", ...] }
+// Пользователи удаляются ПО ОДНОМУ той же функцией, что и одиночное удаление (никакого User.deleteMany):
+// последовательно, чтобы удаления капитана и участников одной команды не конфликтовали.
+// Ответ всегда содержит отдельно deleted и failed; ok === true только если не удалось 0 аккаунтов.
+const BULK_DELETE_MAX            = 50;
+const BULK_DELETE_TIME_BUDGET_MS = 8000;   // функция Vercel (legacy builds) по умолчанию живёт 10 с
+
+router.post("/users/bulk-delete", requireAdmin, async (req, res) => {
+  try {
+    const selfId = req.user && req.user._id ? String(req.user._id) : null;
+    if (!selfId) return res.status(401).json({ error: "Не авторизован" });
+
+    const ids = req.body && req.body.ids;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: "Выберите пользователей для удаления" });
+    if (ids.length > BULK_DELETE_MAX)
+      return res.status(400).json({ error: `За один раз можно удалить не более ${BULK_DELETE_MAX} пользователей` });
+    if (ids.some(id => typeof id !== "string" || !/^[0-9a-fA-F]{24}$/.test(id)))
+      return res.status(400).json({ error: "Некорректные идентификаторы пользователей" });
+
+    const unique  = [...new Set(ids.map(id => id.toLowerCase()))];
+    const deleted = [];
+    const failed  = [];
+    const startedAt = Date.now();
+
+    for (const id of unique) {
+      if (id === selfId) {
+        failed.push({ id, error: "Нельзя удалить собственный аккаунт" });
+        continue;
+      }
+      if (Date.now() - startedAt > BULK_DELETE_TIME_BUDGET_MS) {
+        failed.push({ id, notProcessed: true, error: "Не обработан: не хватило времени, повторите удаление" });
+        continue;
+      }
+      try {
+        const r = await deleteUserWithCleanup(id);
+        if (r.ok) deleted.push(r.user);
+        else      failed.push({ id, error: r.error });
+      } catch (err) {
+        console.error("bulk-delete user", id, err);
+        failed.push({ id, error: "Ошибка сервера при удалении" });
       }
     }
 
-    await User.updateMany({}, {
-      $pull: {
-        friends:        user._id,
-        friendRequests: { from: user._id },
-        teamInvites:    { from: user._id },
-      }
-    });
-
-    await Application.deleteMany({ userId: user._id });
-    await User.findByIdAndDelete(user._id);
-    res.json({ ok: true });
+    console.log(`admin bulk-delete by ${selfId}: deleted=${deleted.map(d => d.id).join(",") || "-"} failed=${failed.length}`);
+    res.json({ ok: failed.length === 0, requested: unique.length, deleted, failed });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

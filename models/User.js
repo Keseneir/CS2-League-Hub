@@ -97,6 +97,19 @@ const userSchema = new mongoose.Schema(
       default: null,
       min:     0,
     },
+    // Синхронизация часов CS2 со Steam (ручная кнопка и ежедневный cron)
+    hoursSyncedAt: {            // последняя УСПЕШНАЯ синхронизация
+      type:    Date,
+      default: null,
+    },
+    hoursSyncTriedAt: {         // последняя попытка (очередь cron и защита от дублей)
+      type:    Date,
+      default: null,
+    },
+    hoursSyncError: {           // null | "privacy" | "no_cs2" | "technical"
+      type:    String,
+      default: null,
+    },
     bio: {
       type:      String,
       default:   "",

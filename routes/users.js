@@ -8,6 +8,7 @@ const Season              = require("../models/Season");
 const TeamStat            = require("../models/TeamStat");
 const Match                = require("../models/Match");
 const ShopItem             = require("../models/ShopItem");
+const { syncUserHours }    = require("../services/steamHours");
 const { requireAuth }     = require("../middleware/auth");
 const { ADMIN_STEAM_ID }  = require("../config/constants");
 
@@ -98,6 +99,8 @@ router.get("/profile", requireAuth, async (req, res) => {
       rankColor,
       faceitLevel:      user.faceitLevel      ?? null,
       hoursInCS2:       user.hoursInCS2       ?? null,
+      // Только для владельца: Steam закрыт для просмотра, автосинхронизация часов невозможна
+      steamSyncPrivacyError: user.hoursSyncError === "privacy",
       bio:              user.bio              || "",
       isPrivate:        user.isPrivate        || false,
       telegramUsername: user.telegramUsername || "",
@@ -302,27 +305,34 @@ router.get("/users/:steamId/matches", async (req, res) => {
 });
 
 // POST /api/profile/sync-steam-hours — получить часы из Steam API
+// Та же логика, что у ежедневного cron (services/steamHours.js); при неудаче hoursInCS2 не меняется.
 router.post("/profile/sync-steam-hours", requireAuth, async (req, res) => {
   try {
-    const steamId  = req.user.steamId;
-    const apiKey   = process.env.STEAM_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: "Steam API key не настроен" });
+    const result = await syncUserHours(req.user, { deadline: Date.now() + 8000 });
 
-    const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_appinfo=false&include_played_free_games=true`;
-    const response = await fetch(url);
-    if (!response.ok) return res.status(502).json({ error: "Ошибка Steam API" });
+    if (result.kind === "ok") {
+      if (result.applied) return res.json({ ok: true, hoursInCS2: result.hours });
 
-    const data = await response.json();
-    const games = data?.response?.games || [];
-    const cs2   = games.find(g => g.appid === 730);
-
-    if (!cs2) {
-      return res.status(404).json({ error: "CS2 не найден. Проверьте: Профиль Steam → Изменить профиль → Настройки конфиденциальности → 'Подробности об играх' = Открытый" });
+      // Запись отброшена: параллельно началась или завершилась более новая синхронизация.
+      // Значение из базы отдаём, только если там уже есть результат не старше этой попытки;
+      // иначе не выдаём устаревшее/пустое значение за результат и просим повторить.
+      const cur = await User.findById(req.user._id).select("hoursInCS2 hoursSyncedAt").lean();
+      if (cur && cur.hoursSyncedAt && cur.hoursSyncedAt >= result.attemptAt &&
+          cur.hoursInCS2 !== null && cur.hoursInCS2 !== undefined) {
+        return res.json({ ok: true, hoursInCS2: cur.hoursInCS2 });
+      }
+      return res.status(409).json({ code: "in_progress", error: "Параллельно уже выполняется другая синхронизация. Повторите через несколько секунд" });
     }
 
-    const hours = Math.round((cs2.playtime_forever || 0) / 60);
-    await User.findByIdAndUpdate(req.user._id, { $set: { hoursInCS2: hours } });
-    res.json({ ok: true, hoursInCS2: hours });
+    if (result.kind === "config" && result.reason === "no_key")
+      return res.status(500).json({ error: "Steam API key не настроен" });
+    if (result.kind === "privacy")
+      return res.status(404).json({ code: "privacy", error: "CS2 не найден. Проверьте: Профиль Steam → Изменить профиль → Настройки конфиденциальности → 'Подробности об играх' = Открытый" });
+    if (result.kind === "no_cs2")
+      return res.status(404).json({ code: "no_cs2", error: "CS2 не найден в списке игр вашего аккаунта Steam" });
+    if (result.kind === "rate_limited")
+      return res.status(429).json({ error: "Steam временно ограничил запросы. Попробуйте чуть позже" });
+    res.status(502).json({ error: "Ошибка Steam API" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

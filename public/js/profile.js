@@ -509,6 +509,10 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         const helpBtn = document.getElementById("profileHelpBtn");
         if (helpBtn) helpBtn.style.display = "inline-flex";
 
+        // Уведомление о закрытом Steam: только в личном кабинете, только при подтверждённой приватности
+        const syncWarn = document.getElementById("steamSyncWarning");
+        if (syncWarn) syncWarn.style.display = d.steamSyncPrivacyError ? "block" : "none";
+
         // ── Вкладка «Профиль»: только сохранённые данные (как видят другие) ──
         const ownRoot = ensureView(document.getElementById("ownView"));
         renderView(ownRoot, d, { selfPrivate: !!d.isPrivate });
@@ -1166,6 +1170,8 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                     statusEl.style.color   = "#e05c5c";
                     statusEl.style.display = "block";
                 }
+                // Сервер подтвердил закрытый Steam — показываем уведомление в кабинете
+                if (data.code === "privacy") await refreshProfile();
             } else {
                 if (hoursEl) hoursEl.value = data.hoursInCS2;
                 if (_draft) _draft.hoursInCS2 = data.hoursInCS2;

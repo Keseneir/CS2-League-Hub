@@ -113,6 +113,7 @@ app.use(passport.session());
 //роуты
 app.use("/auth",             require("./routes/auth"));
 app.get("/logout",           (req, res) => res.redirect("/auth/logout"));
+app.use("/api/cron",         require("./routes/cron"));   // Vercel Cron (защищён CRON_SECRET)
 app.use("/api",              require("./routes/users"));
 app.use("/api",              require("./routes/teams"));
 app.use("/api/applications", require("./routes/applications"));

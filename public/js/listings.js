@@ -24,6 +24,8 @@
   let pendingImage = null; // { url, publicId } | null
   let cloudinaryCloud  = null;
   let cloudinaryPreset = null;
+  let renderSeq = 0;      // номер последнего запроса списка: устаревшие ответы отбрасываются
+  let convSeq   = 0;      // то же для списка диалогов
 
   // Ссылки на публичные страницы автора и команды (открываются в новой вкладке)
   function authorHref(a) { return a && a.steamId ? "/profile.html?id=" + encodeURIComponent(a.steamId) : ""; }
@@ -128,6 +130,7 @@
 
   // ── Загрузка и рендер списка ─────────────────────────────────────────
   async function loadAndRender() {
+    const mySeq = ++renderSeq;
     const grid     = document.getElementById("lhGrid");
     const empty    = document.getElementById("lhEmpty");
     const emptyTxt = document.getElementById("lhEmptyText");
@@ -166,6 +169,7 @@
       }
       const res  = await fetch(url);
       const data = await res.json();
+      if (mySeq !== renderSeq) return; // пока шёл запрос, пользователь переключил вкладку или кликнул ещё раз
       const listings = data.listings || [];
 
       if (!listings.length) {
@@ -176,8 +180,10 @@
         }
         return;
       }
+      grid.replaceChildren(); // чистим сразу перед отрисовкой, а не до запроса
       listings.forEach(l => grid.appendChild(renderCard(l)));
     } catch {
+      if (mySeq !== renderSeq) return;
       showEmpty("Не удалось загрузить", "Попробуйте обновить страницу чуть позже.");
     }
   }
@@ -490,10 +496,10 @@
     const c = chat;
     muteBtn.disabled = blockBtn.disabled = !c;
     if (!c) return;
-    muteBtn.textContent = c.muted ? "🔕" : "🔔";
+    muteBtn.innerHTML = iconSvg(c.muted ? "bellOff" : "bell");
     muteBtn.title = c.muted ? "Включить уведомления" : "Отключить уведомления";
     muteBtn.setAttribute("aria-label", muteBtn.title);
-    blockBtn.textContent = c.blockedByMe ? "🔓" : "🚫";
+    blockBtn.innerHTML = iconSvg(c.blockedByMe ? "unlock" : "ban");
     blockBtn.title = c.blockedByMe ? "Разблокировать пользователя" : "Заблокировать пользователя";
     blockBtn.setAttribute("aria-label", blockBtn.title);
   }
@@ -621,14 +627,14 @@
       acts.style.marginLeft = "8px";
       if (m.canEdit) {
         const b = document.createElement("button");
-        b.type = "button"; b.className = "lh-msg-act"; b.textContent = "✎";
+        b.type = "button"; b.className = "lh-msg-act"; b.innerHTML = iconSvg("edit");
         b.title = "Редактировать"; b.setAttribute("aria-label", b.title);
         b.addEventListener("click", () => startEditMessage(m._id));
         acts.appendChild(b);
       }
       if (m.canDelete) {
         const b = document.createElement("button");
-        b.type = "button"; b.className = "lh-msg-act"; b.textContent = "🗑";
+        b.type = "button"; b.className = "lh-msg-act"; b.innerHTML = iconSvg("trash");
         b.title = "Удалить"; b.setAttribute("aria-label", b.title);
         b.addEventListener("click", () => deleteMessage(m._id));
         acts.appendChild(b);
@@ -958,12 +964,12 @@
     top.appendChild(name);
     if (c.muted) {
       const m = document.createElement("span");
-      m.className = "lh-conv-flag"; m.textContent = "🔕"; m.title = "Уведомления отключены";
+      m.className = "lh-conv-flag"; m.innerHTML = iconSvg("bellOff"); m.title = "Уведомления отключены";
       top.appendChild(m);
     }
     if (c.blockedByMe) {
       const b = document.createElement("span");
-      b.className = "lh-conv-flag"; b.textContent = "🚫"; b.title = "Пользователь заблокирован";
+      b.className = "lh-conv-flag"; b.innerHTML = iconSvg("ban"); b.title = "Пользователь заблокирован";
       top.appendChild(b);
     }
     if (c.unread) {
@@ -993,6 +999,7 @@
   }
 
   async function loadConversations() {
+    const mySeq = ++convSeq;
     const list = document.getElementById("lhConvList");
     const note = txt => {
       list.textContent = "";
@@ -1005,14 +1012,14 @@
     try {
       const res  = await fetch("/api/conversations");
       const data = await res.json().catch(() => ({}));
-      if (currentTab !== "messages") return;
+      if (mySeq !== convSeq || currentTab !== "messages") return;
       if (!res.ok) { note(data.error || "Не удалось загрузить сообщения."); return; }
       const items = data.conversations || [];
       if (!items.length) { note("Пока нет диалогов. Они появляются, когда вы откликаетесь на объявление или кто-то откликается на ваше."); return; }
       list.textContent = "";
       items.forEach(c => list.appendChild(renderConversationItem(c)));
     } catch {
-      note("Ошибка сети. Попробуйте обновить страницу.");
+      if (mySeq === convSeq) note("Ошибка сети. Попробуйте обновить страницу.");
     }
   }
 
@@ -1086,7 +1093,7 @@
         return;
       }
       await renderBlockedList();
-      if (currentTab === "messages") loadConversations(); // обновить значки 🚫 в списке диалогов
+      if (currentTab === "messages") loadConversations(); // обновить значки блокировки в списке диалогов
     } catch {
       alert("Ошибка сети.");
       btn.disabled = false;

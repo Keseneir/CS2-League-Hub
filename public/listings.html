@@ -179,6 +179,10 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
 .lh-conv-main{ flex:1; min-width:0; text-align:left; background:none; border:none; color:inherit; font:inherit; cursor:pointer; padding:0; }
 .lh-conv-item.muted .lh-conv-dot{ background:var(--text-gray); }
 .lh-conv-flag{ font-size:12px; color:var(--text-gray); }
+/* SVG-иконки в кнопках (иконки из /js/icons.js) */
+.lh-icon-btn .icon, .lh-modal-close .icon, .lh-msg-act .icon, .lh-conv-flag .icon, .lh-btn-outline .icon{ display:inline-block; width:1.15em; height:1.15em; vertical-align:-0.2em; }
+.lh-icon-btn .icon svg, .lh-modal-close .icon svg, .lh-msg-act .icon svg, .lh-conv-flag .icon svg, .lh-btn-outline .icon svg{ display:block; width:100%; height:100%; }
+.lh-btn-outline > .icon:first-child{ margin-right:4px; }
 
 @media (max-width:520px){
   .lh-overlay:has(.lh-chat-box){ padding:0; }
@@ -248,7 +252,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
 
   <div class="lh-grid" id="lhGrid"></div>
   <div class="lh-blocked-bar" id="lhBlockedBar">
-    <button type="button" class="lh-btn-outline" id="lhBlockedBtn">🚫 Чёрный список</button>
+    <button type="button" class="lh-btn-outline" id="lhBlockedBtn"><i class="icon" data-icon="ban" aria-hidden="true"></i> Чёрный список</button>
   </div>
   <div class="lh-conv-list" id="lhConvList" style="display:none;"></div>
   <div class="lh-empty" id="lhEmpty" style="display:none;">
@@ -298,7 +302,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">Объявление</span>
-      <button class="lh-modal-close" data-close>✕</button>
+      <button class="lh-modal-close" data-close><i class="icon" data-icon="x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body" id="lhDetailBody"></div>
   </div>
@@ -309,7 +313,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title" id="lhCreateTitle">Новое объявление</span>
-      <button class="lh-modal-close" data-close>✕</button>
+      <button class="lh-modal-close" data-close><i class="icon" data-icon="x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body">
       <form id="lhCreateForm">
@@ -360,7 +364,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">Отклики</span>
-      <button class="lh-modal-close" data-close>✕</button>
+      <button class="lh-modal-close" data-close><i class="icon" data-icon="x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body" id="lhResponsesBody"></div>
   </div>
@@ -378,9 +382,9 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
         </div>
       </div>
       <div class="lh-chat-tools">
-        <button type="button" class="lh-icon-btn" id="lhChatMute" title="Отключить уведомления" aria-label="Отключить уведомления">🔔</button>
-        <button type="button" class="lh-icon-btn" id="lhChatBlock" title="Заблокировать пользователя" aria-label="Заблокировать пользователя">🚫</button>
-        <button class="lh-modal-close" data-close>✕</button>
+        <button type="button" class="lh-icon-btn" id="lhChatMute" title="Отключить уведомления" aria-label="Отключить уведомления"><i class="icon" data-icon="bell" aria-hidden="true"></i></button>
+        <button type="button" class="lh-icon-btn" id="lhChatBlock" title="Заблокировать пользователя" aria-label="Заблокировать пользователя"><i class="icon" data-icon="ban" aria-hidden="true"></i></button>
+        <button class="lh-modal-close" data-close><i class="icon" data-icon="x" aria-hidden="true"></i></button>
       </div>
     </div>
     <div class="lh-chat-banner" id="lhChatBanner"></div>
@@ -398,7 +402,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">Чёрный список</span>
-      <button class="lh-modal-close" data-close>✕</button>
+      <button class="lh-modal-close" data-close><i class="icon" data-icon="x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body">
       <p class="lh-hint-text" style="margin:0 0 10px;">Заблокированные игроки не могут писать вам в чате и откликаться на ваши объявления.</p>
@@ -412,7 +416,7 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   <div class="modal-box">
     <div class="modal-header">
       <span class="modal-title">Пожаловаться на объявление</span>
-      <button type="button" class="lh-modal-close" id="lhReportClose">✕</button>
+      <button type="button" class="lh-modal-close" id="lhReportClose"><i class="icon" data-icon="x" aria-hidden="true"></i></button>
     </div>
     <div class="modal-body">
       <form id="lhReportForm">

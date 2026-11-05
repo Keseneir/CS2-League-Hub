@@ -120,6 +120,10 @@ footer{ flex-shrink:0; }
 
 /* ── Сообщения: список диалогов и окно чата ── */
 .lh-conv-list{ display:none; flex-direction:column; gap:10px; }
+.lh-blocked-bar{ display:none; margin-bottom:10px; }
+.lh-blocked-row{ display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+.lh-blocked-row:last-child{ border-bottom:none; }
+.lh-blocked-name{ flex:1; min-width:0; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lh-conv-item{ display:block; width:100%; text-align:left; background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
   padding:14px 16px; cursor:pointer; color:var(--text); font-family:'Inter',sans-serif; transition:border-color .2s, background .2s; }
 .lh-conv-item:hover{ border-color:var(--accent); background:var(--accent-dim); }
@@ -243,6 +247,9 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
   </div>
 
   <div class="lh-grid" id="lhGrid"></div>
+  <div class="lh-blocked-bar" id="lhBlockedBar">
+    <button type="button" class="lh-btn-outline" id="lhBlockedBtn">🚫 Чёрный список</button>
+  </div>
   <div class="lh-conv-list" id="lhConvList" style="display:none;"></div>
   <div class="lh-empty" id="lhEmpty" style="display:none;">
     <div class="lh-empty-icon">
@@ -383,6 +390,20 @@ a.lh-chat-sub[href]:hover{ color:var(--accent); text-decoration:underline; }
       <textarea id="lhChatInput" maxlength="1000" rows="2" placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"></textarea>
       <button type="submit" class="btn-submit" id="lhChatSend" style="width:auto;">Отправить</button>
     </form>
+  </div>
+</div>
+
+<!-- ── Модалка: чёрный список ──────────────────────────────────────────── -->
+<div class="lh-overlay" id="lhBlockedOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Чёрный список</span>
+      <button class="lh-modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="lh-hint-text" style="margin:0 0 10px;">Заблокированные игроки не могут писать вам в чате и откликаться на ваши объявления.</p>
+      <div id="lhBlockedBody"></div>
+    </div>
   </div>
 </div>
 

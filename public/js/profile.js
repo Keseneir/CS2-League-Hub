@@ -672,6 +672,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
         document.body.classList.toggle("pe-active", name === "edit");
         if (name === "edit") {
             updatePreview();
+            loadBlockedList();
             // Инвентарь перечитываем при входе (например, после промокода); черновик не трогаем
             loadInventory().then(() => { renderCosmeticsSection(); updatePreview(); });
         }
@@ -1454,6 +1455,49 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             if (!res.ok) { const d = await res.json(); showToast(d.error || "Ошибка", "err"); return; }
             showToast("Удалено из друзей", "ok");
             await refreshProfile();
+        } catch { showToast("Ошибка соединения", "err"); }
+    };
+
+    // ═══ Чёрный список ═══════════════════════════════════════════════════════
+    let _blockedReq = 0; // защита от гонок: при быстрых повторных открытиях применяем только последний ответ
+
+    async function loadBlockedList() {
+        const box = document.getElementById("blockedList");
+        const cnt = document.getElementById("blockedCount");
+        if (!box) return;
+        const myReq = ++_blockedReq;
+        try {
+            const res  = await fetch("/api/blocked");
+            const data = await res.json().catch(() => ({}));
+            if (myReq !== _blockedReq) return;
+            if (!res.ok) { box.innerHTML = `<div class="notif-empty">${esc(data.error || "Не удалось загрузить список.")}</div>`; return; }
+            const list = data.blocked || [];
+            if (cnt) cnt.textContent = list.length ? `${list.length} / ${data.max || 100}` : "";
+            if (!list.length) { box.innerHTML = `<div class="notif-empty">Вы никого не блокировали</div>`; return; }
+            box.innerHTML = list.map(u => {
+                const nameArg = esc(JSON.stringify(u.displayName || "Игрок"));
+                return `<div class="friend-row">
+                    ${avatarEl(u.avatar, u.displayName, "friend-avatar")}
+                    <div class="friend-info">
+                        <div class="friend-name"><a href="/profile.html?id=${encodeURIComponent(u.steamId || "")}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;">${esc(u.displayName || "Игрок")}</a></div>
+                    </div>
+                    <div class="friend-actions">
+                        <button class="btn-fr btn-fr-accept" onclick="unblockUser('${esc(u._id)}', ${nameArg})">Разблокировать</button>
+                    </div>
+                </div>`;
+            }).join("");
+        } catch {
+            if (myReq === _blockedReq) box.innerHTML = `<div class="notif-empty">Ошибка соединения</div>`;
+        }
+    }
+
+    window.unblockUser = async function(userId, name) {
+        if (!confirm(`Разблокировать ${name}?`)) return;
+        try {
+            const res = await fetch(`/api/blocked/${encodeURIComponent(userId)}`, { method: "DELETE" });
+            if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.error || "Ошибка", "err"); return; }
+            showToast("Пользователь разблокирован", "ok");
+            await loadBlockedList();
         } catch { showToast("Ошибка соединения", "err"); }
     };
 

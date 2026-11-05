@@ -92,6 +92,7 @@
     document.getElementById("lhFType").addEventListener("change", updateTypeHint);
     updateTypeHint();
     initChatUi();
+    initBlockedUi();
 
     // deeplink /listings.html?tab=mine из шапки
     const params = new URLSearchParams(location.search);
@@ -137,11 +138,13 @@
     if (currentTab === "messages") {
       grid.style.display = "none";
       convList.style.display = "flex";
+      document.getElementById("lhBlockedBar").style.display = "block";
       await loadConversations();
       return;
     }
     grid.style.display = "";
     convList.style.display = "none";
+    document.getElementById("lhBlockedBar").style.display = "none";
 
     function showEmpty(title, text) {
       emptyTxt.querySelector("strong").textContent = title;
@@ -1010,6 +1013,83 @@
       items.forEach(c => list.appendChild(renderConversationItem(c)));
     } catch {
       note("Ошибка сети. Попробуйте обновить страницу.");
+    }
+  }
+
+  // ── Чёрный список ────────────────────────────────────────────────────
+  let blockedReq = 0; // применяем только ответ последнего запроса (защита от гонок при быстрых кликах)
+
+  function initBlockedUi() {
+    document.getElementById("lhBlockedBtn").addEventListener("click", openBlockedModal);
+  }
+
+  async function openBlockedModal() {
+    document.getElementById("lhBlockedOverlay").classList.add("open");
+    await renderBlockedList();
+  }
+
+  async function renderBlockedList() {
+    const body = document.getElementById("lhBlockedBody");
+    const note = txt => {
+      body.textContent = "";
+      const p = document.createElement("p");
+      p.className = "lh-hint-text";
+      p.textContent = txt;
+      body.appendChild(p);
+    };
+    const myReq = ++blockedReq;
+    note("Загрузка...");
+    try {
+      const res  = await fetch("/api/blocked");
+      const data = await res.json().catch(() => ({}));
+      if (myReq !== blockedReq) return;
+      if (!res.ok) { note(data.error || "Не удалось загрузить список."); return; }
+      const items = data.blocked || [];
+      if (!items.length) { note("Вы никого не блокировали."); return; }
+      body.textContent = "";
+      items.forEach(u => body.appendChild(renderBlockedRow(u)));
+      const total = document.createElement("p");
+      total.className = "lh-hint-text";
+      total.textContent = `Заблокировано: ${items.length} из ${data.max || 100}`;
+      body.appendChild(total);
+    } catch {
+      if (myReq === blockedReq) note("Ошибка сети. Попробуйте ещё раз.");
+    }
+  }
+
+  function renderBlockedRow(u) {
+    const row = document.createElement("div");
+    row.className = "lh-blocked-row";
+    row.appendChild(makeAvatar(u));
+    const name = document.createElement("span");
+    name.className = "lh-blocked-name";
+    name.textContent = u.displayName || "Игрок";
+    row.appendChild(name);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lh-btn-outline";
+    btn.textContent = "Разблокировать";
+    btn.addEventListener("click", () => unblockUser(u, btn));
+    row.appendChild(btn);
+    return row;
+  }
+
+  async function unblockUser(u, btn) {
+    if (!confirm(`Разблокировать ${u.displayName || "пользователя"}?`)) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/blocked/${encodeURIComponent(u._id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "Не удалось разблокировать.");
+        btn.disabled = false;
+        return;
+      }
+      await renderBlockedList();
+      if (currentTab === "messages") loadConversations(); // обновить значки 🚫 в списке диалогов
+    } catch {
+      alert("Ошибка сети.");
+      btn.disabled = false;
     }
   }
 

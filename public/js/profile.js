@@ -356,7 +356,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
                 ? `<img src="${esc(vd.team.logo)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">`
                 : `<div style="width:44px;height:44px;border-radius:8px;background:rgba(230,176,34,0.12);border:1px solid rgba(230,176,34,0.25);display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;color:var(--accent);flex-shrink:0;">${esc(String(vd.team.tag || "?").slice(0, 2))}</div>`;
             card.href = `/team.html?tag=${encodeURIComponent(vd.team.tag)}`;
-            card.innerHTML = `${logoHtml}<div style="flex:1;min-width:0;"><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;overflow-wrap:anywhere;">${esc(vd.team.name)}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${esc(vd.team.tag)}]</div></div><div class="pv-team-go">Перейти на страницу команды ${iconSvg("link")}</div>`;
+            card.innerHTML = `${logoHtml}<div class="pv-team-info"><div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;color:white;overflow-wrap:anywhere;">${esc(vd.team.name)}</div><div style="font-size:12px;color:#5c6b7f;margin-top:3px;text-transform:uppercase;letter-spacing:1px;">[${esc(vd.team.tag)}]</div></div><div class="pv-team-go">Перейти на страницу команды ${iconSvg("link")}</div>`;
         } else {
             teamBlock.hidden = true;
         }

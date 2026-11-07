@@ -17,7 +17,7 @@ console.log(
 );
 
 //auth на всех страницах
-async function checkAuth() {
+async function _checkAuthImpl() {
     try {
         const res  = await fetch("/api/user");
         const user = await res.json();
@@ -309,6 +309,12 @@ async function checkAuth() {
     }
 }
 
+// Один запрос /api/user на страницу: раньше виджет поддержки вызывал checkAuth() второй раз
+let _authPromise = null;
+function checkAuth() {
+    return _authPromise || (_authPromise = _checkAuthImpl());
+}
+
 document.addEventListener("DOMContentLoaded", checkAuth);
 
 
@@ -375,9 +381,14 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 //поллинг уведомлений на всех страницах
+// Запускается только для залогиненных (событие _authDone): у гостей /api/profile всегда
+// отвечает ошибкой, а запросы шли каждые 5 секунд. В скрытой вкладке опрос стоит, а при
+// возврате в неё выполняется сразу.
 (function() {
     let _globalPrevCount = -1;
-    const _globalAudio   = new Audio("assets/notification.mp3");
+    let _globalAudio     = null;
+    let _audioUnlocked   = false;
+    let _pollStarted     = false;
 
     // Браузеры блокируют автовоспроизведение звука, если пользователь ещё
     // не взаимодействовал со страницей (клик/нажатие клавиши) — .play() падает
@@ -385,9 +396,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // казалось что звука «нет». Разблокируем звук по первому же клику/keydown:
     // проигрываем и сразу же ставим на паузу с нулевой громкостью — после этого
     // жеста браузер разрешает play() этому же элементу до конца сессии страницы.
-    let _audioUnlocked = false;
     function unlockAudio() {
-        if (_audioUnlocked) return;
+        if (_audioUnlocked || !_globalAudio) return;
         _audioUnlocked = true;
         const prevVolume = _globalAudio.volume;
         _globalAudio.volume = 0;
@@ -400,8 +410,6 @@ document.addEventListener("DOMContentLoaded", function () {
             _audioUnlocked = false;
         });
     }
-    document.addEventListener("click",   unlockAudio, { once: false, passive: true });
-    document.addEventListener("keydown", unlockAudio, { once: false, passive: true });
 
     async function globalPollNotifs() {
         try {
@@ -422,7 +430,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const total = profileCount + listingsCount;
 
-            if (_globalPrevCount >= 0 && total > _globalPrevCount) {
+            if (_globalPrevCount >= 0 && total > _globalPrevCount && _globalAudio) {
                 _globalAudio.play().catch(() => {});
             }
             _globalPrevCount = total;
@@ -446,12 +454,22 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch {}
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
+    function startPolling() {
+        if (_pollStarted) return;
+        _pollStarted = true;
+        _globalAudio = new Audio("assets/notification.mp3");   // создаём только для залогиненных
+        document.addEventListener("click",   unlockAudio, { once: false, passive: true });
+        document.addEventListener("keydown", unlockAudio, { once: false, passive: true });
+        document.addEventListener("visibilitychange", function() {
+            if (!document.hidden) globalPollNotifs();
+        });
         setTimeout(function() {
             globalPollNotifs();
-            setInterval(globalPollNotifs, 5000);
+            setInterval(function() { if (!document.hidden) globalPollNotifs(); }, 5000);
         }, 1500);
-    });
+    }
+
+    document.addEventListener("_authDone", startPolling);
 })();
 
 
@@ -527,8 +545,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.key === "Escape") closeDrawer();
     });
 
-    
-    const origCheckAuth = window._origCheckAuth;
+
     document.addEventListener("_authDone", function(e) {
         const user = e.detail;
         const nav = document.getElementById("_dynMobileUserNav");
@@ -911,12 +928,12 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         async function sendMsg() {
+            if (sendBtn.disabled) return;   // Enter во время отправки не должен слать дубль
             const text = input.value.trim();
             if (!text && !pendingAttachment) return;
             if (!currentTicketId) return;
             const isFirstMessage = lastMessageCount === 0;
-            input.value = "";
-            sendBtn.disabled = true;
+            sendBtn.disabled = true;   // поле очищаем только после успешной отправки
             try {
                 const res = await fetch("/api/support/message", {
                     method:  "POST",
@@ -946,12 +963,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     await loadThread();
                     return;
                 }
+                if (input.value.trim() === text) input.value = "";
                 if (isFirstMessage) deliveredNoticeShown = true;
                 pendingAttachment = null;
                 attachPreview.style.display = "none";
                 attachPreview.innerHTML = "";
                 await loadThread();
-            } catch {}
+            } catch { alert("Не удалось отправить сообщение. Текст сохранён — попробуйте ещё раз."); }
             finally { sendBtn.disabled = false; }
         }
         sendBtn.addEventListener("click", sendMsg);

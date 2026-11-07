@@ -690,7 +690,6 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 .no-team-banner-text p { font-size: 14px; color: var(--text-gray); margin: 0; }
 
 
-.team-info-card {}
 .team-card {
     display: flex;
     align-items: center;
@@ -718,7 +717,6 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     flex-shrink: 0;
 }
 .team-card-info { flex: 1; }
-.team-card-name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 15px; color: white; }
 .team-card-sub { font-size: 12px; color: #5c6b7f; margin-top: 2px; }
 .team-info-loading { display: flex; justify-content: center; padding: 16px; }
 
@@ -789,7 +787,11 @@ textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
     .search-wrap { min-width: unset; }
     #ratingBtn span { display: none; }
     #ratingBtn { padding: 14px; border-radius: 50%; bottom: 20px; right: 20px; }
+    /* Надпись в HTML — голый текст внутри <a>, а не <span>, поэтому прежнее правило
+       "span { display: none }" её не скрывало. font-size:0 прячет надпись в любой разметке. */
     .btn-steam-login span { display: none; }
+    .btn-steam-login { font-size: 0; gap: 0; padding: 9px 11px; }
+    .btn-steam-login svg { width: 20px; height: 20px; }
 }
 @media (max-width: 500px) {
     .logo { font-size: 17px; letter-spacing: 0.5px; }
@@ -2307,6 +2309,12 @@ i.icon { display: inline-flex; }
 .page-profile .pv-social--dc { background: rgba(114,137,218,0.10); border: 1px solid rgba(114,137,218,0.25); color: #7289da; }
 .page-profile .pv-team-card { margin-bottom: 0; min-width: 0; }
 .page-profile .pv-team-go { font-size: 11px; color: var(--accent); white-space: nowrap; }
+.page-profile .pv-team-info { flex: 1; min-width: 0; }
+/* В узкой карточке (превью справа в редакторе) ссылка «Перейти…» уходит на свою строку:
+   иначе она отбирает всю ширину, и название команды ломается по буквам в столбик */
+.page-profile .pv-host--preview .pv-team-card { flex-wrap: wrap; }
+.page-profile .pv-host--preview .pv-team-info { flex: 1 1 140px; min-width: min(140px, 100%); }
+.page-profile .pv-host--preview .pv-team-go { flex-basis: 100%; white-space: normal; }
 .page-profile .pv .stat-overview-card { margin-bottom: 14px; }
 
 /* Сообщения «профиль приватный» / «ваш профиль скрыт» */
@@ -2375,6 +2383,10 @@ body.page-profile.pe-active #_cosmetic_bg_layer { opacity: 0; }
 }
 @media (max-width: 600px) {
     .page-profile .pv-banner { height: 40px; }
+    /* то же для телефонов: название команды, ссылка — под ним */
+    .page-profile .pv-team-card { flex-wrap: wrap; }
+    .page-profile .pv-team-info { flex: 1 1 140px; min-width: min(140px, 100%); }
+    .page-profile .pv-team-go { flex-basis: 100%; white-space: normal; }
     .page-profile .pv-badges { justify-content: center; }
     .page-profile .pv .match-row-item { flex-wrap: wrap; }
     .page-profile .pv-note { padding: 14px; }

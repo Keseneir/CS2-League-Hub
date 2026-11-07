@@ -675,6 +675,7 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             loadBlockedList();
             // Инвентарь перечитываем при входе (например, после промокода); черновик не трогаем
             loadInventory().then(() => { renderCosmeticsSection(); updatePreview(); });
+            loadPurchaseHistory();
         }
     }
 
@@ -872,6 +873,40 @@ if (document.getElementById("ownProfileWrap") || document.getElementById("public
             _invOk = false;
         }
         _invLoaded = true;
+    }
+
+    // ── История личных покупок (видна только владельцу профиля) ─────────────
+    function fmtPurchaseDate(d) {
+        if (!d) return "";
+        return new Date(d).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    let _phSeq = 0;   // применяем только ответ последнего запроса
+    async function loadPurchaseHistory() {
+        const wrap = document.getElementById("purchaseHistoryWrap");
+        const list = document.getElementById("purchaseHistoryList");
+        if (!wrap || !list) return;
+        const mySeq = ++_phSeq;
+        try {
+            const r = await fetch("/api/shop/history/personal");
+            if (!r.ok) return;
+            const rows = await r.json();
+            if (mySeq !== _phSeq) return;
+            wrap.style.display = "";
+            list.innerHTML = rows.length
+                ? rows.map(p => `<div class="ph-row">
+                <div class="ph-icon">${p.itemIcon || iconSvg("gift")}</div>
+                <div class="ph-main">
+                    <div class="ph-name">${esc(p.itemName || "Предмет")}</div>
+                    <div class="ph-sub">
+                        <span>${fmtPurchaseDate(p.createdAt)}</span>
+                        ${p.buyer ? `<span>·</span>${p.buyer.avatar ? `<img src="${esc(p.buyer.avatar)}" alt="">` : ""}<span>${esc(p.buyer.displayName || "Игрок")}</span>` : ""}
+                    </div>
+                </div>
+                <div class="ph-price">−${p.price} <small>монет</small></div>
+            </div>`).join("")
+                : `<div class="ph-empty">Покупок пока нет</div>`;
+        } catch (e) { console.error(e); }
     }
 
     // id предмета (ShopItem._id) → объект предмета с css/keyframes для превью

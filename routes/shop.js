@@ -3,6 +3,7 @@ const router          = express.Router();
 const User            = require("../models/User");
 const Team            = require("../models/Team");
 const ShopItem        = require("../models/ShopItem");
+const Purchase        = require("../models/Purchase");
 const { requireAuth } = require("../middleware/auth");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -16,6 +17,18 @@ function isCaptainOrManager(team, userId) {
     team.captainId.toString() === uid ||
     (team.managerId && team.managerId.toString() === uid)
   );
+}
+
+// Записываем покупку в историю. Деньги уже списаны, поэтому сбой записи не должен ломать ответ.
+async function logPurchase({ userId, teamId, category, item }) {
+  try {
+    await Purchase.create({
+      userId, teamId: teamId || null, category,
+      itemId: item._id, itemName: item.name, itemIcon: item.icon || "", price: item.price,
+    });
+  } catch (err) {
+    console.error("Purchase log failed:", err);
+  }
 }
 
 // ─── GET /api/shop/items ─── все активные предметы (можно фильтровать ?category=personal|team)
@@ -220,6 +233,8 @@ router.post("/buy/personal", requireAuth, async (req, res) => {
     if (!updated)
       return res.status(400).json({ error: "Недостаточно монет на личном счёте" });
 
+    await logPurchase({ userId: req.user._id, teamId: null, category: "personal", item });
+
     res.json({ ok: true, personalBalance: updated.personalBalance });
   } catch (err) {
     console.error(err);
@@ -263,6 +278,8 @@ router.post("/buy/team", requireAuth, async (req, res) => {
 
     if (!updated)
       return res.status(400).json({ error: "Недостаточно монет на командном кошельке" });
+
+    await logPurchase({ userId: req.user._id, teamId: req.user.teamId, category: "team", item });
 
     res.json({ ok: true, teamBalance: updated.balance });
   } catch (err) {
@@ -327,6 +344,48 @@ router.post("/team/consume/:entryId", requireAuth, async (req, res) => {
       { $set: { "inventory.$.consumed": true, "inventory.$.consumedAt": new Date() } }
     );
     res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── GET /api/shop/history/personal ─── история личных покупок текущего игрока
+router.get("/history/personal", requireAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const rows = await Purchase.find({ userId: req.user._id, category: "personal" })
+      .sort({ createdAt: -1 }).limit(limit)
+      .select("itemId itemName itemIcon price createdAt").lean();
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Ошибка сервера" });
+  }
+});
+
+// ─── GET /api/shop/history/team ─── история покупок команды (видят все участники)
+router.get("/history/team", requireAuth, async (req, res) => {
+  try {
+    if (!req.user.teamId)
+      return res.status(400).json({ error: "Вы не состоите в команде" });
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const rows = await Purchase.find({ teamId: req.user.teamId, category: "team" })
+      .sort({ createdAt: -1 }).limit(limit)
+      .populate("userId", "displayName avatar steamId")
+      .select("userId itemId itemName itemIcon price createdAt").lean();
+
+    res.json(rows.map(r => ({
+      _id:       r._id,
+      itemName:  r.itemName,
+      itemIcon:  r.itemIcon,
+      price:     r.price,
+      createdAt: r.createdAt,
+      buyer:     r.userId
+        ? { _id: r.userId._id, displayName: r.userId.displayName, avatar: r.userId.avatar, steamId: r.userId.steamId }
+        : null,
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка сервера" });

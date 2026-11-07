@@ -224,6 +224,22 @@
             .items-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
             .balances-row { flex-direction: column; }
         }
+        /* ── История покупок ─────────────────────────────── */
+        .ph-list { display: flex; flex-direction: column; gap: 8px; }
+        .ph-row {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card-bg, #12171d); border: 1px solid var(--border, #1f252c);
+            border-radius: 10px; padding: 10px 14px;
+        }
+        .ph-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .ph-icon .icon { width: 20px; height: 20px; }
+        .ph-main { flex: 1; min-width: 0; }
+        .ph-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ph-sub { font-size: 11px; color: var(--text-gray, #aebbc7); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .ph-sub img { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
+        .ph-price { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 13px; color: var(--accent, #e6b022); white-space: nowrap; }
+        .ph-price small { font-size: 10px; color: var(--text-gray, #aebbc7); font-weight: 600; }
+        .ph-empty { font-size: 12px; color: #5c6b7f; padding: 10px 0; }
     </style>
 </head>
 <body class="page-shop">
@@ -332,6 +348,12 @@
                 <div class="section-label">Мой инвентарь</div>
                 <div class="inv-grid" id="personalInvGrid"></div>
             </div>
+
+            <!-- История покупок -->
+            <div class="inv-section" id="personalHistSection" style="display:none;">
+                <div class="section-label">История покупок</div>
+                <div class="ph-list" id="personalHistList"></div>
+            </div>
         </div>
 
         <!-- Командные товары -->
@@ -355,6 +377,12 @@
             <div class="inv-section" id="teamInvSection" style="display:none;">
                 <div class="section-label">Инвентарь команды</div>
                 <div class="inv-grid" id="teamInvGrid"></div>
+            </div>
+
+            <!-- История покупок команды (видна всем участникам) -->
+            <div class="inv-section" id="teamHistSection" style="display:none;">
+                <div class="section-label">История покупок команды</div>
+                <div class="ph-list" id="teamHistList"></div>
             </div>
         </div>
 
@@ -477,6 +505,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderBalances();
     renderItems("personal");
     renderInventory("personal");
+    loadHistory("personal");
     document.getElementById("shopContent").style.display = "";
 });
 
@@ -503,6 +532,7 @@ function switchTab(tab) {
     if (tab === "team") {
         renderItems("team");
         renderInventory("team");
+        loadHistory("team");
     }
 }
 
@@ -534,18 +564,10 @@ function renderItems(category) {
         return;
     }
 
-    const myInv = category === "personal"
-        ? (_inventory.personal || []).map(e => e.itemId?._id || e.itemId)
-        : (_inventory.team     || []).filter(e => !e.consumed).map(e => e.itemId?._id || e.itemId);
+    const myInv = ownedIds(category);
 
     grid.innerHTML = items.map(item => {
-        const owned    = myInv.some(id => id?.toString() === item._id?.toString());
-        const canAfford = category === "personal"
-            ? (_balance.personalBalance || 0) >= item.price
-            : (_balance.teamBalance     || 0) >= item.price;
-        const canBuy    = category === "team" ? _balance.isTeamManager : true;
-        const disabled  = owned || !canAfford || !canBuy;
-        const btnLabel  = owned ? "Куплено" : !canAfford ? "Мало монет" : !canBuy ? "Нет прав" : "Купить";
+        const { disabled, label: btnLabel } = buyState(item, category, myInv);
 
         // Инлайн-превью фона прямо на карточке
         const bgPreview = (item.cosmeticType === "profile_bg" || item.cosmeticType === "team_bg") && item.css
@@ -554,7 +576,7 @@ function renderItems(category) {
                </div>`
             : "";
 
-        return `<div class="item-card" style="cursor:pointer;"
+        return `<div class="item-card" data-item-id="${item._id}" style="cursor:pointer;"
                      onclick="openPreview('${item._id}')">
             <div class="item-icon">${item.icon || iconSvg("gift")}</div>
             ${bgPreview}
@@ -570,6 +592,40 @@ function renderItems(category) {
             </div>
         </div>`;
     }).join("");
+}
+
+// ─── Состояние кнопок «Купить» ───────────────────────────────────────────────
+function ownedIds(category) {
+    return category === "personal"
+        ? (_inventory.personal || []).map(e => e.itemId?._id || e.itemId)
+        : (_inventory.team     || []).filter(e => !e.consumed).map(e => e.itemId?._id || e.itemId);
+}
+
+function buyState(item, category, myInv) {
+    const owned     = myInv.some(id => id?.toString() === item._id?.toString());
+    const canAfford = category === "personal"
+        ? (_balance.personalBalance || 0) >= item.price
+        : (_balance.teamBalance     || 0) >= item.price;
+    const canBuy    = category === "team" ? _balance.isTeamManager : true;
+    return {
+        disabled: owned || !canAfford || !canBuy,
+        label:    owned ? "Куплено" : !canAfford ? "Мало монет" : !canBuy ? "Нет прав" : "Купить",
+    };
+}
+
+// Обновляет только кнопки на уже отрисованных карточках: без перерисовки всей витрины
+function updateBuyButtons(category) {
+    const grid = document.getElementById(category === "personal" ? "personalItemsGrid" : "teamItemsGrid");
+    if (!grid) return;
+    const myInv = ownedIds(category);
+    grid.querySelectorAll(".item-card[data-item-id]").forEach(card => {
+        const item = _allItems.find(i => i._id === card.dataset.itemId);
+        const btn  = card.querySelector(".buy-btn");
+        if (!item || !btn) return;
+        const st = buyState(item, category, myInv);
+        btn.disabled    = st.disabled;
+        btn.textContent = st.label;
+    });
 }
 
 // ─── Инвентарь ───────────────────────────────────────────────────────────────
@@ -634,17 +690,22 @@ function openBuyModal(itemId, category, name, price) {
         category === "team" ? "Спишется с командного кошелька" : "Спишется с личного баланса";
     document.getElementById("buyModalPrice").textContent = `${price} монет`;
     document.getElementById("buyError").style.display   = "none";
+    document.getElementById("buyConfirmBtn").disabled  = false;
     openModal("buyModal");
 }
 
-async function confirmBuy() {
-    if (!_pendingBuy) return;
-    const btn = document.getElementById("buyConfirmBtn");
-    btn.disabled = true;
-    const errEl = document.getElementById("buyError");
-    errEl.style.display = "none";
+let _buying = false;   // защита от двойного клика по «Купить»
 
-    const endpoint = _pendingBuy.category === "personal"
+async function confirmBuy() {
+    if (!_pendingBuy || _buying) return;
+    const pending = _pendingBuy;
+    const btn     = document.getElementById("buyConfirmBtn");
+    const errEl   = document.getElementById("buyError");
+    errEl.style.display = "none";
+    _buying      = true;
+    btn.disabled = true;
+
+    const endpoint = pending.category === "personal"
         ? "/api/shop/buy/personal"
         : "/api/shop/buy/team";
 
@@ -652,13 +713,12 @@ async function confirmBuy() {
         const res  = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ itemId: _pendingBuy.itemId }),
+            body: JSON.stringify({ itemId: pending.itemId }),
         });
         const data = await res.json();
         if (!res.ok) {
-            errEl.textContent    = data.error;
-            errEl.style.display  = "";
-            btn.disabled = false;
+            errEl.textContent   = data.error;
+            errEl.style.display = "";
             return;
         }
 
@@ -666,7 +726,7 @@ async function confirmBuy() {
         showToast("Покупка успешна!", "ok", "party");
 
         // Обновляем баланс и перерисовываем
-        if (_pendingBuy.category === "personal") {
+        if (pending.category === "personal") {
             _balance.personalBalance = data.personalBalance;
             document.getElementById("personalBalVal").textContent  = data.personalBalance;
         } else {
@@ -675,16 +735,60 @@ async function confirmBuy() {
         }
         _pendingBuy = null;
 
-        // Перезагружаем инвентарь
+        // Перезагружаем инвентарь и историю
         const invRes = await fetch("/api/shop/inventory");
         _inventory = await invRes.json();
         const currentTab = document.getElementById("tabPersonal").classList.contains("active") ? "personal" : "team";
-        renderItems(currentTab);
+        updateBuyButtons(currentTab);   // только кнопки, без перерисовки витрины
         renderInventory(currentTab);
+        loadHistory(pending.category);
     } catch {
         showToast("Ошибка сети", "err");
+    } finally {
+        // Раньше кнопка разблокировалась только при ошибке — после успешной покупки
+        // она оставалась disabled, и следующую покупку подтвердить было нельзя.
+        _buying      = false;
         btn.disabled = false;
     }
+}
+
+// ─── История покупок ──────────────────────────────────────────────────────────
+function fmtPurchaseDate(d) {
+    if (!d) return "";
+    return new Date(d).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+const _histSeq = { personal: 0, team: 0 };   // применяем только ответ последнего запроса
+
+async function loadHistory(category) {
+    const sec  = document.getElementById(category === "personal" ? "personalHistSection" : "teamHistSection");
+    const list = document.getElementById(category === "personal" ? "personalHistList"    : "teamHistList");
+    if (!sec || !list) return;
+    if (category === "team" && (_balance.teamBalance === null || _balance.teamBalance === undefined)) {
+        sec.style.display = "none";   // не в команде — истории команды нет
+        return;
+    }
+    const mySeq = ++_histSeq[category];
+    try {
+        const r = await fetch(`/api/shop/history/${category}`);
+        if (!r.ok) return;
+        const rows = await r.json();
+        if (mySeq !== _histSeq[category]) return;
+        sec.style.display = "";
+        list.innerHTML = rows.length
+            ? rows.map(p => `<div class="ph-row">
+                <div class="ph-icon">${p.itemIcon || iconSvg("gift")}</div>
+                <div class="ph-main">
+                    <div class="ph-name">${esc(p.itemName || "Предмет")}</div>
+                    <div class="ph-sub">
+                        <span>${fmtPurchaseDate(p.createdAt)}</span>
+                        ${p.buyer ? `<span>·</span>${p.buyer.avatar ? `<img src="${esc(p.buyer.avatar)}" alt="">` : ""}<span>${esc(p.buyer.displayName || "Игрок")}</span>` : ""}
+                    </div>
+                </div>
+                <div class="ph-price">−${p.price} <small>монет</small></div>
+            </div>`).join("")
+            : `<div class="ph-empty">Покупок пока нет</div>`;
+    } catch (e) { console.error(e); }
 }
 
 // ─── Модал пополнения ─────────────────────────────────────────────────────────
@@ -733,6 +837,8 @@ async function submitDeposit() {
         document.getElementById("personalBalVal").textContent = _balance.personalBalance;
         document.getElementById("teamBalVal").textContent     = _balance.teamBalance;
         document.getElementById("depositAvail").textContent   = _balance.personalBalance;
+        updateBuyButtons("personal");
+        updateBuyButtons("team");
 
         closeModal("depositModal");
         showToast(`+${amount} монет в командный кошелёк`, "ok");

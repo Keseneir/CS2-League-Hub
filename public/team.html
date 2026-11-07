@@ -264,6 +264,22 @@
             .team-hub-name { font-size: 22px; }
             .roster-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
         }
+        /* ── История покупок ─────────────────────────────── */
+        .ph-list { display: flex; flex-direction: column; gap: 8px; }
+        .ph-row {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card-bg, #12171d); border: 1px solid var(--border, #1f252c);
+            border-radius: 10px; padding: 10px 14px;
+        }
+        .ph-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .ph-icon .icon { width: 20px; height: 20px; }
+        .ph-main { flex: 1; min-width: 0; }
+        .ph-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ph-sub { font-size: 11px; color: var(--text-gray, #aebbc7); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .ph-sub img { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
+        .ph-price { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 13px; color: var(--accent, #e6b022); white-space: nowrap; }
+        .ph-price small { font-size: 10px; color: var(--text-gray, #aebbc7); font-weight: 600; }
+        .ph-empty { font-size: 12px; color: #5c6b7f; padding: 10px 0; }
     </style>
 </head>
 <body class="page-team">
@@ -426,6 +442,12 @@
                 Инвентарь пуст —
                 <a href="/shop.html" style="color:var(--accent);text-decoration:none;">зайди в магазин</a>
             </div>
+        </div>
+
+        <!-- ── История покупок команды (видят все участники) ── -->
+        <div id="teamHistorySection" style="display:none;margin-bottom:32px;">
+            <div class="section-label"><i class="icon" data-icon="clock" aria-hidden="true"></i> История покупок</div>
+            <div class="ph-list" id="teamHistoryList"></div>
         </div>
 
         <!-- ── Состав ── -->
@@ -676,31 +698,46 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
+    await renderOwnTeam(profile, "init");
+    document.getElementById("mainWrap").style.display = "";
+});
+
+// ─── Отрисовка личной страницы команды ─────────────────────────────────────
+// mode: "init" — первая загрузка; "form" — после сохранения настроек (форму перезаполняем
+//       сохранёнными значениями); "soft" — после смены роли/кика/капитана (несохранённые
+//       поля формы не трогаем).
+async function renderOwnTeam(profile, mode) {
     _isCaptain = profile.isCaptain;
     _isManager = _team.managerId && _team.managerId === (profile._id || "");
-    // менеджер или капитан — имеют доступ к редактированию
-    const canEdit = _isCaptain || _isManager;
+    const canEdit = _isCaptain || _isManager;   // менеджер или капитан — имеют доступ к редактированию
+    const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? "" : "none"; };
 
-    renderOnboarding(profile);
+    if (mode === "init") renderOnboarding(profile);
     renderHero(_team);
     renderRosters(_team);
     renderStats(_team, true);
     renderMatches(_team);
     renderWallet(_team, canEdit);
+    show("teamInventorySection", canEdit);
     if (canEdit) renderTeamInventory(_team);
+    renderTeamPurchaseHistory(canEdit);   // историю видят все участники команды
 
     // Применяем надетый косметический фон команды
-    if (_team.equippedCosmetics?.teamBg) {
+    if (mode === "init" && _team.equippedCosmetics?.teamBg) {
         applyTeamCosmetic(_team.equippedCosmetics.teamBg);
     }
 
+    show("layoutPickerSection", canEdit);
+    show("editSection", canEdit);
+    show("memberMgmtSection", canEdit && _isCaptain);
+    if (!_isCaptain) show("inviteLinksSection", false);
+
     if (canEdit) {
-        document.getElementById("layoutPickerSection").style.display = "";
-        document.getElementById("editSection").style.display = "";
-        populateEditForm(_team, profile);
+        if (mode === "soft") refreshManagerOptions(_team, profile, true);
+        else                 populateEditForm(_team, profile);
         highlightActiveLayout(_team.layoutStyle || 1);
-        await loadCloudinaryConfig();
-        initLogoPreview(_team.logo);
+        if (mode === "init") await loadCloudinaryConfig();
+        if (mode !== "soft") initLogoPreview(_team.logo);
         renderMemberManagement(_team);
         loadInviteLinks();
     }
@@ -709,16 +746,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dangerZone = document.getElementById("dangerZoneSection");
     if (dangerZone) {
         dangerZone.style.display = "";
-        if (_isCaptain) {
-            document.getElementById("dangerDisbandBlock").style.display = "";
-        } else {
-            document.getElementById("dangerLeaveBlock").style.display = "";
-        }
+        show("dangerDisbandBlock", _isCaptain);
+        show("dangerLeaveBlock", !_isCaptain);
     }
 
     initShareUrl(_team.tag);
-    document.getElementById("mainWrap").style.display = "";
-});
+}
+
+// Перечитывает команду и перерисовывает страницу на месте — без location.reload()
+let _teamRefreshing = false;
+async function refreshTeamInPlace(mode) {
+    if (_teamRefreshing) return;
+    _teamRefreshing = true;
+    try {
+        const res = await fetch("/api/profile");
+        if (!res.ok) { showToast("Не удалось обновить данные", "err"); return; }
+        const profile = await res.json();
+        if (!profile.team) { location.href = "/profile.html"; return; }   // команды больше нет
+        _team = profile.team;
+        await renderOwnTeam(profile, mode || "soft");
+    } catch {
+        showToast("Не удалось обновить данные", "err");
+    } finally {
+        _teamRefreshing = false;
+    }
+}
 
 // ─── Онбординг-трекер ──────────────────────────────────────────────────────
 function renderOnboarding(profile) {
@@ -813,13 +865,15 @@ function renderRosters(team) {
     const mainGrid = document.getElementById("mainRosterGrid");
     const subsGrid = document.getElementById("subsRosterGrid");
     const captainId = team.captainId?._id || team.captainId;
+    mainGrid.innerHTML = "";   // функция вызывается повторно при обновлении на месте
+    subsGrid.innerHTML = "";
 
     (team.members || []).forEach(m => {
         mainGrid.appendChild(playerCard(m, captainId, "основной"));
     });
 
+    document.getElementById("subsSection").style.display = (team.subs || []).length ? "" : "none";
     if ((team.subs || []).length) {
-        document.getElementById("subsSection").style.display = "";
         (team.subs || []).forEach(m => {
             subsGrid.appendChild(playerCard(m, captainId, "запасной"));
         });
@@ -893,9 +947,43 @@ async function renderMatches(team) {
 
 // ─── Кошелёк ───────────────────────────────────────────────────────────────
 function renderWallet(team, canEdit) {
+    document.getElementById("walletSection").style.display = "none";
     if (!canEdit && !(team.balance > 0)) return;
     document.getElementById("walletSection").style.display = "";
     document.getElementById("walletBal").textContent = team.balance || 0;
+}
+
+function fmtPurchaseDate(d) {
+    if (!d) return "";
+    return new Date(d).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// ─── История покупок команды: видят все участники ─────────────────────────
+async function renderTeamPurchaseHistory(canEdit) {
+    const section = document.getElementById("teamHistorySection");
+    const list    = document.getElementById("teamHistoryList");
+    if (!section || !list) return;
+    try {
+        const r = await fetch("/api/shop/history/team");
+        if (!r.ok) return;
+        const rows = await r.json();
+        // Пустой блок обычному участнику не нужен; капитан/менеджер видят его всегда
+        if (!rows.length && !canEdit) return;
+        section.style.display = "";
+        list.innerHTML = rows.length
+            ? rows.map(p => `<div class="ph-row">
+                <div class="ph-icon">${p.itemIcon || iconSvg("gift")}</div>
+                <div class="ph-main">
+                    <div class="ph-name">${escHtmlTeam(p.itemName || "Предмет")}</div>
+                    <div class="ph-sub">
+                        <span>${fmtPurchaseDate(p.createdAt)}</span>
+                        ${p.buyer ? `<span>·</span>${p.buyer.avatar ? `<img src="${escHtmlTeam(p.buyer.avatar)}" alt="">` : ""}<span>${escHtmlTeam(p.buyer.displayName || "Игрок")}</span>` : ""}
+                    </div>
+                </div>
+                <div class="ph-price">−${p.price} <small>монет</small></div>
+            </div>`).join("")
+            : `<div class="ph-empty">Покупок пока нет</div>`;
+    } catch (e) { console.error(e); }
 }
 
 // ─── Инвентарь команды (только капитан/менеджер видят и могут надевать) ───
@@ -1026,20 +1114,29 @@ function populateEditForm(team, profile) {
     document.getElementById("privStats").checked   = team.privacySettings?.showStats   !== false;
     document.getElementById("privHistory").checked = team.privacySettings?.showHistory !== false;
 
-    // Только капитан видит назначение менеджера
-    if (_isCaptain) {
-        document.getElementById("managerFieldRow").style.display = "";
-        const sel = document.getElementById("managerSelect");
-        const all = [...(team.members || []), ...(team.subs || [])];
-        all.forEach(m => {
-            if (m._id === profile._id) return; // капитан не может назначить себя менеджером
-            const opt = document.createElement("option");
-            opt.value = m._id;
-            opt.textContent = m.displayName;
-            if (team.managerId && team.managerId === m._id) opt.selected = true;
-            sel.appendChild(opt);
-        });
-    }
+    refreshManagerOptions(team, profile, false);
+}
+
+// Список менеджеров. keepSelection=true — сохранить выбор, который капитан уже сделал в форме.
+function refreshManagerOptions(team, profile, keepSelection) {
+    const row = document.getElementById("managerFieldRow");
+    const sel = document.getElementById("managerSelect");
+    if (!row || !sel) return;
+    row.style.display = _isCaptain ? "" : "none";   // только капитан видит назначение менеджера
+    if (!_isCaptain) return;
+
+    const prev = sel.value;
+    while (sel.options.length > 1) sel.remove(1);   // оставляем «— нет менеджера —»
+    const all = [...(team.members || []), ...(team.subs || [])];
+    all.forEach(m => {
+        if (m._id === profile._id) return; // капитан не может назначить себя менеджером
+        const opt = document.createElement("option");
+        opt.value = m._id;
+        opt.textContent = m.displayName;
+        if (team.managerId && team.managerId === m._id) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    if (keepSelection && prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
 // ─── Опасные действия ──────────────────────────────────────────────────────
@@ -1208,7 +1305,13 @@ function clearLogo() {
 }
 
 function initLogoPreview(logoUrl) {
-    if (!logoUrl) return;
+    if (!logoUrl) {   // логотипа нет (или его удалили) — возвращаем заглушку
+        const p = document.getElementById("logoPreview");
+        if (p) p.innerHTML = iconSvg("shield");
+        const d = document.getElementById("logoDeleteBtn");
+        if (d) d.style.display = "none";
+        return;
+    }
     const preview = document.getElementById("logoPreview");
     if (preview) {
         preview.innerHTML = `<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML=iconSvg('shield')">`;
@@ -1277,7 +1380,7 @@ async function changeRole(userId, newRole) {
         const data = await res.json();
         if (!res.ok) return showToast(data.error, "err");
         showToast("Роль изменена", "ok");
-        setTimeout(() => location.reload(), 700);
+        await refreshTeamInPlace("soft");
     } catch { showToast("Ошибка сети", "err"); }
 }
 
@@ -1288,7 +1391,7 @@ async function transferCaptain(userId) {
         const data = await res.json();
         if (!res.ok) return showToast(data.error, "err");
         showToast("Капитанство передано", "ok");
-        setTimeout(() => location.reload(), 700);
+        await refreshTeamInPlace("soft");
     } catch { showToast("Ошибка сети", "err"); }
 }
 
@@ -1299,7 +1402,7 @@ async function kickMember(userId) {
         const data = await res.json();
         if (!res.ok) return showToast(data.error, "err");
         showToast("Игрок исключён", "ok");
-        setTimeout(() => location.reload(), 700);
+        await refreshTeamInPlace("soft");
     } catch { showToast("Ошибка сети", "err"); }
 }
 
@@ -1361,7 +1464,13 @@ async function saveTeamSettings() {
         const data = await res.json();
         if (!res.ok) { errEl.textContent = data.error; errEl.style.display = ""; return; }
         showToast("Настройки сохранены", "ok");
-        setTimeout(() => location.reload(), 800);
+        // Настройки сохранены — перерисовываем страницу на месте, форму заполняем сохранёнными значениями
+        _pendingLogoUrl = null;
+        const fn = document.getElementById("logoFileName");
+        if (fn) fn.textContent = "Файл не выбран · до 2 МБ";
+        const fi = document.getElementById("logoFileInput");
+        if (fi) fi.value = "";
+        await refreshTeamInPlace("form");
     } catch {
         showToast("Ошибка сети", "err");
     }
